@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}JD Centre • Career Crox CRM{% endblock %}
+{% block page_title %}JD Centre{% endblock %}
+{% block page_subtitle %}Payout-first view with status boxes, date mood, and filters recruiters actually need{% endblock %}
+{% block content %}
+<div class="page-accent-strip jd-strip"><span>JD Filters + Table</span><span>Open, closed, date mood boxes, recruiter-friendly filtering</span></div>
+<div class="stats-row top-gap-small mini-stats-row">
+  <div class="mini-stat-box glow-box"><span>Open</span><strong>{{ jds|selectattr('status','equalto','Open')|list|length }}</strong></div>
+  <div class="mini-stat-box glow-box"><span>Closed</span><strong>{{ jds|selectattr('status','equalto','Closed')|list|length }}</strong></div>
+  <div class="mini-stat-box glow-box"><span>Will Start</span><strong>2026-03-18</strong></div>
+  <div class="mini-stat-box glow-box"><span>Will End</span><strong>2026-04-30</strong></div>
+</div>
+<div class="table-panel top-gap glassy-card">
+    <div class="table-toolbar compact-toolbar">
+        <form method="GET" class="toolbar-actions filter-bar">
+            <input class="inline-input" type="text" name="q" value="{{ q }}" placeholder="Search JD code / title / location">
+            <select class="inline-input" name="status"><option value="">All Status</option>{% for s in status_choices %}<option value="{{ s }}" {% if status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}</select>
+            <button class="ghost-btn bounceable" type="submit">Apply Filters</button>
+        </form>
+        <div class="toolbar-actions"><button class="mini-btn edit bounceable" type="button" data-demo-modal="jd-modal">Add JD</button></div>
+    </div>
+    <div class="crm-table-wrap dense-wrap">
+        <table class="crm-table colorful-table dense-table">
+            <thead>
+                <tr>
+                    <th><input type="checkbox" class="select-all"></th>
+                    <th>JD Code</th><th>Title</th><th>Location</th><th>Experience</th><th>Payout</th><th>Payout Days</th><th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for jd in jds %}
+                <tr>
+                    <td><input type="checkbox" class="row-check"></td>
+                    <td><strong>{{ jd['code'] }}</strong></td>
+                    <td>{{ jd['title'] }}</td>
+                    <td>{{ jd['location'] }}</td>
+                    <td>{{ jd['experience_required'] }}</td>
+                    <td>₹{{ jd['payout'] }}</td>
+                    <td>{{ jd['payout_days'] }}</td>
+                    <td><span class="status-chip">{{ jd['status'] }}</span></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

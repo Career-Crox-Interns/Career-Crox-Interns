@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ active_theme }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Career Crox CRM{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="brand-box glassy-card">
+            <div class="brand-logo-row">
+                <img class="brand-logo-icon" src="{{ url_for('static', filename='img/career-crox-icon.svg') }}" alt="Career Crox">
+                <div>
+                    <div class="brand-mini">Welcome to</div>
+                    <div class="brand-wordmark">Career Crox</div>
+                </div>
+            </div>
+            <div class="brand-title">Luxury Hiring Command Center</div>
+            <div class="brand-sub">Premium orange-blue theme, live hiring ops feel, and strong company branding that actually looks like Career Crox.</div>
+        </div>
+        <nav class="sidebar-nav">
+            {% for label, endpoint, kwargs in sidebar_items %}
+                {% set link = url_for(endpoint, **kwargs) %}
+                {% set active = request.path == link or (endpoint == 'module_page' and request.path.startswith('/module/' ~ kwargs.get('slug'))) %}
+                <a class="nav-item {% if active %}active{% endif %} bounceable" href="{{ link }}"><span>{{ label }}</span></a>
+            {% endfor %}
+        </nav>
+        <div class="theme-panel glassy-card">
+            <div class="theme-heading">Theme Box</div>
+            <div class="theme-grid">
+                <button class="theme-dot theme-corporate-light active-theme" data-theme="corporate-light" title="Corporate Light"></button>
+                <button class="theme-dot theme-ocean" data-theme="ocean" title="Ocean"></button>
+                <button class="theme-dot theme-rose" data-theme="rose" title="Rose"></button>
+                <button class="theme-dot theme-mint" data-theme="mint" title="Mint"></button>
+                <button class="theme-dot theme-sunset" data-theme="sunset" title="Sunset"></button>
+                <button class="theme-dot theme-lavender" data-theme="lavender" title="Lavender"></button>
+                <button class="theme-dot theme-dark-pro" data-theme="dark-pro" title="Dark Pro"></button>
+                <button class="theme-dot theme-dark-midnight" data-theme="dark-midnight" title="Dark Midnight"></button>
+                <button class="theme-dot theme-dark-vscode" data-theme="dark-vscode" title="Dark VSCode"></button>
+                <button class="theme-dot theme-silver-pro" data-theme="silver-pro" title="Silver Pro"></button>
+            </div>
+            <div class="theme-labels"><span>Luxury themes</span><span>per user</span></div>
+        </div>
+    </aside>
+    <main class="main-wrap">
+        <header class="topbar">
+            <div class="topbar-left">
+                <div class="topbar-title topbar-brand-title"><img class="topbar-logo" src="{{ url_for('static', filename='img/career-crox-icon.svg') }}" alt="Career Crox"><span>{% block page_title %}Career Crox Luxury Dashboard{% endblock %}</span></div>
+                <div class="topbar-sub">{% block page_subtitle %}Premium recruiter workspace for Career Crox Interns{% endblock %}</div>
+            </div>
+            <div class="topbar-center">
+                <form class="search-box glassy-card" method="GET" action="{{ url_for('candidates') }}">
+                    <input type="text" name="q" placeholder="Search candidate, JD code, status, location..." value="{{ request.args.get('q', '') }}">
+                    <button class="ghost-btn bounceable" type="submit">Search</button>
+                </form>
+            </div>
+            <div class="topbar-right">
+                <div class="top-action-wrap">
+                    {% set on_dashboard = request.path == url_for('dashboard') %}
+                    {% set on_candidates = request.path == url_for('candidates') %}
+                    {% set on_tasks = request.path == url_for('tasks') %}
+                    {% set on_jds = request.path == url_for('jds') %}
+                    {% set on_interviews = request.path == url_for('interviews') %}
+                    {% set on_social = request.path == url_for('module_page', slug='social-career-crox') %}
+                    {% set on_meeting = request.path == url_for('module_page', slug='meeting-room') %}
+                    {% if on_dashboard %}
+                    <button class="add-profile-btn bounceable" type="button" id="addMenuButton">Add</button>
+                    <div class="add-menu glassy-card" id="addMenuPanel">
+                        <a href="#" data-demo-modal="candidate-modal">＋ Add Candidate</a>
+                        <a href="#" data-demo-modal="task-modal">＋ Add Task</a>
+                        <a href="#" data-demo-modal="jd-modal">＋ Add JD</a>
+                        <a href="#" data-demo-modal="interview-modal">＋ Add Interview</a>
+                        <a href="#" data-demo-modal="post-modal">＋ Schedule Post</a>
+                        <a href="#" data-demo-modal="meeting-modal">＋ Create Meeting</a>
+                    </div>
+                    {% elif on_candidates %}
+                    <button class="add-profile-btn bounceable" type="button" data-demo-modal="candidate-modal">Add Candidate</button>
+                    {% elif on_tasks %}
+                    <button class="add-profile-btn bounceable" type="button" data-demo-modal="task-modal">Add Task</button>
+                    {% elif on_jds %}
+                    <button class="add-profile-btn bounceable" type="button" data-demo-modal="jd-modal">Add JD</button>
+                    {% elif on_interviews %}
+                    <button class="add-profile-btn bounceable" type="button" data-demo-modal="interview-modal">Add Interview</button>
+                    {% elif on_social %}
+                    <button class="add-profile-btn bounceable" type="button" data-demo-modal="post-modal">Schedule Post</button>
+                    {% elif on_meeting %}
+                    <button class="add-profile-btn bounceable" type="button" data-demo-modal="meeting-modal">Create Meeting</button>
+                    {% else %}
+                    <button class="add-profile-btn bounceable" type="button" data-demo-modal="candidate-modal">Quick Add</button>
+                    {% endif %}
+                </div>
+                <a class="top-pill bounceable" href="{{ url_for('notifications_page') }}">Notifications <span class="pill-count">{{ unread_notifications }}</span></a>
+                <a class="top-pill bounceable" href="{{ url_for('chat_page') }}">Chat</a>
+                {% if current_user_data %}
+                <div class="user-chip glassy-card">
+                    <div class="user-name">{{ current_user_data['full_name'] }}</div>
+                    <div class="user-role">{{ current_user_data['designation'] }}</div>
+                    {% if session.get('impersonator') %}<div class="impersonation-line">Manager view as team member</div>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </header>
+        <section class="page-scroll">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-stack">
+                        {% for category, message in messages %}
+                            <div class="flash {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </section>
+    </main>
+</div>
+
+<div class="demo-modal-shell" id="demoModalShell">
+  <div class="demo-modal glassy-card" id="demoModalBox">
+    <div class="demo-modal-top"><div class="panel-title" id="demoModalTitle">Quick Add</div><button class="ghost-btn" id="demoModalClose" type="button">Close</button></div>
+    <div class="demo-modal-body" id="demoModalBody"></div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/themes.js') }}"></script>
+<script>
+const addBtn = document.getElementById('addMenuButton');
+const addPanel = document.getElementById('addMenuPanel');
+if(addBtn && addPanel){
+  addBtn.addEventListener('click', (e)=>{ e.stopPropagation(); addPanel.classList.toggle('show'); });
+  document.addEventListener('click', (e)=>{ if(!addPanel.contains(e.target) && e.target !== addBtn){ addPanel.classList.remove('show'); }});
+}
+
+function wireSelectAll(context=document){
+  context.querySelectorAll('.select-all').forEach(master=>{
+    if(master.dataset.bound) return;
+    master.dataset.bound = '1';
+    master.addEventListener('change', ()=>{
+      const table = master.closest('table');
+      if(!table) return;
+      table.querySelectorAll('.row-check').forEach(cb => cb.checked = master.checked);
+      table.querySelectorAll('tbody tr').forEach(tr => tr.classList.toggle('selected-row', master.checked));
+      document.dispatchEvent(new CustomEvent('rowSelectionChanged'));
+    });
+  });
+  context.querySelectorAll('.row-check').forEach(cb=>{
+    if(cb.dataset.bound) return;
+    cb.dataset.bound='1';
+    cb.addEventListener('change', ()=>{
+      const tr = cb.closest('tr');
+      if(tr) tr.classList.toggle('selected-row', cb.checked);
+      document.dispatchEvent(new CustomEvent('rowSelectionChanged'));
+    });
+  });
+}
+wireSelectAll(document);
+
+
+const DEMO_FORMS = {
+  'candidate-modal': {title:'Add Candidate', html:`
+    <form method="POST" action="{{ url_for('create_candidate') }}">
+      <div class="field"><label>Name</label><input name="full_name" placeholder="Candidate name" required></div>
+      <div class="field"><label>Phone</label><input name="phone" placeholder="10 digit phone" required></div>
+      <div class="field"><label>Location</label><input name="location" placeholder="City"></div>
+      <div class="field"><label>Experience</label><input name="experience" placeholder="6 months / 1 year"></div>
+      <div class="field"><label>Qualification</label><input name="qualification" placeholder="B.A. / 12th"></div>
+      <div class="field"><label>Process</label><input name="process" placeholder="Airtel / Internship"></div>
+      <div class="field"><label>Recruiter Code</label><input name="recruiter_code" placeholder="RC-101"></div>
+      <div class="field"><label>Status</label><input name="status" placeholder="New"></div>
+      <div class="field"><label>Notes</label><textarea name="notes" placeholder="Quick note"></textarea></div>
+      <button class="submit-btn bounceable" type="submit">Save Candidate</button>
+    </form>`},
+  'task-modal': {title:'Add Task', html:`
+    <form method="POST" action="{{ url_for('create_task') }}">
+      <div class="field"><label>Task title</label><input name="title" placeholder="Task name" required></div>
+      <div class="field"><label>Assigned Username</label><input name="assigned_to_username" placeholder="recruiter.01 / tl.noida" required></div>
+      <div class="field"><label>Description</label><textarea name="description" placeholder="Task details"></textarea></div>
+      <div class="field"><label>Priority</label><input name="priority" placeholder="High / Normal"></div>
+      <div class="field"><label>Status</label><input name="status" placeholder="Open"></div>
+      <div class="field"><label>Due Date</label><input name="due_date" placeholder="YYYY-MM-DD"></div>
+      <button class="submit-btn bounceable" type="submit">Save Task</button>
+    </form>`},
+  'jd-modal': {title:'Add JD', html:`
+    <form method="POST" action="{{ url_for('create_jd') }}">
+      <div class="field"><label>Job Title</label><input name="job_title" placeholder="Role title" required></div>
+      <div class="field"><label>Company</label><input name="company" placeholder="Airtel / Razorpay" required></div>
+      <div class="field"><label>Location</label><input name="location" placeholder="Noida"></div>
+      <div class="field"><label>Experience</label><input name="experience" placeholder="0-1 year"></div>
+      <div class="field"><label>Salary</label><input name="salary" placeholder="16K-22K"></div>
+      <div class="field"><label>Notes</label><textarea name="notes" placeholder="JD notes"></textarea></div>
+      <button class="submit-btn bounceable" type="submit">Save JD</button>
+    </form>`},
+  'interview-modal': {title:'Add Interview', html:`
+    <form method="POST" action="{{ url_for('create_interview') }}">
+      <div class="field"><label>Candidate ID</label><input name="candidate_id" placeholder="C001" required></div>
+      <div class="field"><label>JD ID</label><input name="jd_id" placeholder="J001"></div>
+      <div class="field"><label>Stage</label><input name="stage" placeholder="Screening / Final"></div>
+      <div class="field"><label>Time</label><input name="scheduled_at" placeholder="YYYY-MM-DD HH:MM" required></div>
+      <button class="submit-btn bounceable" type="submit">Save Interview</button>
+    </form>`},
+  'post-modal': {title:'Schedule Post', html:`<div class="field"><label>Platform</label><input placeholder="LinkedIn / Instagram"></div><div class="field"><label>Caption</label><textarea placeholder="Post copy"></textarea></div><button class="submit-btn bounceable" type="button" onclick="demoSave('Social scheduler preview opened.')">Preview Schedule Post</button>`},
+  'meeting-modal': {title:'Create Meeting', html:`<div class="field"><label>Meeting title</label><input placeholder="North team sync"></div><div class="field"><label>Invite users</label><input placeholder="rec1, rec2, tlnorth"></div><button class="submit-btn bounceable" type="button" onclick="demoSave('Meeting creator preview opened.')">Preview Create Meeting</button>`}
+};
+const demoShell=document.getElementById('demoModalShell');
+const demoBox=document.getElementById('demoModalBox');
+const demoTitle=document.getElementById('demoModalTitle');
+const demoBody=document.getElementById('demoModalBody');
+const demoClose=document.getElementById('demoModalClose');
+function openDemoModal(key){ const d=DEMO_FORMS[key]; if(!d) return; demoTitle.textContent=d.title; demoBody.innerHTML=d.html; demoShell.classList.add('show'); }
+function demoSave(msg){ alert(msg); }
+window.demoSave = demoSave;
+document.querySelectorAll('[data-demo-modal]').forEach(el=> el.addEventListener('click', (e)=>{ e.preventDefault(); openDemoModal(el.dataset.demoModal); if(addPanel) addPanel.classList.remove('show'); }));
+if(demoClose) demoClose.addEventListener('click', ()=> demoShell.classList.remove('show'));
+if(demoShell) demoShell.addEventListener('click', (e)=>{ if(e.target===demoShell) demoShell.classList.remove('show'); });
+
+</script>
+<script>
+(function(){
+  const html = document.documentElement;
+  document.querySelectorAll('[data-theme]').forEach(btn => {
+    btn.addEventListener('click', function(){
+      const theme = this.dataset.theme;
+      fetch("{{ url_for('save_theme') }}", {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({theme})
+      }).catch(()=>{});
+    });
+  });
+})();
+</script>
+{% block scripts %}{% endblock %}
+
+</body>
+</html>

@@ -1,0 +1,38 @@
+
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ active_theme if active_theme else 'corporate-light' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Preview • Career Crox CRM</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-body">
+<div class="preview-wrap">
+    <div class="panel">
+        <div class="panel-title">Career Crox Luxury CRM Preview</div>
+        <div class="bullet-grid">
+            <div>Flask + Supabase-ready backend + HTML/CSS/JS</div>
+            <div>GitHub + Render + Supabase stack</div>
+            <div>10 sample candidates / JDs / submissions / interviews / tasks</div>
+            <div>Public notes with recruiter + manager notifications</div>
+            <div>Private notes with manager visibility</div>
+            <div>Internal chat, theme manager, and modal create flows</div>
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-title">Sample Logins</div>
+        <div class="small-grid two">
+            {% for user in demo_users %}
+            <div class="mini-card">
+                <div class="mini-title">{{ user['full_name'] }}</div>
+                <div class="mini-sub">{{ user['designation'] }}</div>
+                <div class="mini-meta">{{ user['username'] }} / {{ user['password'] }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+<script src="{{ url_for('static', filename='js/themes.js') }}"></script>
+</body>
+</html>

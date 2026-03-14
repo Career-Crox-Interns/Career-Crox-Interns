@@ -1,0 +1,14 @@
+PREVIEW GUIDE
+
+1. Open /preview without login to view sample credentials.
+2. Login as manager1 / demo123 for full access.
+3. Open candidate CAND-001 to test:
+   - public notes
+   - private notes
+   - last 5 note history
+   - expand all notes
+   - related notifications
+4. Login as tlnorth / demo123 to verify notification visibility.
+5. Login as rec1 / demo123 to verify personal note visibility is restricted.
+6. Theme box is in the left sidebar.
+7. Module previews exist for Dialer, Meeting Room, Learning Hub, Social Career Crox, Wallet & Rewards, Payout Tracker, and Reports.

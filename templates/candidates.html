@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% block title %}Candidates • Career Crox CRM{% endblock %}
+{% block page_title %}Candidates{% endblock %}
+{% block page_subtitle %}Dense recruiter table, bulk call queue, notes access, and ownership filters{% endblock %}
+{% block content %}
+<div class="page-accent-strip candidate-strip"><span>Candidate Control Table</span><span>Bulk actions, select-all, recruiter filter, draggable columns, quick actions</span></div>
+<div class="table-panel top-gap-small glassy-card">
+  <div class="table-toolbar compact-toolbar">
+    <form method="GET" class="toolbar-actions filter-bar">
+      <input class="inline-input" type="text" name="q" value="{{ q }}" placeholder="Search candidate / phone / JD">
+      <select class="inline-input" name="recruiter">
+        <option value="">All Recruiter Codes</option>
+        {% for r in recruiters %}<option value="{{ r['username'] }}" {% if current_recruiter==r['username'] %}selected{% endif %}>{{ r['username'] }} • {{ r['full_name'] }}</option>{% endfor %}
+      </select>
+      <select class="inline-input" name="status">
+        <option value="">All Status</option>
+        {% for s in statuses %}<option value="{{ s }}" {% if current_status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+      <button class="ghost-btn bounceable" type="submit">Apply Filters</button>
+    </form>
+    <div class="toolbar-actions">
+      <a class="mini-btn view bounceable" href="{{ url_for('submissions') }}">Submissions</a>
+      <a class="mini-btn edit bounceable" href="{{ url_for('interviews') }}">Interviews</a>
+      <button class="mini-btn call bounceable" type="button" data-demo-modal="candidate-modal">Add Candidate</button>
+    </div>
+  </div>
+</div>
+
+<div class="bulk-dialer glassy-card" id="candidateBulkBar">
+  <div><strong id="bulkSelectedCount">0 selected</strong><span class="subtle inline-subtle"> Select candidates and the dialer queue wakes up.</span></div>
+  <div class="toolbar-actions">
+    <button class="mini-btn call bounceable" type="button" id="bulkOpenDialer">Start Auto Dialer</button>
+    <button class="mini-btn wa bounceable" type="button" id="bulkWhatsApp">Open WhatsApp Queue</button>
+    <button class="mini-btn view bounceable" type="button" id="bulkClear">Clear</button>
+  </div>
+</div>
+
+<div class="table-panel top-gap glassy-card">
+    <div class="table-toolbar">
+        <div>
+            <div class="table-title">Candidate Pipeline</div>
+            <div class="subtle">Dense recruiter listing for faster scanning. Query: {{ q or 'All' }}</div>
+        </div>
+        <div class="toolbar-actions compact-pills">
+            <span class="mini-chip">Rows: {{ candidates|length }}</span>
+            <span class="mini-chip">Columns draggable</span>
+            <span class="mini-chip">Call + WA always visible</span>
+        </div>
+    </div>
+    <div class="crm-table-wrap dense-wrap">
+        <table class="crm-table colorful-table dense-table draggable-table" id="candidateTable">
+            <thead>
+                <tr>
+                    <th class="drag-col"><input type="checkbox" class="select-all"></th>
+                    <th draggable="true">Name</th>
+                    <th draggable="true">Phone</th>
+                    <th draggable="true">Location</th>
+                    <th draggable="true">Experience</th>
+                    <th draggable="true">Status</th>
+                    <th draggable="true">Recruiter Code</th>
+                    <th draggable="true">Recruiter</th>
+                    <th draggable="true">TL</th>
+                    <th draggable="true">JD</th>
+                    <th class="sticky-action-col">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in candidates %}
+                <tr data-phone="{{ c['phone'] }}" data-name="{{ c['full_name'] }}" data-code="{{ c['code'] }}">
+                    <td><input type="checkbox" class="row-check"></td>
+                    <td><strong>{{ c['full_name'] }}</strong><div class="tiny-meta">{{ c['code'] }}</div></td>
+                    <td>{{ c['phone'] }}</td>
+                    <td>{{ c['location'] }}</td>
+                    <td>{{ c['experience'] }}</td>
+                    <td><span class="status-chip">{{ c['status'] }}</span></td>
+                    <td><span class="mini-chip soft">{{ c['recruiter_code'] }}</span></td>
+                    <td>{{ c['recruiter_name'] }}</td>
+                    <td>{{ c['tl_name'] }}</td>
+                    <td>{{ c['jd_title'] }}</td>
+                    <td class="sticky-actions-cell">
+                        <div class="icon-actions nowrap-actions">
+                            <a class="icon-btn call bounceable" href="tel:+91{{ c['phone'] }}" title="Call">☎</a>
+                            <a class="icon-btn wa bounceable" target="_blank" href="https://wa.me/91{{ c['phone'] }}" title="WhatsApp">✆</a>
+                            <a class="icon-btn edit bounceable" href="{{ url_for('candidate_detail', candidate_code=c['code']) }}" title="Edit / Notes">✎</a>
+                            <a class="icon-btn view bounceable" href="{{ url_for('candidate_detail', candidate_code=c['code']) }}" title="Profile View">◉</a>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="11">No candidates found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="floating-dialer glassy-card" id="floatingDialer">
+  <div class="dialer-head">
+    <div>
+      <div class="panel-title dialer-title">Auto Dialer Bot</div>
+      <div class="subtle" id="dialerMeta">Select candidates to begin the queue.</div>
+    </div>
+    <button class="ghost-btn" type="button" id="closeDialer">Close Dialer</button>
+  </div>
+  <div class="dialer-now" id="dialerNow">No candidate selected yet.</div>
+  <div class="dialer-timer" id="dialerTimer">5</div>
+  <div class="toolbar-actions dialer-actions-row">
+    <button class="add-profile-btn bounceable" type="button" id="startAutoDialer">Start Auto Dialer</button>
+    <a class="mini-btn call bounceable" href="#" id="manualCallLink">Dial Call</a>
+    <a class="mini-btn wa bounceable" href="#" target="_blank" id="manualWaLink">Let's WhatsApp</a>
+    <button class="mini-btn edit bounceable" type="button" id="markConnected">Connected ✓</button>
+    <button class="mini-btn view bounceable" type="button" id="nextCallBtn">Next Call</button>
+    <button class="mini-btn edit bounceable" type="button" id="pauseAutoDialer">Pause</button>
+  </div>
+  <div class="subtle">Demo flow: after each dial, WhatsApp opens next, then the queue moves forward. Browser automation has limits because apparently security matters.</div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function(){
+  const table = document.getElementById('candidateTable');
+  const bulkBar = document.getElementById('candidateBulkBar');
+  const selectedCount = document.getElementById('bulkSelectedCount');
+  const dialer = document.getElementById('floatingDialer');
+  const dialerNow = document.getElementById('dialerNow');
+  const dialerMeta = document.getElementById('dialerMeta');
+  const dialerTimer = document.getElementById('dialerTimer');
+  const startBtn = document.getElementById('startAutoDialer');
+  const nextBtn = document.getElementById('nextCallBtn');
+  const pauseBtn = document.getElementById('pauseAutoDialer');
+  const closeBtn = document.getElementById('closeDialer');
+  const callLink = document.getElementById('manualCallLink');
+  const waLink = document.getElementById('manualWaLink');
+  const openDialer = document.getElementById('bulkOpenDialer');
+  const openWa = document.getElementById('bulkWhatsApp');
+  const clearBtn = document.getElementById('bulkClear');
+  let queue = []; let idx = 0; let timer = null; let countdown = 5;
+  function getSelected(){
+    return [...table.querySelectorAll('tbody tr')].filter(tr=> tr.querySelector('.row-check')?.checked).map(tr=>({phone:tr.dataset.phone,name:tr.dataset.name,code:tr.dataset.code}));
+  }
+  function syncSelection(){
+    queue = getSelected();
+    selectedCount.textContent = `${queue.length} selected`;
+    bulkBar.classList.toggle('show', queue.length>0);
+    if(queue.length){ dialerMeta.textContent = `${queue.length} candidate queue ready. Zoom-in dialer mode armed.`; }
+  }
+  function renderCurrent(){
+    if(!queue.length){ dialerNow.textContent='No candidate selected yet.'; dialerMeta.textContent='Select candidates to begin the queue.'; callLink.href='#'; waLink.href='#'; return; }
+    if(idx >= queue.length) idx = 0;
+    const c = queue[idx];
+    dialerNow.innerHTML = `<strong>${c.name}</strong> · ${c.phone} · ${c.code}`;
+    dialerMeta.textContent = `Queue ${idx+1} of ${queue.length}. Connected profile should open, then WhatsApp, then next call.`;
+    callLink.href = `tel:+91${c.phone}`;
+    waLink.href = `https://wa.me/91${c.phone}`;
+  }
+  function showDialer(){ dialer.classList.add('show'); renderCurrent(); }
+  function stepTimer(){
+    clearInterval(timer); countdown = 5; dialerTimer.textContent = countdown;
+    timer = setInterval(()=>{
+      countdown -= 1; dialerTimer.textContent = countdown;
+      if(countdown <= 0){ clearInterval(timer); if(callLink.href && callLink.href !== '#') window.location.href = callLink.href; setTimeout(()=>{ if(waLink.href && waLink.href !== '#') window.open(waLink.href, '_blank'); }, 1200); }
+    },1000);
+  }
+  document.addEventListener('rowSelectionChanged', syncSelection);
+  openDialer?.addEventListener('click', ()=>{ syncSelection(); showDialer(); stepTimer(); });
+  openWa?.addEventListener('click', ()=>{ syncSelection(); showDialer(); if(waLink.href && waLink.href !== '#') window.open(waLink.href, '_blank'); });
+  startBtn?.addEventListener('click', ()=>{ syncSelection(); showDialer(); stepTimer(); });
+  nextBtn?.addEventListener('click', ()=>{ if(!queue.length) return; idx=(idx+1)%queue.length; renderCurrent(); stepTimer(); });
+  pauseBtn?.addEventListener('click', ()=> clearInterval(timer));
+  closeBtn?.addEventListener('click', ()=>{ clearInterval(timer); dialer.classList.remove('show'); });
+  clearBtn?.addEventListener('click', ()=>{ table.querySelectorAll('.row-check').forEach(cb=>cb.checked=false); document.querySelectorAll('.select-all').forEach(cb=>cb.checked=false); document.dispatchEvent(new CustomEvent('rowSelectionChanged')); dialer.classList.remove('show'); clearInterval(timer); });
+  document.getElementById('markConnected')?.addEventListener('click', ()=>{ alert('Connected marked for current candidate. Timeline and status hook can be wired to backend next.'); });
+  syncSelection();
+
+  // simple draggable columns
+  let dragIndex = null;
+  table.querySelectorAll('th[draggable="true"]').forEach((th, i)=>{
+    th.addEventListener('dragstart', ()=> dragIndex = th.cellIndex);
+    th.addEventListener('dragover', e=> e.preventDefault());
+    th.addEventListener('drop', ()=>{
+      const target = th.cellIndex;
+      if(dragIndex===null || dragIndex===target) return;
+      [...table.rows].forEach(row=>{
+        const cells=[...row.children];
+        row.insertBefore(cells[dragIndex], dragIndex < target ? cells[target].nextSibling : cells[target]);
+      });
+      dragIndex=null;
+    });
+  });
+})();
+</script>
+{% endblock %}
