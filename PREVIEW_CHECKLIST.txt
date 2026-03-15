@@ -1,0 +1,7 @@
+PREVIEW CHECKLIST
+
+- Open /login and verify hidden credentials and show password toggle.
+- Open /preview for deployment notes.
+- Confirm dashboard branding is professional.
+- Confirm notes save to Supabase.
+- Confirm Render health endpoint returns success.

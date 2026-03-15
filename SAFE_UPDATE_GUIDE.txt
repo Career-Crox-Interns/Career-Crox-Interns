@@ -1,0 +1,7 @@
+SAFE UPDATE GUIDE
+
+1. Updating this ZIP changes code files only. It does not delete Supabase data by itself.
+2. Do not upload .env or local SQLite files to GitHub.
+3. Keep /health as the Render health check path.
+4. Keep Render environment variables unchanged unless you intentionally rotate keys.
+5. Use the seed workbook only for fresh setup or local preview.

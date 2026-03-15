@@ -1,0 +1,38 @@
+LOCAL RUN STEPS (URDU)
+
+STEP 1
+ZIP extract karo.
+
+STEP 2
+Project folder open karo.
+
+STEP 3
+.env file check karo.
+Agar local mode me chalana hai to ye blank honi chahiye:
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+
+STEP 4
+Terminal kholo aur ye command chalao:
+py -m pip install -r requirements.txt
+
+STEP 5
+Phir app run karo:
+py app.py
+
+STEP 6
+Browser me kholo:
+http://127.0.0.1:5000
+
+STEP 7
+Demo login use karo:
+aaryansh.manager / Career@123
+
+STEP 8
+Local save check:
+Candidate ya task update karo.
+Uske baad data/career_crox_demo.db file ka modified time update hona chahiye.
+
+STEP 9
+Agar error aaye to terminal ki red lines dekho. Browser ka Internal Server Error text kaam ka nahin hota.
