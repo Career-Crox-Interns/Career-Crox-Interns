@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ active_theme if active_theme else 'corporate-light' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login • Career Crox CRM</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-body">
+    <div class="login-wrap single-login-wrap">
+        <div class="login-card login-card-pro centered-login-card">
+            <div class="login-brand-head centered-brand-head">
+                <img class="login-logo" src="{{ url_for('static', filename='img/career-crox-brand.png') }}" alt="Career Crox">
+            </div>
+            <div class="brand-mini">Secure Recruiter Workspace</div>
+            <h1>Sign in to Career Crox CRM</h1>
+            <p class="muted-copy">Use your assigned username and password to access the CRM workspace.</p>
+            <form method="POST" class="login-form">
+                <div class="field">
+                    <label>Username</label>
+                    <input type="text" name="username" placeholder="Enter username" autocomplete="username">
+                </div>
+                <div class="field">
+                    <label>Password</label>
+                    <div class="password-wrap">
+                        <input id="loginPassword" type="password" name="password" placeholder="Enter password" autocomplete="current-password">
+                        <button class="password-toggle" type="button" id="togglePassword">Show</button>
+                    </div>
+                </div>
+                <button class="submit-btn bounceable" type="submit">Login</button>
+            </form>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-stack">
+                        {% for category, message in messages %}
+                            <div class="flash {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+        </div>
+    </div>
+<script>
+const toggleBtn = document.getElementById('togglePassword');
+const pwd = document.getElementById('loginPassword');
+if (toggleBtn && pwd) {
+  toggleBtn.addEventListener('click', () => {
+    const isPwd = pwd.type === 'password';
+    pwd.type = isPwd ? 'text' : 'password';
+    toggleBtn.textContent = isPwd ? 'Hide' : 'Show';
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Approvals • Career Crox CRM{% endblock %}
+{% block page_title %}Approvals{% endblock %}
+{% block page_subtitle %}Unlock requests aur pending submission approvals ek jagah par{% endblock %}
+{% block content %}
+<div class="stats-row top-gap-small mini-stats-row">
+    <div class="mini-stat-box glow-box"><span>Unlock Requests</span><strong>{{ unlock_requests|length }}</strong></div>
+    <div class="mini-stat-box glow-box"><span>Submission Approvals</span><strong>{{ submissions|length }}</strong></div>
+    <div class="mini-stat-box glow-box"><span>Total Pending</span><strong>{{ (unlock_requests|length) + (submissions|length) }}</strong></div>
+</div>
+
+<div class="small-grid two top-gap attendance-layout-grid">
+  <div class="panel fade-up">
+    <div class="panel-title">Unlock Approval Requests</div>
+    <div class="activity-list">
+      {% for req in unlock_requests %}
+      <div class="activity-item unlock-item">
+        <div class="activity-left">
+          <div class="activity-name">{{ req['request_id'] }}</div>
+          <div class="activity-sub">{{ req['reason'] }}</div>
+          <div class="activity-sub">{{ req['requested_at'][:16].replace('T',' ') }}</div>
+        </div>
+        <div class="unlock-right">
+          <div class="badge pending">{{ req['status'] }}</div>
+          {% if current_user_data.role in ['manager','tl'] and req['status'] == 'Pending' %}
+          <div class="row-actions compact-row-actions">
+            <form method="POST" action="{{ url_for('attendance_unlock_decision', request_id=req['request_id'], decision='approve') }}"><button class="mini-btn call bounceable" type="submit">Approve</button></form>
+            <form method="POST" action="{{ url_for('attendance_unlock_decision', request_id=req['request_id'], decision='reject') }}"><button class="mini-btn edit bounceable" type="submit">Reject</button></form>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="helper-text">No unlock requests right now.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="panel fade-up">
+    <div class="panel-title">Submission Approval Requests</div>
+    <div class="activity-list">
+      {% for row in submissions %}
+      <div class="activity-item">
+        <div class="activity-left">
+          <div class="activity-name">{{ row['full_name'] }}</div>
+          <div class="activity-sub">{{ row['title'] }} • {{ row['recruiter_code'] }}</div>
+          <div class="activity-sub">{{ row['submitted_at_view'] }}</div>
+        </div>
+        <div class="unlock-right">
+          <div class="badge pending">{{ row['approval_status'] or row['status'] }}</div>
+          <div class="row-actions compact-row-actions">
+            <a class="mini-btn view bounceable" href="{{ url_for('candidate_detail', candidate_code=row['candidate_id']) }}">Open</a>
+            {% if current_user_data.role in ['manager','tl'] %}
+            <form method="POST" action="{{ url_for('submission_action', submission_id=row['submission_id'], action='approve') }}"><button class="mini-btn call bounceable" type="submit">Approve</button></form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="helper-text">No submission approvals pending.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}

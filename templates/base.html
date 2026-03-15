@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ active_theme }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Career Crox CRM{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="brand-box glassy-card compact-brand-box">
+            <div class="compact-brand-row">
+                <img class="compact-brand-logo" src="{{ url_for('static', filename='img/career-crox-brand-icon.png') }}" alt="Career Crox">
+                <div>
+                    <div class="brand-mini">Career Crox</div>
+                    <div class="brand-wordmark small-wordmark">Recruitment CRM</div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            {% set nav_order = ['Dashboard','Candidates','Submissions','Submission Slice','Interviews','Tasks','Attendance & Breaks','Reports','AI Operations','JD Centre','Dialer','Meeting Room','Learning Hub','Social Career Crox','Wallet & Rewards','Payout Tracker','Admin Control'] %}
+            {% for wanted in nav_order %}
+                {% for label, endpoint, kwargs in sidebar_items %}
+                    {% if label == wanted and label != "Let's Chit-Chat" %}
+                        {% set link = url_for(endpoint, **kwargs) %}
+                        {% set active = request.path == link or (endpoint == 'module_page' and request.path.startswith('/module/' ~ kwargs.get('slug'))) %}
+                        <a class="nav-item {% if active %}active{% endif %} bounceable {% if label in ['Wallet & Rewards', 'Payout Tracker', 'Admin Control'] %}manager-only-link{% endif %}" href="{{ link }}" {% if label in ['Wallet & Rewards', 'Payout Tracker', 'Admin Control'] %}data-manager-only="1"{% endif %}><span>{{ label }}</span></a>
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </nav>
+
+        <div class="theme-panel glassy-card prominent-theme-box">
+            <div class="theme-heading">Theme Studio</div>
+            <div class="theme-grid">
+                <button class="theme-dot theme-corporate-light active-theme" data-theme="corporate-light" title="Corporate Light"></button>
+                <button class="theme-dot theme-ocean" data-theme="ocean" title="Ocean"></button>
+                <button class="theme-dot theme-rose" data-theme="rose" title="Rose"></button>
+                <button class="theme-dot theme-mint" data-theme="mint" title="Mint"></button>
+                <button class="theme-dot theme-sunset" data-theme="sunset" title="Sunset"></button>
+                <button class="theme-dot theme-lavender" data-theme="lavender" title="Lavender"></button>
+                <button class="theme-dot theme-dark-pro" data-theme="dark-pro" title="Dark Pro"></button>
+                <button class="theme-dot theme-dark-midnight" data-theme="dark-midnight" title="Dark Midnight"></button>
+                <button class="theme-dot theme-dark-vscode" data-theme="dark-vscode" title="Dark VSCode"></button>
+                <button class="theme-dot theme-silver-pro" data-theme="silver-pro" title="Silver Pro"></button>
+                            </div>
+            <div class="theme-labels"><span>Select a preset</span><span>Preview updates instantly</span></div>
+            <div class="custom-theme-box">
+                <div class="custom-theme-title">Live Color Mixer</div>
+                <div class="custom-theme-grid">
+                    <label>Interface 1<input type="color" id="themeMixA" value="#ffb36b"></label>
+                    <label>Interface 2<input type="color" id="themeMixB" value="#6db7ff"></label>
+                    <label>Button 1<input type="color" id="themeBtnA" value="#5f7cff"></label>
+                    <label>Button 2<input type="color" id="themeBtnB" value="#f77f9b"></label>
+                </div>
+                <button class="ghost-btn bounceable custom-theme-reset" type="button" id="customThemeReset">Reset Mix</button>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-wrap">
+        <header class="topbar">
+            <div class="topbar-left">
+                <div class="topbar-title topbar-brand-title"><img class="topbar-logo" src="{{ url_for('static', filename='img/career-crox-brand-icon.png') }}" alt="Career Crox"><span>{% block page_title %}Career Crox Dashboard{% endblock %}</span></div>
+                <div class="topbar-sub">{% block page_subtitle %}Professional recruitment operations workspace{% endblock %}</div>
+            </div>
+            <div class="topbar-center">
+                <form class="search-box glassy-card" method="GET" action="{{ url_for('candidates') }}">
+                    <input type="text" name="q" placeholder="Search candidate, JD, phone, status" value="{{ request.args.get('q', '') }}">
+                    <button class="ghost-btn bounceable" type="submit">Search</button>
+                </form>
+            </div>
+            <div class="topbar-right">
+                <div class="top-action-wrap">
+                    <button class="add-profile-btn bounceable" type="button" id="addMenuButton">Quick Add</button>
+                    <div class="add-menu glassy-card professional-add-menu" id="addMenuPanel">
+                        <a href="#" data-quick-modal="candidate-modal">Add Candidate</a>
+                        <a href="#" data-quick-modal="task-modal">Add Task</a>
+                        <a href="#" data-quick-modal="jd-modal">Add JD</a>
+                        <a href="#" data-quick-modal="interview-modal">Add Interview</a>
+                        <a href="{{ url_for('submissions') }}">Open Submissions</a>
+                        <a href="{{ url_for('submission_slice') }}">Submission Slice</a>
+                        <a href="{{ url_for('reports_page') }}">Open Reports</a>
+                        <a href="{{ url_for('testing_ai_page') }}">AI Operations</a>
+                        <a href="{{ url_for('attendance_breaks') }}">Attendance &amp; Breaks</a>
+                    </div>
+                </div>
+                <a class="top-pill bounceable" href="{{ url_for('approvals_page') }}" data-pill="approvals">Approvals <span class="pill-count">{{ approval_requests_count }}</span></a>
+                <a class="top-pill bounceable" href="{{ url_for('notifications_page') }}" data-pill="notifications">Notifications <span class="pill-count">{{ unread_notifications }}</span></a>
+                <a class="top-pill bounceable" href="{{ url_for('chat_page') }}">Let's Chit-Chat</a>
+                {% if current_user_data %}
+                <div class="user-chip glassy-card user-chip-menu">
+                    <div>
+                        <div class="user-name">{{ current_user_data['full_name'] }}</div>
+                        <div class="user-role">{{ current_user_data['designation'] }}</div>
+                        {% if session.get('impersonator') %}<div class="impersonation-line">Viewing as team member</div>{% endif %}
+                    </div>
+                    <div class="user-chip-actions">
+                        {% if can_switch_back %}<a class="mini-btn view bounceable logout-mini" href="{{ url_for('stop_impersonation') }}">Back to head account</a>{% endif %}
+                        <a class="mini-btn edit bounceable logout-mini" href="{{ url_for('logout') }}">Logout</a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </header>
+
+        <section class="page-scroll">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-stack">
+                        {% for category, message in messages %}
+                            <div class="flash {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </section>
+    
+</main>
+</div>
+
+{% if current_lock_state.locked %}
+<div class="crm-lock-overlay show">
+  <div class="crm-lock-card glassy-card">
+    <div class="panel-title">CRM Locked</div>
+    <p>{{ current_lock_state.reason }}</p>
+    {% if current_lock_state.request_id %}<div class="helper-text">Request ID: {{ current_lock_state.request_id }}</div>{% endif %}
+    <div class="lock-late-box top-gap-small">
+      <span>Late running timer</span>
+      <strong id="lockLateTimer" data-requested-at="{{ current_lock_state.requested_at }}">00:00:00</strong>
+    </div>
+    <div class="helper-text top-gap-small">The timer shows how long the request has remained overdue.</div>
+    <div class="top-gap-small">
+      {% if current_lock_state.pending %}
+      <button class="submit-btn slim-btn muted-btn" type="button" disabled>Approval request sent</button>
+      {% else %}
+      <form method="POST" action="{{ url_for('attendance_request_unlock') }}">
+        <input type="hidden" name="reason" value="{{ current_lock_state.reason or 'Unlock approval requested from locked CRM popup' }}">
+        <button class="submit-btn bounceable slim-btn" type="submit">Request for approval</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if current_user_data %}
+<button class="aaria-fab bounceable" id="aariaFab" type="button"><img class="aaria-fab-avatar" src="{{ url_for('static', filename='img/aaria/idle-1.svg') }}" alt="Aaria"><span>Hey Aaria</span></button>
+<div class="aaria-shell" id="aariaShell">
+  <div class="aaria-card glassy-card">
+    <div class="aaria-head">
+      <div class="aaria-head-left">
+        <img id="aariaAvatar" class="aaria-avatar" src="{{ url_for('static', filename='img/aaria/idle-1.svg') }}" alt="Aaria">
+        <div>
+          <div class="panel-title">Aaria</div>
+          <div class="helper-text">A page-level assistant for profiles, tasks, calls, WhatsApp actions, and bulk operations.</div>
+        </div>
+      </div>
+      <button class="ghost-btn" type="button" id="aariaClose">Close</button>
+    </div>
+    <div class="aaria-body">
+      <div class="field accent-field">
+        <label>Name / Candidate ID / Serial / Phone</label>
+        <input id="aariaSerial" placeholder="Neha / 001 / C001 / phone last digits">
+      </div>
+      <div class="aaria-candidate-preview" id="aariaCandidatePreview">Profile preview will appear here. Enter a name, ID, or phone number to locate a candidate.</div>
+      <div class="field accent-field">
+        <label>Instruction</label>
+        <textarea id="aariaCommand" rows="4" placeholder="Enter one or multiple commands. Example: Call Neha; send a waiting message to C002 on WhatsApp; mark C003 as rejected; close T001"></textarea>
+      </div>
+      <div class="aaria-actions">
+        <button class="mini-btn view bounceable" type="button" id="aariaVoiceBtn">Voice</button>
+        <button class="mini-btn edit bounceable" type="button" id="aariaPreviewBtn">Preview</button>
+        <button class="mini-btn call bounceable" type="button" id="aariaRunBtn">Do It</button>
+      </div>
+      <div class="aaria-result" id="aariaResult">Aaria is ready.</div>
+      <div class="aaria-mini-help top-gap-small">
+        <span>Call Neha</span><span>Send a waiting message to C002 on WhatsApp</span><span>Reject C003</span><span>Close T001</span><span>Update C004 phone to 9876543211</span>
+      </div>
+      <div class="helper-text top-gap-small">Name ya ID dono chalenge. Semicolon, comma, and, ya aur se ek baar me multiple commands do.</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/themes.js') }}"></script>
+<script>
+const addBtn = document.getElementById('addMenuButton');
+const addPanel = document.getElementById('addMenuPanel');
+if (addBtn && addPanel) {
+  addBtn.addEventListener('click', (e) => { e.stopPropagation(); addPanel.classList.toggle('show'); });
+  document.addEventListener('click', (e) => { if (!addPanel.contains(e.target) && e.target !== addBtn) addPanel.classList.remove('show'); });
+}
+const DEMO_FORMS = {
+  'candidate-modal': {title:'Add Candidate', html:`<form method="POST" action="{{ url_for('create_candidate') }}" class="modal-grid-form wide-modal-grid"><div class="field accent-field"><label>Call Connected</label><select name="call_connected"><option value="">Select</option><option>Yes</option><option>No</option><option>Partially</option></select></div><div class="field accent-field"><label>Looking for Job</label><select name="looking_for_job"><option>Yes</option><option>No</option></select></div><div class="field accent-field"><label>Name</label><input name="full_name" placeholder="Candidate name" required></div><div class="field accent-field"><label>Phone</label><input name="phone" placeholder="10 digit phone" required></div><div class="field accent-field"><label>Qualification</label><input name="qualification" placeholder="Qualification"></div><div class="field accent-field"><label>Location</label><input name="location" placeholder="Current city"></div><div class="field accent-field"><label>Degree</label><select name="qualification_level"><option value="">Select</option><option>Non-Graduate</option><option>Graduate</option></select></div><div class="field accent-field"><label>Preferred Extra Location</label><select name="preferred_location_other"><option value="">Select</option><option>Mumbai</option><option>Bangalore</option><option>Chennai</option><option>Pune</option></select></div><div class="field accent-field"><label>Total Experience (months)</label><input name="total_experience" inputmode="numeric" placeholder="6"></div><div class="field accent-field"><label>Relevant Experience (months)</label><input name="relevant_experience" inputmode="numeric" placeholder="4"></div><div class="field accent-field"><label>In-hand Monthly</label><input name="in_hand_salary" inputmode="numeric" placeholder="18000"></div><div class="field accent-field"><label>CTC Monthly</label><input name="ctc_monthly" inputmode="numeric" placeholder="22000"></div><div class="field accent-field"><label>Career Gap</label><select name="career_gap"><option value="">Select</option><option>No Gap</option><option>Currently Working</option><option>0-3 Months</option><option>3-6 Months</option><option>6-12 Months</option><option>1+ Year</option></select></div><div class="field accent-field"><label>Interview Availability</label><select name="interview_availability"><option value="">Select</option><option>Immediate</option><option>Today</option><option>Tomorrow</option><option>This Week</option><option>After Notice Period</option></select></div><div class="field accent-field modal-span-2"><label>Preferred Primary Locations</label><div class="checkbox-stack small-checkbox-stack"><label><input type="checkbox" name="preferred_locations" value="Noida"> Noida</label><label><input type="checkbox" name="preferred_locations" value="Gurgaon"> Gurgaon</label></div></div><div class="field accent-field"><label>Process</label><input name="process" placeholder="Airtel / Blinkit"></div><div class="field accent-field"><label>Recruiter Code</label><input name="recruiter_code" placeholder="RC-201"></div><div class="field accent-field"><label>Status</label><input name="status" placeholder="Eligible"></div><div class="field accent-field"><label>All Details Sent</label><select name="all_details_sent"><option>Pending</option><option>Completed</option></select></div><div class="field accent-field modal-span-2"><label>Initial Note</label><textarea name="notes" placeholder="Add first note"></textarea></div><div class="modal-actions-bar modal-span-2"><button class="submit-btn bounceable" type="submit">Save Candidate</button></div></form>`},
+  'task-modal': {title:'Add Task', html:`<form method="POST" action="{{ url_for('create_task') }}" class="modal-grid-form wide-modal-grid compact-two-col"><div class="field accent-field modal-span-2"><label>Task title</label><input name="title" placeholder="Task name" required></div><div class="field accent-field modal-span-2"><label>Assigned Username / Name</label><input name="assigned_to_username" list="employeeSuggestions" placeholder="Type r, rabia, sakshi, RC code" required></div><div class="field accent-field modal-span-2"><label>Description</label><textarea name="description" placeholder="Task details"></textarea></div><div class="field accent-field"><label>Priority</label><select name="priority"><option>Normal</option><option>High</option><option>Low</option></select></div><div class="field accent-field"><label>Status</label><select name="status"><option>Open</option><option>Pending</option><option>Closed</option></select></div><div class="field accent-field modal-span-2"><label>Due Date & Time</label><input name="due_date" type="datetime-local"></div><div class="modal-actions-bar modal-span-2"><button class="submit-btn bounceable" type="submit">Save Task</button></div></form>`},
+  'jd-modal': {title:'Add JD', html:`<form method="POST" action="{{ url_for('create_jd') }}" enctype="multipart/form-data" class="modal-grid-form wide-modal-grid compact-two-col"><div class="field accent-field"><label>Job Title</label><input name="job_title" placeholder="Role title" required></div><div class="field accent-field"><label>Company</label><input name="company" placeholder="Client / process" required></div><div class="field accent-field"><label>Location</label><input name="location" placeholder="Noida"></div><div class="field accent-field"><label>Experience</label><input name="experience" placeholder="0-1 year"></div><div class="field accent-field"><label>Salary</label><input name="salary" placeholder="16K-22K"></div><div class="field accent-field"><label>Status</label><input name="jd_status" placeholder="Open"></div><div class="field accent-field modal-span-2"><label>Upload JD PDF</label><input name="jd_pdf" type="file" accept="application/pdf,.pdf"></div><div class="field accent-field modal-span-2"><label>Notes</label><textarea name="notes" placeholder="JD summary"></textarea></div><div class="modal-actions-bar modal-span-2"><button class="submit-btn bounceable" type="submit">Save JD</button></div></form>`},
+  'interview-modal': {title:'Add Interview', html:`<form method="POST" action="{{ url_for('create_interview') }}" class="modal-grid-form wide-modal-grid compact-two-col"><div class="field accent-field"><label>Candidate ID</label><input name="candidate_id" placeholder="C001" required></div><div class="field accent-field"><label>JD ID</label><input name="jd_id" placeholder="J001"></div><div class="field accent-field"><label>Stage</label><input name="stage" placeholder="Interview Scheduled"></div><div class="field accent-field"><label>Status</label><input name="status" placeholder="Scheduled"></div><div class="field accent-field modal-span-2"><label>Date & Time</label><input name="scheduled_at" type="datetime-local" required></div><div class="modal-actions-bar modal-span-2"><button class="submit-btn bounceable" type="submit">Save Interview</button></div></form>`}
+};
+const demoShell = document.getElementById('demoModalShell');
+const demoTitle = document.getElementById('demoModalTitle');
+const demoBody = document.getElementById('demoModalBody');
+const demoClose = document.getElementById('demoModalClose');
+function openDemoModal(key){ const d = DEMO_FORMS[key]; if(!d) return; demoTitle.textContent = d.title; demoBody.innerHTML = d.html; demoShell.classList.add('show'); }
+document.querySelectorAll('[data-quick-modal]').forEach(el => el.addEventListener('click', (e) => { e.preventDefault(); openDemoModal(el.dataset.quickModal || el.dataset.demoModal); if (addPanel) addPanel.classList.remove('show'); }));
+if (demoClose) demoClose.addEventListener('click', () => demoShell.classList.remove('show'));
+if (demoShell) demoShell.addEventListener('click', (e) => { if (e.target === demoShell) demoShell.classList.remove('show'); });
+document.querySelectorAll('[data-theme]').forEach(btn => { btn.addEventListener('click', function(){ fetch("{{ url_for('save_theme') }}", { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({theme: this.dataset.theme}) }).catch(() => {}); }); });
+function wireSelectAll(context=document) {
+  context.querySelectorAll('.select-all').forEach(master => {
+    if (master.dataset.bound) return; master.dataset.bound = '1';
+    master.addEventListener('change', () => { const table = master.closest('table'); if (!table) return; table.querySelectorAll('.row-check').forEach(cb => cb.checked = master.checked); table.querySelectorAll('tbody tr').forEach(tr => tr.classList.toggle('selected-row', master.checked)); });
+  });
+}
+wireSelectAll(document);
+function initConfigurableTables(){
+  const shell = document.getElementById('columnConfigShell'); const body = document.getElementById('columnConfigBody'); const title = document.getElementById('columnConfigTitle'); const closeBtn = document.getElementById('columnConfigClose'); if (!shell || !body) return;
+  const saveKey = (tableId) => `cc_cols_${tableId}`;
+  const readState = (table) => { const raw = localStorage.getItem(saveKey(table.id)); const headers = [...table.querySelectorAll('thead th')].map((th, idx) => ({ key: th.dataset.colKey || `col_${idx}`, label: th.dataset.colLabel || th.textContent.trim() || `Column ${idx + 1}`, width: parseInt(th.dataset.defaultWidth || th.offsetWidth || 140, 10) })); const fallback = {order: headers.map(h => h.key), hidden: [], widths: Object.fromEntries(headers.map(h => [h.key, h.width]))}; if (!raw) return fallback; try { const parsed = JSON.parse(raw); return { order: parsed.order || fallback.order, hidden: parsed.hidden || [], widths: Object.assign({}, fallback.widths, parsed.widths || {}) }; } catch(e){ return fallback; } };
+  const saveState = (table, state) => localStorage.setItem(saveKey(table.id), JSON.stringify(state));
+  const ensureBaseIndex = (table) => { table.querySelectorAll('tr').forEach(row => { [...row.children].forEach((cell, idx) => { if (!cell.dataset.baseIndex) cell.dataset.baseIndex = String(idx); if (row.parentElement.tagName === 'THEAD' && !cell.dataset.colKey) cell.dataset.colKey = `col_${idx}`; }); }); };
+  const applyState = (table, state) => { ensureBaseIndex(table); const order = state.order; table.querySelectorAll('tr').forEach(row => { const cells = [...row.children]; const cellByKey = {}; cells.forEach(cell => { const idx = parseInt(cell.dataset.baseIndex || '0', 10); const header = table.querySelector(`thead th[data-base-index="${idx}"]`) || table.querySelectorAll('thead th')[idx]; const key = header ? header.dataset.colKey : `col_${idx}`; cellByKey[key] = cell; }); order.forEach(key => { if (cellByKey[key]) row.appendChild(cellByKey[key]); }); order.forEach(key => { const cell = cellByKey[key]; if (!cell) return; const hidden = state.hidden.includes(key); cell.style.display = hidden ? 'none' : ''; const width = state.widths[key]; if (width) { cell.style.width = `${width}px`; cell.style.minWidth = `${width}px`; } }); }); };
+  function openConfig(tableId){ const table = document.getElementById(tableId); if (!table) return; const headers = [...table.querySelectorAll('thead th')].map((th, idx) => ({ key: th.dataset.colKey || `col_${idx}`, label: th.dataset.colLabel || th.textContent.trim() || `Column ${idx + 1}` })); let state = readState(table); applyState(table, state); title.textContent = `Columns • ${table.dataset.configTitle || tableId}`; const renderList = () => { body.innerHTML = ''; const wrap = document.createElement('div'); wrap.className = 'column-list-wrap'; state.order.forEach((key) => { const meta = headers.find(h => h.key === key); if (!meta) return; const item = document.createElement('div'); item.className = 'column-list-item'; item.draggable = true; item.dataset.key = key; item.innerHTML = `<div class="column-list-head"><span class="drag-handle">↕</span><label><input type="checkbox" ${state.hidden.includes(key) ? '' : 'checked'}> ${meta.label}</label></div><div class="column-width-box"><span>Width</span><input type="range" min="90" max="420" step="10" value="${state.widths[key] || 150}"><strong>${state.widths[key] || 150}px</strong></div>`; const checkbox = item.querySelector('input[type="checkbox"]'); const slider = item.querySelector('input[type="range"]'); const strong = item.querySelector('strong'); checkbox.addEventListener('change', () => { state.hidden = state.hidden.filter(v => v !== key); if (!checkbox.checked) state.hidden.push(key); applyState(table, state); saveState(table, state); }); slider.addEventListener('input', () => { state.widths[key] = parseInt(slider.value, 10); strong.textContent = `${slider.value}px`; applyState(table, state); saveState(table, state); }); item.addEventListener('dragstart', () => item.classList.add('dragging')); item.addEventListener('dragend', () => { item.classList.remove('dragging'); state.order = [...wrap.querySelectorAll('.column-list-item')].map(el => el.dataset.key); applyState(table, state); saveState(table, state); }); item.addEventListener('dragover', (e) => { e.preventDefault(); const dragging = wrap.querySelector('.dragging'); if (!dragging || dragging === item) return; const items = [...wrap.querySelectorAll('.column-list-item:not(.dragging)')]; const next = items.find(el => e.clientY <= el.getBoundingClientRect().top + el.offsetHeight / 2); if (next) wrap.insertBefore(dragging, next); else wrap.appendChild(dragging); }); wrap.appendChild(item); }); body.appendChild(wrap); const resetBtn = document.createElement('button'); resetBtn.type = 'button'; resetBtn.className = 'ghost-btn top-gap-small'; resetBtn.textContent = 'Reset View'; resetBtn.addEventListener('click', () => { localStorage.removeItem(saveKey(table.id)); state = readState(table); applyState(table, state); renderList(); }); body.appendChild(resetBtn); }; renderList(); shell.classList.add('show'); }
+  document.querySelectorAll('[data-configure-table]').forEach(btn => { btn.addEventListener('click', () => openConfig(btn.dataset.configureTable)); });
+  if (closeBtn) closeBtn.addEventListener('click', () => shell.classList.remove('show'));
+  shell.addEventListener('click', (e) => { if (e.target === shell) shell.classList.remove('show'); });
+  document.querySelectorAll('table[data-configurable-table]').forEach(table => { ensureBaseIndex(table); applyState(table, readState(table)); });
+}
+initConfigurableTables();
+if (window.location.pathname !== '/login') { const ping = () => { fetch("{{ url_for('attendance_ping') }}", { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({page: window.location.pathname}) }).then(r=>r.json()).then(data=>{ if(data && data.locked && !window.location.pathname.includes('/attendance')) { window.location.href='{{ url_for('attendance_breaks') }}'; } }).catch(() => {}); }; ping(); setInterval(ping, 60000); ['click','keydown','mousemove'].forEach(evt => window.addEventListener(evt, ping, {passive:true})); }
+const toast = document.getElementById('toastPop');
+function playGentleTone(){
+  try{
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if(!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(660, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.22);
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.38);
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.4);
+  }catch(e){}
+}
+const lockLateTimerEl = document.getElementById('lockLateTimer');
+if (lockLateTimerEl) {
+  const requestedAt = lockLateTimerEl.dataset.requestedAt ? new Date(String(lockLateTimerEl.dataset.requestedAt).replace(' ', 'T')) : null;
+  const renderLockLate = () => {
+    if (!requestedAt || String(requestedAt) === 'Invalid Date') { lockLateTimerEl.textContent = '00:00:00'; return; }
+    const diff = Math.max(0, Date.now() - requestedAt.getTime());
+    const hrs = String(Math.floor(diff / 3600000)).padStart(2, '0');
+    const mins = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+    const secs = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+    lockLateTimerEl.textContent = `${hrs}:${mins}:${secs}`;
+  };
+  renderLockLate();
+  setInterval(renderLockLate, 1000);
+}
+
+
+if (toast) { setTimeout(() => toast.classList.add('show'), 120); setTimeout(() => toast.classList.remove('show'), 3200); playGentleTone(); }
+const unreadCountEl = document.querySelector('[data-pill="notifications"] .pill-count');
+if (unreadCountEl) {
+  const key = 'cc_unread_notifications';
+  const currentCount = parseInt(unreadCountEl.textContent || '0', 10) || 0;
+  const lastCount = parseInt(sessionStorage.getItem(key) || '0', 10) || 0;
+  if (currentCount > lastCount) playGentleTone();
+  sessionStorage.setItem(key, String(currentCount));
+}
+
+(function(){
+  const fab=document.getElementById('aariaFab');
+  const shell=document.getElementById('aariaShell');
+  const closeBtn=document.getElementById('aariaClose');
+  const previewBtn=document.getElementById('aariaPreviewBtn');
+  const runBtn=document.getElementById('aariaRunBtn');
+  const voiceBtn=document.getElementById('aariaVoiceBtn');
+  const serialEl=document.getElementById('aariaSerial');
+  const cmdEl=document.getElementById('aariaCommand');
+  const resultEl=document.getElementById('aariaResult');
+  const previewEl=document.getElementById('aariaCandidatePreview');
+  const avatar=document.getElementById('aariaAvatar');
+  if(!fab||!shell) return;
+  const idleFrames=['idle-1.svg','idle-2.svg','idle-3.svg','idle-4.svg'];
+  let idleIndex=0; let hoverTimer=null;
+  setInterval(()=>{ if(shell.classList.contains('busy')) return; idleIndex=(idleIndex+1)%idleFrames.length; if(avatar) avatar.src=`{{ url_for('static', filename='img/aaria/') }}${idleFrames[idleIndex]}`; },2600);
+  function setAvatar(name){ if(avatar) avatar.src=`{{ url_for('static', filename='img/aaria/') }}${name}`; }
+  function openShell(){ shell.classList.add('show'); fab.classList.add('active'); }
+  function closeShell(){ shell.classList.remove('show'); fab.classList.remove('active'); }
+  fab.addEventListener('click', ()=> shell.classList.contains('show') ? closeShell() : openShell());
+  [fab,shell].forEach(el=>{ if(!el) return; el.addEventListener('mouseenter', ()=>{ clearTimeout(hoverTimer); openShell(); }); el.addEventListener('mouseleave', ()=>{ hoverTimer=setTimeout(()=>{ if(document.activeElement!==serialEl && document.activeElement!==cmdEl) closeShell(); }, 260); }); });
+  if(closeBtn) closeBtn.addEventListener('click', closeShell);
+  shell.addEventListener('click', (e)=>{ if(e.target===shell) closeShell(); });
+  async function resolveCandidate(){ const serial=(serialEl.value||'').trim(); if(!serial){ previewEl.textContent='Profile preview will appear here. Enter a name, ID, or phone number to locate a candidate.'; return; } try{ const r=await fetch(`{{ url_for('aaria_resolve') }}?serial=${encodeURIComponent(serial)}`); const data=await r.json(); if(data.ok){ previewEl.innerHTML=`<strong>${data.candidate.full_name}</strong> • ${data.candidate.candidate_id} • ${data.candidate.phone}<br><span class="helper-text">${data.candidate.status} • ${data.candidate.location}</span>`; } else { previewEl.textContent='Candidate not found yet.'; } }catch(e){ previewEl.textContent='Resolve failed.'; } }
+  serialEl && serialEl.addEventListener('change', resolveCandidate);
+  serialEl && serialEl.addEventListener('keyup', ()=>{ if((serialEl.value||'').length>=2) resolveCandidate(); });
+  function openActionLink(link){
+    if(!link) return;
+    const a = document.createElement('a');
+    a.href = link;
+    if(String(link).startsWith('http')) a.target = '_blank';
+    a.rel = 'noopener';
+    a.style.display='none';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  }
+  function renderBatch(data, mode){
+    const lines=[];
+    if(data.message) lines.push(data.message);
+    const results=data.batch_results || [];
+    if(results.length){
+      lines.push(results.map((item, idx)=> `${idx+1}. ${item.message || item.result_text || item.command || 'Done'}`).join(' | '));
+    }
+    resultEl.textContent = lines.join(' ');
+    if(mode!=='preview'){
+      const actionLinks = results.filter(item => item.action_link).map(item => item.action_link);
+      if(data.action_link) actionLinks.unshift(data.action_link);
+      actionLinks.forEach((link, idx) => setTimeout(()=>openActionLink(link), 120 * (idx + 1)));
+    }
+  }
+  async function run(mode){
+    const payload={serial:serialEl.value, command:cmdEl.value, mode};
+    shell.classList.add('busy'); setAvatar('thinking-1.svg'); resultEl.textContent='Aaria processing...';
+    try{
+      const r=await fetch('{{ url_for('aaria_execute') }}',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+      const data=await r.json();
+      renderBatch(data, mode);
+      if(data.candidate){ previewEl.innerHTML=`<strong>${data.candidate.full_name}</strong> • ${data.candidate.candidate_id} • ${data.candidate.phone}<br><span class="helper-text">${data.candidate.status} • ${data.candidate.location}</span>`; }
+      setAvatar((data.avatar_state==='call') ? 'call-1.svg' : (data.ok===false ? 'warning-1.svg' : (mode==='preview' ? 'thinking-2.svg' : 'success-1.svg')));
+    }catch(err){ resultEl.textContent='Aaria request failed.'; setAvatar('warning-1.svg'); }
+    shell.classList.remove('busy');
+  }
+  previewBtn && previewBtn.addEventListener('click', ()=>run('preview'));
+  runBtn && runBtn.addEventListener('click', ()=>run('execute'));
+  cmdEl && cmdEl.addEventListener('keydown', (e)=>{ if((e.ctrlKey||e.metaKey) && e.key==='Enter') run('execute'); });
+  if(voiceBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)){
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition; const rec = new SpeechRecognition(); rec.lang='hi-IN'; rec.interimResults=false; rec.maxAlternatives=1;
+    voiceBtn.addEventListener('click', ()=>{ try{ rec.start(); resultEl.textContent='Listening...'; setAvatar('work-1.svg'); }catch(e){} });
+    rec.addEventListener('result', (ev)=>{ const txt=ev.results[0][0].transcript; cmdEl.value = ((cmdEl.value||'').trim() + ' ' + txt).trim(); resultEl.textContent='Voice command captured.'; setAvatar('idle-2.svg'); });
+    rec.addEventListener('error', ()=>{ resultEl.textContent='Voice input not available.'; setAvatar('warning-1.svg'); });
+  } else if (voiceBtn){ voiceBtn.style.display='none'; }
+})();
+
+(function(){
+  document.addEventListener('click', function(e){
+    const row = e.target.closest('[data-row-link]');
+    if(!row) return;
+    if(e.target.closest('a,button,input,select,textarea,label,form')) return;
+    const href = row.getAttribute('data-row-link');
+    if(href) window.location.href = href;
+  });
+})();
+
+(function(){
+  const late=document.getElementById('lockLateTimer');
+  if(!late) return;
+  const raw=late.dataset.requestedAt||'';
+  const start=raw?new Date(raw.replace(' ','T')):null;
+  const render=()=>{
+    if(!start || String(start)==='Invalid Date'){ late.textContent='00:00:00'; return; }
+    const diff=Math.max(0, Date.now()-start.getTime());
+    const hrs=String(Math.floor(diff/3600000)).padStart(2,'0');
+    const mins=String(Math.floor((diff%3600000)/60000)).padStart(2,'0');
+    const secs=String(Math.floor((diff%60000)/1000)).padStart(2,'0');
+    late.textContent=`${hrs}:${mins}:${secs}`;
+  };
+  render();
+  setInterval(render,1000);
+})();
+</script>
+
+<div class="manager-access-modal" id="managerAccessModal">
+  <div class="manager-access-card glassy-card">
+    <div class="panel-title">Restricted Access</div>
+    <p>This section is available to managers only. Please contact your reporting manager if you need access.</p>
+    <div class="modal-actions-bar"><button class="submit-btn bounceable slim-btn" type="button" id="managerAccessClose">Close</button></div>
+  </div>
+</div>
+{% block scripts %}{% endblock %}
+</body>
+</html>

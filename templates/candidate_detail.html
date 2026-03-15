@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}{{ candidate['full_name'] }} • Candidate Detail{% endblock %}
+{% block page_title %}Candidate Detail{% endblock %}
+{% block page_subtitle %}Edit profile details, schedule interviews, manage notes, and send profiles for approval{% endblock %}
+{% block content %}
+<div class="detail-grid upgraded-detail-grid">
+    <div class="panel wide">
+        <div class="panel-title">Candidate Profile</div>
+        <form method="POST" action="{{ url_for('update_candidate', candidate_code=candidate['candidate_id']) }}" class="candidate-edit-form">
+            <div class="form-grid two-col-grid candidate-compact-grid">
+                <div class="field"><label>Candidate ID</label><input value="{{ candidate['candidate_id'] }}" readonly></div>
+                <div class="field span-row-actions">
+                    <label>Quick Call Status</label>
+                    <input type="hidden" name="call_connected" value="{{ candidate['call_connected'] }}" data-chip-input>
+                    <div class="choice-pill-row auto-advance-row" data-pill-group>
+                        {% for opt in call_connected_options %}
+                        <button type="button" class="choice-pill {% if candidate['call_connected']==opt %}active{% endif %}" data-pill-value="{{ opt }}">{{ opt }}</button>
+                        {% endfor %}
+                    </div>
+                    <label class="top-gap-small">Looking for Job</label>
+                    <input type="hidden" name="looking_for_job" value="{{ candidate['looking_for_job'] }}" data-chip-input>
+                    <div class="choice-pill-row" data-pill-group>
+                        {% for opt in looking_for_job_options %}
+                        <button type="button" class="choice-pill {% if candidate['looking_for_job']==opt %}active{% endif %}" data-pill-value="{{ opt }}">{{ opt }}</button>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="field"><label>Name</label><input name="full_name" value="{{ candidate['full_name'] }}" required></div>
+                <div class="field"><label>Phone</label><input name="phone" value="{{ candidate['phone'] }}" required></div>
+                <div class="field"><label>Qualification</label><input name="qualification" value="{{ candidate['qualification'] }}"></div>
+
+                <div class="field"><label>Location</label><input name="location" value="{{ candidate['location'] }}"></div>
+                <div class="field"><label>Preferred Primary Locations</label>
+                    <div class="choice-pill-row multi-pill-row">
+                        {% for loc in primary_locations %}
+                        <label class="choice-pill toggle-pill {% if loc in candidate['preferred_location'] %}active{% endif %}"><input type="checkbox" name="preferred_locations" value="{{ loc }}" {% if loc in candidate['preferred_location'] %}checked{% endif %}><span>{{ loc }}</span></label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="field"><label>Preferred Additional Location</label>
+                    <select name="preferred_location_other">
+                        <option value="">Select</option>
+                        {% for loc in additional_locations %}
+                        <option value="{{ loc }}" {% if loc in candidate['preferred_location'] %}selected{% endif %}>{{ loc }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="field"><label>Degree</label><select name="qualification_level"><option value="">Select</option>{% for opt in degree_options %}<option value="{{ opt }}" {% if candidate['qualification_level']==opt %}selected{% endif %}>{{ opt }}</option>{% endfor %}</select></div>
+                <div class="field"><label>Total Experience (months)</label><input name="total_experience" value="{{ candidate['total_experience'] }}" inputmode="numeric"></div>
+                <div class="field"><label>Relevant Experience (months)</label><input name="relevant_experience" value="{{ candidate['relevant_experience'] }}" inputmode="numeric"></div>
+
+                <div class="field"><label>In-hand Monthly</label><input name="in_hand_salary" value="{{ candidate['in_hand_salary'] }}" inputmode="numeric"></div>
+                <div class="field"><label>CTC Monthly</label><input name="ctc_monthly" value="{{ candidate['ctc_monthly'] }}" inputmode="numeric"></div>
+                <div class="field"><label>Career Gap</label><select name="career_gap"><option value="">Select</option>{% for opt in career_gap_options %}<option value="{{ opt }}" {% if candidate['career_gap']==opt %}selected{% endif %}>{{ opt }}</option>{% endfor %}</select></div>
+
+                <div class="field"><label>Relevant Experience Range</label><input value="{{ candidate['relevant_experience_range'] }}" readonly></div>
+                <div class="field"><label>Relevant In-hand Range</label><input value="{{ candidate['relevant_in_hand_range'] }}" readonly></div>
+                <div class="field"><label>Recruiter Code</label><input value="{{ candidate['recruiter_code'] }}" readonly></div>
+
+                <div class="field"><label>Interview Availability</label><select name="interview_availability"><option value="">Select</option>{% for opt in interview_availability_options %}<option value="{{ opt }}" {% if candidate['interview_availability']==opt %}selected{% endif %}>{{ opt }}</option>{% endfor %}</select></div>
+                <div class="field"><label>Status</label><select name="status">{% for opt in status_options %}<option value="{{ opt }}" {% if candidate['status']==opt %}selected{% endif %}>{{ opt }}</option>{% endfor %}</select></div>
+                <div class="field"><label>All Details Sent</label><select name="all_details_sent">{% for opt in all_details_sent_options %}<option value="{{ opt }}" {% if candidate['all_details_sent']==opt %}selected{% endif %}>{{ opt }}</option>{% endfor %}</select></div>
+
+                <div class="field"><label>Submission Date</label><input type="date" name="submission_date" value="{{ candidate['submission_date'] }}"></div>
+                <div class="field"><label>Interview Date &amp; Time</label><input type="datetime-local" name="interview_reschedule_date" value="{{ interview_dt_local }}"></div>
+                <div class="field"><label>Approval Status</label><input value="{{ candidate['approval_status'] }}" readonly></div>
+            </div>
+
+            <div class="field top-gap">
+                <label>Process Selection</label>
+                <div class="checkbox-stack">
+                    {% for proc in process_options %}
+                    <label><input type="checkbox" name="processes" value="{{ proc }}" {% if proc in candidate['process'] %}checked{% endif %}> {{ proc }}</label>
+                    {% endfor %}
+                </div>
+                <input class="top-gap-small" name="extra_process" placeholder="Add another process if needed">
+            </div>
+
+            <div class="toolbar-actions top-gap">
+                <button class="submit-btn bounceable" type="submit">Save Candidate Details</button>
+                <button class="mini-btn edit bounceable" type="submit" name="send_for_approval" value="1">Send for Approval</button>
+                <a class="mini-btn call bounceable" href="tel:+91{{ candidate['phone'] }}">Call</a>
+                <a class="mini-btn wa bounceable" target="_blank" href="https://wa.me/91{{ candidate['phone'] }}">WhatsApp</a>
+            </div>
+        </form>
+    </div>
+
+    <div class="panel">
+        <div class="panel-title">Notes</div>
+        <form method="POST" action="{{ url_for('update_candidate', candidate_code=candidate['candidate_id']) }}" class="note-form">
+            <div class="field"><label>Note Type</label><select name="note_type"><option value="public">Public</option><option value="private">Private</option></select></div>
+            <textarea name="note_body" placeholder="Add note with proper history tracking" required></textarea>
+            <button class="submit-btn bounceable" type="submit">Save Note</button>
+        </form>
+        <div class="helper-text">Latest 5 visible notes are shown below. Full history stays available on this profile.</div>
+        <div class="notes-list top-gap">
+            {% for note in note_history[:5] %}
+            <div class="note-card {{ note['visibility_class'] }}">
+                <div class="note-meta">{{ note['full_name'] }} • {{ note['designation'] }} • {{ note['created_at'] }} • {{ note['visibility_label'] }}</div>
+                <div class="note-body">{{ note['body'] }}</div>
+            </div>
+            {% else %}
+            <div class="helper-text">No notes available yet.</div>
+            {% endfor %}
+        </div>
+        {% if note_history|length > 5 %}
+        <button class="ghost-btn top-gap bounceable" type="button" onclick="document.getElementById('full-note-history').classList.toggle('show-all')">View Full History</button>
+        <div id="full-note-history" class="hidden-note-stack">
+            {% for note in note_history[5:] %}
+            <div class="note-card {{ note['visibility_class'] }}">
+                <div class="note-meta">{{ note['full_name'] }} • {{ note['designation'] }} • {{ note['created_at'] }} • {{ note['visibility_label'] }}</div>
+                <div class="note-body">{{ note['body'] }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="panel">
+        <div class="panel-title">Submission &amp; Timeline</div>
+        <div class="summary-strip-grid">
+            <div><span>Current Status</span><strong>{{ candidate['status'] }}</strong></div>
+            <div><span>Approval</span><strong>{{ candidate['approval_status'] }}</strong></div>
+            <div><span>Details Sent</span><strong>{{ candidate['all_details_sent'] }}</strong></div>
+        </div>
+        {% if submission_row %}
+        <div class="helper-text top-gap-small">Latest submission: {{ submission_row['approval_status'] or submission_row['status'] }} • {{ submission_row['submitted_at'] }}</div>
+        {% endif %}
+        <div class="activity-list top-gap">
+            {% for item in timeline %}
+            <div class="activity-item">
+                <div class="activity-left">
+                    <div class="activity-name">{{ item['event_type'] }} • {{ item['label'] }}</div>
+                    <div class="activity-sub">{{ item['jd_code'] }} • {{ item['event_time'] }}</div>
+                </div>
+            </div>
+            {% else %}
+            <div class="helper-text">No timeline entries yet.</div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="panel wide">
+        <div class="panel-title">Related Notifications</div>
+        <div class="activity-list">
+            {% for n in related_notifications %}
+            <div class="activity-item">
+                <div class="activity-left">
+                    <div class="activity-name">{{ n['title'] }}</div>
+                    <div class="activity-sub">{{ n['message'] }}</div>
+                </div>
+                <div class="badge {% if n['is_read'] %}closed{% else %}pending{% endif %}">{{ n['created_at'] }}</div>
+            </div>
+            {% else %}
+            <div class="helper-text">No related notifications for this profile.</div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  document.querySelectorAll('[data-pill-group]').forEach(group => {
+    const hidden = group.previousElementSibling;
+    const buttons = [...group.querySelectorAll('[data-pill-value]')];
+    buttons.forEach(btn => btn.addEventListener('click', () => {
+      if (!hidden) return;
+      hidden.value = btn.dataset.pillValue || '';
+      buttons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const parent = group.closest('.span-row-actions');
+      if (parent && group.classList.contains('auto-advance-row')) {
+        const nextBtn = parent.querySelectorAll('[data-pill-group]')[1]?.querySelector('[data-pill-value]');
+        nextBtn && nextBtn.focus();
+      }
+    }));
+  });
+  document.querySelectorAll('.toggle-pill input[type="checkbox"]').forEach(cb => {
+    const holder = cb.closest('.toggle-pill');
+    const sync = () => holder && holder.classList.toggle('active', cb.checked);
+    cb.addEventListener('change', sync); sync();
+  });
+})();
+</script>
+{% endblock %}
