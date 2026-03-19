@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Recent Activity • Career Crox CRM{% endblock %}
+{% block page_title %}Recent Activity{% endblock %}
+{% block page_subtitle %}Manager and TL view of live actions, logins, and profile work history{% endblock %}
+{% block content %}
+<div class="panel glassy-card fade-up">
+  <div class="table-toolbar">
+    <div class="table-title">Activity Monitor</div>
+    <form method="GET" class="toolbar-actions compact-inline-form">
+      <select name="username" class="inline-input colorful-input">
+        <option value="">All people</option>
+        {% for u in people %}
+        <option value="{{ u['username'] }}" {% if selected_username==u['username'] %}selected{% endif %}>{{ u['full_name'] }} • {{ u['designation'] }}</option>
+        {% endfor %}
+      </select>
+      <button class="mini-btn view bounceable" type="submit">Apply</button>
+    </form>
+  </div>
+  <div class="crm-table-wrap dense-wrap">
+    <table class="crm-table colorful-table dense-table">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Name</th>
+          <th>Designation</th>
+          <th>Recruiter Code</th>
+          <th>Action</th>
+          <th>Candidate</th>
+          <th>IP</th>
+          <th>Meta</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        <tr>
+          <td>{{ row['when'] }}</td>
+          <td><strong>{{ row['full_name'] }}</strong><div class="tiny-meta">{{ row['username'] }}</div></td>
+          <td>{{ row['designation'] }}</td>
+          <td>{{ row['recruiter_code'] }}</td>
+          <td>{{ row['action'] }}</td>
+          <td>{{ row['candidate_id'] }}</td>
+          <td>{{ row['ip_address'] or '-' }}</td>
+          <td>{{ row['meta'] or '-' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8"><div class="helper-text">No activity found for this filter.</div></td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

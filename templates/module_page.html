@@ -1,0 +1,610 @@
+{% extends "base.html" %}
+{% block title %}{{ module['title'] }} • Career Crox CRM
+{% if slug == 'learning-hub' %}
+<script>
+(function(){
+  const cards=[...document.querySelectorAll('#learningGrid .learning-card')];
+  const fill=document.getElementById('learningProgressFill');
+  const label=document.getElementById('learningProgressLabel');
+  const percent=document.getElementById('learningProgressPercent');
+  const key='cc_learning_hub_progress';
+  const state=JSON.parse(localStorage.getItem(key)||'{}');
+  function render(){
+    let done=0;
+    cards.forEach(card=>{
+      const box=card.querySelector('.learning-done');
+      const k=card.dataset.videoKey;
+      box.checked=!!state[k];
+      if(state[k]){ done++; card.classList.add('selected-item'); } else { card.classList.remove('selected-item'); }
+    });
+    const pct=cards.length?Math.round((done/cards.length)*100):0;
+    if(fill) fill.style.width=`${pct}%`;
+    if(label) label.textContent=`${done} watched`;
+    if(percent) percent.textContent=`${pct}%`;
+  }
+  cards.forEach(card=>{ const box=card.querySelector('.learning-done'); box.addEventListener('click', (e)=>{ e.stopPropagation(); const k=card.dataset.videoKey; state[k]=box.checked; localStorage.setItem(key, JSON.stringify(state)); render(); }); });
+  render();
+})();
+</script>
+{% endif %}
+{% endblock %}
+{% block page_title %}{{ module['title'] }}
+{% if slug == 'learning-hub' %}
+<script>
+(function(){
+  const cards=[...document.querySelectorAll('#learningGrid .learning-card')];
+  const fill=document.getElementById('learningProgressFill');
+  const label=document.getElementById('learningProgressLabel');
+  const percent=document.getElementById('learningProgressPercent');
+  const key='cc_learning_hub_progress';
+  const state=JSON.parse(localStorage.getItem(key)||'{}');
+  function render(){
+    let done=0;
+    cards.forEach(card=>{
+      const box=card.querySelector('.learning-done');
+      const k=card.dataset.videoKey;
+      box.checked=!!state[k];
+      if(state[k]){ done++; card.classList.add('selected-item'); } else { card.classList.remove('selected-item'); }
+    });
+    const pct=cards.length?Math.round((done/cards.length)*100):0;
+    if(fill) fill.style.width=`${pct}%`;
+    if(label) label.textContent=`${done} watched`;
+    if(percent) percent.textContent=`${pct}%`;
+  }
+  cards.forEach(card=>{ const box=card.querySelector('.learning-done'); box.addEventListener('click', (e)=>{ e.stopPropagation(); const k=card.dataset.videoKey; state[k]=box.checked; localStorage.setItem(key, JSON.stringify(state)); render(); }); });
+  render();
+})();
+</script>
+{% endif %}
+{% endblock %}
+{% block page_subtitle %}{{ module['summary'] }}
+{% if slug == 'learning-hub' %}
+<script>
+(function(){
+  const cards=[...document.querySelectorAll('#learningGrid .learning-card')];
+  const fill=document.getElementById('learningProgressFill');
+  const label=document.getElementById('learningProgressLabel');
+  const percent=document.getElementById('learningProgressPercent');
+  const key='cc_learning_hub_progress';
+  const state=JSON.parse(localStorage.getItem(key)||'{}');
+  function render(){
+    let done=0;
+    cards.forEach(card=>{
+      const box=card.querySelector('.learning-done');
+      const k=card.dataset.videoKey;
+      box.checked=!!state[k];
+      if(state[k]){ done++; card.classList.add('selected-item'); } else { card.classList.remove('selected-item'); }
+    });
+    const pct=cards.length?Math.round((done/cards.length)*100):0;
+    if(fill) fill.style.width=`${pct}%`;
+    if(label) label.textContent=`${done} watched`;
+    if(percent) percent.textContent=`${pct}%`;
+  }
+  cards.forEach(card=>{ const box=card.querySelector('.learning-done'); box.addEventListener('click', (e)=>{ e.stopPropagation(); const k=card.dataset.videoKey; state[k]=box.checked; localStorage.setItem(key, JSON.stringify(state)); render(); }); });
+  render();
+})();
+</script>
+{% endif %}
+{% endblock %}
+{% block content %}
+<div class="stats-row">
+    {% for label, value in module['cards'] %}
+    <div class="stat-card {% if loop.index == 1 %}blue{% elif loop.index == 2 %}orange{% elif loop.index == 3 %}purple{% else %}green{% endif %} glow-box">
+        <div class="stat-label">{{ label }}</div>
+        <div class="stat-value">{{ value }}</div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if slug == 'meeting-room' %}
+<div class="small-grid two top-gap">
+  <div class="panel glassy-card bounce-pulse-target">
+    <div class="panel-title">Meeting Control</div>
+    <div class="action-row module-actions-grid compact-action-grid">
+      <button class="action-card action-profiles bounceable" type="button" data-demo-modal="meeting-modal">Create Meeting <span>→</span></button>
+      <a class="action-card action-dialer bounceable" href="#">Join Meeting <span>→</span></a>
+      <a class="action-card action-task bounceable" href="#">End Meeting <span>→</span></a>
+      <a class="action-card action-admin bounceable" href="#">Take Notes <span>→</span></a>
+    </div>
+    <div class="action-row module-actions-grid compact-action-grid top-gap-small">
+      <button class="action-card action-dialer bounceable" type="button">Start Recording <span>●</span></button>
+      <button class="action-card action-profiles bounceable" type="button">Pause Recording <span>Ⅱ</span></button>
+      <button class="action-card action-task bounceable" type="button">Stop Recording <span>■</span></button>
+      <a class="action-card action-admin bounceable" href="{{ url_for('static', filename='js/themes.js') }}" download="meeting-recording-demo.txt">Download Recording <span>↓</span></a>
+    </div>
+  </div>
+  <div class="panel glassy-card">
+    <div class="panel-title">Live Join Feed</div>
+    <div class="activity-list">
+      {% for row in meeting_feed %}
+      <div class="activity-item"><div class="activity-left"><div class="activity-name">{{ row['name'] }}</div><div class="activity-sub">{{ row['time'] }}</div></div><div class="badge {% if row['state']=='Left' %}closed{% else %}active{% endif %}">{{ row['state'] }}</div></div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+<div class="panel top-gap glassy-card"><div class="panel-title">Live Operations View</div><div class="bullet-grid"><div>Joined count rises live</div><div>Manager alert bounce stays active while meeting runs</div><div>Private notes remain session-specific and can be archived after the meeting.</div><div>Google Meet backend bridge can be wired later without visible Meet branding</div></div></div>
+{% elif slug == 'learning-hub' %}
+<div class="panel top-gap glassy-card">
+  <div class="panel-title">Featured Hindi Learning Videos</div>
+  <div class="helper-text">Open any video on YouTube, mark it watched, and track progress without storing the video files locally.</div>
+  <div class="learning-meta top-gap-small"><span id="learningProgressLabel">0 watched</span><span id="learningProgressPercent">0%</span></div>
+  <div class="progress-track top-gap-small"><div class="progress-fill" id="learningProgressFill" style="width:0%"></div></div>
+  <div class="learning-grid top-gap" id="learningGrid">
+    {% for video in learning_videos %}
+    <a class="learning-card bounceable" href="{{ video['url'] }}" target="_blank" rel="noopener" data-video-key="lh-{{ loop.index }}">
+      <img src="{{ video['thumb'] }}" alt="{{ video['title'] }}">
+      <div class="mini-chip">{{ video['topic'] }}</div>
+      <div class="activity-name">{{ video['title'] }}</div>
+      <div class="learning-meta"><span>Open on YouTube</span><label><input type="checkbox" class="learning-done"> Watched</label></div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% elif slug == 'social-career-crox' %}
+<div class="platform-tabs top-gap" id="social-add"><div class="stage-tabs">{% for p in ['All Platforms','LinkedIn','Instagram','Facebook'] %}<a class="stage-tab {% if loop.first %}active{% endif %}" href="#">{{ p }}</a>{% endfor %}</div></div>
+<div class="table-panel top-gap glassy-card"><div class="table-toolbar"><div class="table-title">Social Queue Status</div><div class="toolbar-actions"><button class="mini-btn edit bounceable" type="button" data-demo-modal="post-modal">Schedule Post</button></div></div><div class="crm-table-wrap dense-wrap"><table class="crm-table colorful-table dense-table"><thead><tr><th><input type="checkbox" class="select-all"></th><th>Platform</th><th>Campaign</th><th>Scheduled</th><th>Posted</th><th>Pending</th><th>Status</th></tr></thead><tbody><tr><td><input type="checkbox" class="row-check"></td><td>LinkedIn</td><td>Hiring Drive North</td><td>12</td><td>9</td><td>3</td><td><span class="status-chip">Running</span></td></tr><tr><td><input type="checkbox" class="row-check"></td><td>Instagram</td><td>Walk-in Reels</td><td>8</td><td>6</td><td>2</td><td><span class="status-chip">Running</span></td></tr><tr><td><input type="checkbox" class="row-check"></td><td>Facebook</td><td>Mass Hiring Push</td><td>5</td><td>4</td><td>1</td><td><span class="status-chip">Queued</span></td></tr></tbody></table></div></div>
+<div class="panel top-gap glassy-card"><div class="panel-title">Action Center</div><div class="action-row module-actions-grid compact-action-grid">{% for item in module['items'] %}<a class="action-card {% if loop.index == 1 %}action-task{% elif loop.index == 2 %}action-dialer{% elif loop.index == 3 %}action-profiles{% else %}action-admin{% endif %} bounceable" href="#">{{ item }} <span>→</span></a>{% endfor %}</div></div>
+{% elif slug == 'dialer' %}
+<div class="bulk-dialer show glassy-card dialer-top-strip">
+  <div>
+    <strong>Dialer Workspace</strong>
+    <span class="subtle inline-subtle">Select candidates, start manual calls, save notes, jump to WhatsApp, and open profile without leaving the queue.</span>
+  </div>
+  <div class="toolbar-actions compact-pills">
+    <span class="mini-chip" id="dialerSelectedChip">0 selected</span>
+    <span class="mini-chip" id="dialerCallsChip">0 calls</span>
+    <span class="mini-chip" id="dialerTalktimeChip">00:00 talktime</span>
+  </div>
+</div>
+<div class="table-panel top-gap glassy-card">
+  <div class="table-toolbar">
+    <div class="table-title">Dialer Candidate Queue</div>
+    <div class="toolbar-actions compact-pills">
+      <span class="mini-chip">Manual timer</span>
+      <span class="mini-chip">Queue + WhatsApp</span>
+      <span class="mini-chip">Open profile</span>
+    </div>
+  </div>
+  <div class="crm-table-wrap dense-wrap">
+    <table class="crm-table colorful-table dense-table" id="dialerCandidateTable">
+      <thead>
+        <tr>
+          <th><input type="checkbox" class="select-all"></th>
+          <th>Name</th>
+          <th>Phone</th>
+          <th>Status</th>
+          <th>Location</th>
+          <th>Recruiter</th>
+          <th class="sticky-action-col">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in dialer_candidates %}
+        <tr
+          data-call-link="{{ url_for('log_call', candidate_code=c['code']) }}"
+          data-wa-link="{{ url_for('open_whatsapp', candidate_code=c['code']) }}"
+          data-profile-link="{{ url_for('candidate_detail', candidate_code=c['code']) }}"
+          data-name="{{ c['full_name'] }}"
+          data-code="{{ c['code'] }}"
+          data-phone-view="{{ display_phone(c['phone']) }}"
+          data-status="{{ c['status'] }}"
+          data-location="{{ c['location'] }}"
+          data-recruiter="{{ c['recruiter_name'] }}">
+          <td><input type="checkbox" class="row-check"></td>
+          <td><strong>{{ c['full_name'] }}</strong><div class="tiny-meta">{{ c['code'] }}</div></td>
+          <td>{{ display_phone(c['phone']) }}</td>
+          <td><span class="status-chip">{{ c['status'] }}</span></td>
+          <td>{{ c['location'] }}</td>
+          <td>{{ c['recruiter_name'] }}</td>
+          <td class="sticky-actions-cell">
+            <div class="icon-actions nowrap-actions">
+              <a class="icon-btn call bounceable" href="{{ url_for('log_call', candidate_code=c['code']) }}">☎</a>
+              <a class="icon-btn wa bounceable" target="_blank" href="{{ url_for('open_whatsapp', candidate_code=c['code']) }}">✆</a>
+              <a class="icon-btn view bounceable" href="{{ url_for('candidate_detail', candidate_code=c['code']) }}">◉</a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+<div class="floating-dialer show top-gap glassy-card dialer-pop-advanced" id="moduleDialer">
+  <div class="dialer-head">
+    <div>
+      <div class="panel-title dialer-title">Smart Dialer Box</div>
+      <div class="subtle" id="moduleDialerMeta">Selected candidates queue yahin se handle hogi.</div>
+    </div>
+    <div class="dialer-live-pill" id="dialerLivePill">Idle</div>
+  </div>
+
+  <div class="dialer-summary-grid">
+    <div class="dialer-summary-card"><span>Selected</span><strong id="dialerSelectedCount">0</strong></div>
+    <div class="dialer-summary-card"><span>Queue Position</span><strong id="dialerQueuePosition">0 / 0</strong></div>
+    <div class="dialer-summary-card"><span>Total Calls</span><strong id="dialerTotalCalls">0</strong></div>
+    <div class="dialer-summary-card"><span>Total Talktime</span><strong id="dialerTotalTalktime">00:00</strong></div>
+  </div>
+
+  <div class="dialer-now dialer-card-now" id="moduleDialerNow">No candidate selected yet.</div>
+
+  <div class="dialer-next-row">
+    <div class="dialer-next-card">
+      <span>Current Candidate</span>
+      <strong id="dialerCurrentLabel">-</strong>
+      <small id="dialerCurrentSub">Name, code, phone yahan dikhega.</small>
+    </div>
+    <div class="dialer-next-card">
+      <span>Next Candidate</span>
+      <strong id="dialerNextLabel">-</strong>
+      <small id="dialerNextSub">Queue ka agla banda.</small>
+    </div>
+  </div>
+
+  <div class="dialer-timer-row">
+    <div class="dialer-timer" id="moduleDialerTimer">00:00</div>
+    <div class="dialer-elapsed-meta">
+      <div><span>Current call time</span><strong id="dialerCurrentDuration">00:00</strong></div>
+      <div><span>Last call duration</span><strong id="dialerLastDuration">00:00</strong></div>
+    </div>
+  </div>
+
+  <div class="dialer-form-grid">
+    <div class="field">
+      <label>Call Status</label>
+      <select id="dialerOutcome">
+        <option value="Connected">Connected</option>
+        <option value="Not Picked" selected>Not Picked</option>
+        <option value="Busy">Busy</option>
+        <option value="Switched Off">Switched Off</option>
+        <option value="Wrong Number">Wrong Number</option>
+        <option value="Callback">Callback</option>
+      </select>
+    </div>
+    <div class="field dialer-note-field">
+      <label>Call Note</label>
+      <textarea id="dialerNote" rows="3" placeholder="Call note yahin likhiye. Save hote hi candidate stream aur note history me chala jayega."></textarea>
+    </div>
+  </div>
+
+  <div class="toolbar-actions dialer-actions-row dialer-actions-tight">
+    <button class="add-profile-btn bounceable" type="button" id="moduleStartDialer">Load Selected Queue</button>
+    <button class="mini-btn call bounceable" type="button" id="moduleCallBtn">Dial Call</button>
+    <button class="mini-btn edit bounceable" type="button" id="moduleEndCallBtn">End Call</button>
+    <button class="mini-btn wa bounceable" type="button" id="moduleWaBtn">WhatsApp</button>
+    <a class="mini-btn view bounceable" href="#" id="moduleOpenProfileBtn">Open Profile</a>
+    <button class="mini-btn edit bounceable" type="button" id="moduleSaveNoteBtn">Save Note</button>
+    <button class="mini-btn view bounceable" type="button" id="moduleNextBtn">Next Call</button>
+  </div>
+
+  <div class="subtle dialer-footer-line" id="dialerFooterInfo">Call dial karne ke baad End Call dabaiye. Phir Next Call par jaiye. Isi beech note aur status save hoga.</div>
+</div>
+{% else %}
+<div class="panel top-gap glassy-card"><div class="panel-title">Action Center</div><div class="action-row module-actions-grid compact-action-grid">{% for item in module['items'] %}<a class="action-card {% if loop.index == 1 %}action-task{% elif loop.index == 2 %}action-dialer{% elif loop.index == 3 %}action-profiles{% else %}action-admin{% endif %} bounceable" href="#">{{ item }} <span>→</span></a>{% endfor %}</div></div>
+{% endif %}
+
+{% if slug == 'learning-hub' %}
+<script>
+(function(){
+  const cards=[...document.querySelectorAll('#learningGrid .learning-card')];
+  const fill=document.getElementById('learningProgressFill');
+  const label=document.getElementById('learningProgressLabel');
+  const percent=document.getElementById('learningProgressPercent');
+  const key='cc_learning_hub_progress';
+  const state=JSON.parse(localStorage.getItem(key)||'{}');
+  function render(){
+    let done=0;
+    cards.forEach(card=>{
+      const box=card.querySelector('.learning-done');
+      const k=card.dataset.videoKey;
+      box.checked=!!state[k];
+      if(state[k]){ done++; card.classList.add('selected-item'); } else { card.classList.remove('selected-item'); }
+    });
+    const pct=cards.length?Math.round((done/cards.length)*100):0;
+    if(fill) fill.style.width=`${pct}%`;
+    if(label) label.textContent=`${done} watched`;
+    if(percent) percent.textContent=`${pct}%`;
+  }
+  cards.forEach(card=>{ const box=card.querySelector('.learning-done'); box.addEventListener('click', (e)=>{ e.stopPropagation(); const k=card.dataset.videoKey; state[k]=box.checked; localStorage.setItem(key, JSON.stringify(state)); render(); }); });
+  render();
+})();
+</script>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if slug == 'dialer' %}
+<script>
+(function(){
+  const table = document.getElementById('dialerCandidateTable');
+  if(!table) return;
+
+  const els = {
+    meta: document.getElementById('moduleDialerMeta'),
+    now: document.getElementById('moduleDialerNow'),
+    timer: document.getElementById('moduleDialerTimer'),
+    currentDuration: document.getElementById('dialerCurrentDuration'),
+    lastDuration: document.getElementById('dialerLastDuration'),
+    totalCalls: document.getElementById('dialerTotalCalls'),
+    totalTalktime: document.getElementById('dialerTotalTalktime'),
+    selectedCount: document.getElementById('dialerSelectedCount'),
+    queuePosition: document.getElementById('dialerQueuePosition'),
+    currentLabel: document.getElementById('dialerCurrentLabel'),
+    currentSub: document.getElementById('dialerCurrentSub'),
+    nextLabel: document.getElementById('dialerNextLabel'),
+    nextSub: document.getElementById('dialerNextSub'),
+    outcome: document.getElementById('dialerOutcome'),
+    note: document.getElementById('dialerNote'),
+    livePill: document.getElementById('dialerLivePill'),
+    footer: document.getElementById('dialerFooterInfo'),
+    selectedChip: document.getElementById('dialerSelectedChip'),
+    callsChip: document.getElementById('dialerCallsChip'),
+    talktimeChip: document.getElementById('dialerTalktimeChip'),
+    startBtn: document.getElementById('moduleStartDialer'),
+    callBtn: document.getElementById('moduleCallBtn'),
+    endBtn: document.getElementById('moduleEndCallBtn'),
+    waBtn: document.getElementById('moduleWaBtn'),
+    openProfileBtn: document.getElementById('moduleOpenProfileBtn'),
+    saveNoteBtn: document.getElementById('moduleSaveNoteBtn'),
+    nextBtn: document.getElementById('moduleNextBtn')
+  };
+
+  let queue = [];
+  let idx = 0;
+  let activeStart = null;
+  let timer = null;
+  let totalCalls = 0;
+  let totalTalkSeconds = 0;
+
+  function mmss(totalSeconds){
+    const sec = Math.max(0, parseInt(totalSeconds || 0, 10));
+    const m = String(Math.floor(sec / 60)).padStart(2, '0');
+    const s = String(sec % 60).padStart(2, '0');
+    return `${m}:${s}`;
+  }
+
+  function selectedRows(){
+    return [...table.querySelectorAll('tbody tr')]
+      .filter(tr => tr.querySelector('.row-check') && tr.querySelector('.row-check').checked)
+      .map(tr => ({
+        name: tr.dataset.name || '',
+        code: tr.dataset.code || '',
+        phoneView: tr.dataset.phoneView || '',
+        status: tr.dataset.status || '',
+        location: tr.dataset.location || '',
+        recruiter: tr.dataset.recruiter || '',
+        callLink: tr.dataset.callLink || '#',
+        waLink: tr.dataset.waLink || '#',
+        profileLink: tr.dataset.profileLink || '#'
+      }));
+  }
+
+  function currentItem(){
+    if(!queue.length) return null;
+    if(idx >= queue.length) idx = 0;
+    return queue[idx] || null;
+  }
+
+  function nextItem(){
+    if(queue.length <= 1) return null;
+    return queue[(idx + 1) % queue.length] || null;
+  }
+
+  function syncSummary(){
+    els.selectedCount.textContent = String(queue.length);
+    els.queuePosition.textContent = queue.length ? `${idx + 1} / ${queue.length}` : '0 / 0';
+    els.totalCalls.textContent = String(totalCalls);
+    els.totalTalktime.textContent = mmss(totalTalkSeconds);
+    els.callsChip.textContent = `${totalCalls} calls`;
+    els.talktimeChip.textContent = `${mmss(totalTalkSeconds)} talktime`;
+    els.selectedChip.textContent = `${queue.length} selected`;
+  }
+
+  function renderQueue(){
+    queue = selectedRows();
+    if(!queue.length){
+      idx = 0;
+      els.now.textContent = 'No candidate selected yet.';
+      els.meta.textContent = 'Candidates select kijiye. Phir Load Selected Queue dabaiye.';
+      els.currentLabel.textContent = '-';
+      els.currentSub.textContent = 'Name, code, phone yahan dikhega.';
+      els.nextLabel.textContent = '-';
+      els.nextSub.textContent = 'Queue ka agla banda.';
+      els.openProfileBtn.href = '#';
+      syncSummary();
+      return;
+    }
+    if(idx >= queue.length) idx = 0;
+    const current = currentItem();
+    const next = nextItem();
+    els.now.innerHTML = `<strong>${current.name}</strong> · ${current.code} · ${current.phoneView}<div class="tiny-meta">${current.status || 'No status'} • ${current.location || 'No location'} • ${current.recruiter || 'No recruiter'}</div>`;
+    els.meta.textContent = `Queue ready hai. Current ${idx + 1} of ${queue.length}.`;
+    els.currentLabel.textContent = `${current.name} • ${current.phoneView}`;
+    els.currentSub.textContent = `${current.code} • ${current.status || 'No status'}`;
+    els.nextLabel.textContent = next ? `${next.name} • ${next.phoneView}` : 'Queue complete';
+    els.nextSub.textContent = next ? `${next.code} • ${next.status || 'No status'}` : 'Iske baad queue reset hogi.';
+    els.waBtn.dataset.href = current.waLink || '#';
+    els.callBtn.dataset.href = current.callLink || '#';
+    els.openProfileBtn.href = current.profileLink || '#';
+    syncSummary();
+  }
+
+  function setActiveState(isActive){
+    els.livePill.textContent = isActive ? 'Live Call' : 'Idle';
+    els.livePill.classList.toggle('is-live', !!isActive);
+    els.callBtn.disabled = !!isActive;
+    els.endBtn.disabled = !isActive;
+    els.nextBtn.disabled = !!isActive;
+  }
+
+  function stopTimer(){
+    if(timer){
+      clearInterval(timer);
+      timer = null;
+    }
+  }
+
+  function startTimer(){
+    stopTimer();
+    timer = setInterval(() => {
+      const elapsed = activeStart ? Math.floor((Date.now() - activeStart) / 1000) : 0;
+      const label = mmss(elapsed);
+      els.timer.textContent = label;
+      els.currentDuration.textContent = label;
+    }, 1000);
+  }
+
+  async function postJSON(url, payload){
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload || {})
+    });
+    return res.json().catch(() => ({ok:false, message:'Invalid server response'}));
+  }
+
+  els.startBtn.addEventListener('click', () => {
+    idx = 0;
+    renderQueue();
+    els.footer.textContent = queue.length ? 'Queue load ho gayi. Dial Call se start kijiye.' : 'Pehle candidates select kijiye.';
+  });
+
+  els.callBtn.addEventListener('click', () => {
+    renderQueue();
+    const current = currentItem();
+    if(!current){
+      els.footer.textContent = 'Pehle ek candidate select kijiye.';
+      return;
+    }
+    activeStart = Date.now();
+    totalCalls += 1;
+    els.outcome.value = 'Not Picked';
+    setActiveState(true);
+    startTimer();
+    syncSummary();
+    els.footer.textContent = `${current.name} ke liye call start ho gayi. Call khatam hone par End Call dabaiye.`;
+    const href = current.callLink || '#';
+    if(href && href !== '#'){
+      window.location.href = href;
+    }
+  });
+
+  els.endBtn.addEventListener('click', async () => {
+    const current = currentItem();
+    if(!current || !activeStart){
+      els.footer.textContent = 'Abhi koi active call nahi chal rahi.';
+      return;
+    }
+    const duration = Math.max(0, Math.floor((Date.now() - activeStart) / 1000));
+    const payload = {
+      candidate_id: current.code,
+      outcome: els.outcome.value,
+      duration_seconds: duration,
+      note: els.note.value || ''
+    };
+    const result = await postJSON('/api/dialer/call/end', payload);
+    if(result.ok){
+      totalTalkSeconds += duration;
+      els.lastDuration.textContent = mmss(duration);
+      els.note.value = '';
+      activeStart = null;
+      stopTimer();
+      els.timer.textContent = '00:00';
+      els.currentDuration.textContent = '00:00';
+      setActiveState(false);
+      syncSummary();
+      els.footer.textContent = result.message || 'Call summary save ho gayi.';
+      renderQueue();
+    } else {
+      els.footer.textContent = result.message || 'Call save nahi ho payi.';
+    }
+  });
+
+  els.saveNoteBtn.addEventListener('click', async () => {
+    const current = currentItem();
+    const note = (els.note.value || '').trim();
+    if(!current){
+      els.footer.textContent = 'Pehle candidate select kijiye.';
+      return;
+    }
+    if(!note){
+      els.footer.textContent = 'Khali note save nahi hoga.';
+      return;
+    }
+    const result = await postJSON('/api/dialer/note', {
+      candidate_id: current.code,
+      outcome: els.outcome.value,
+      note: note
+    });
+    if(result.ok){
+      els.note.value = '';
+      els.footer.textContent = result.message || 'Note save ho gaya.';
+    } else {
+      els.footer.textContent = result.message || 'Note save nahi hua.';
+    }
+  });
+
+  els.nextBtn.addEventListener('click', () => {
+    if(activeStart){
+      els.footer.textContent = 'Next Call se pehle End Call dabaiye.';
+      return;
+    }
+    queue = selectedRows();
+    if(!queue.length){
+      renderQueue();
+      return;
+    }
+    idx = (idx + 1) % queue.length;
+    renderQueue();
+    els.footer.textContent = 'Agla candidate ready hai.';
+  });
+
+  els.waBtn.addEventListener('click', () => {
+    const current = currentItem();
+    if(!current){
+      els.footer.textContent = 'Pehle candidate select kijiye.';
+      return;
+    }
+    const href = current.waLink || '#';
+    if(href && href !== '#'){
+      window.open(href, '_blank');
+      els.footer.textContent = `${current.name} ke liye WhatsApp window khul gayi.`;
+    }
+  });
+
+  document.addEventListener('rowSelectionChanged', renderQueue);
+  table.querySelectorAll('.row-check, .select-all').forEach(el => el.addEventListener('change', renderQueue));
+
+  setActiveState(false);
+  syncSummary();
+  renderQueue();
+})();
+</script>
+{% endif %}
+
+{% if slug == 'learning-hub' %}
+<script>
+(function(){
+  const cards=[...document.querySelectorAll('#learningGrid .learning-card')];
+  const fill=document.getElementById('learningProgressFill');
+  const label=document.getElementById('learningProgressLabel');
+  const percent=document.getElementById('learningProgressPercent');
+  const key='cc_learning_hub_progress';
+  const state=JSON.parse(localStorage.getItem(key)||'{}');
+  function render(){
+    let done=0;
+    cards.forEach(card=>{
+      const box=card.querySelector('.learning-done');
+      const k=card.dataset.videoKey;
+      box.checked=!!state[k];
+      if(state[k]){ done++; card.classList.add('selected-item'); } else { card.classList.remove('selected-item'); }
+    });
+    const pct=cards.length?Math.round((done/cards.length)*100):0;
+    if(fill) fill.style.width=`${pct}%`;
+    if(label) label.textContent=`${done} watched`;
+    if(percent) percent.textContent=`${pct}%`;
+  }
+  cards.forEach(card=>{ const box=card.querySelector('.learning-done'); box.addEventListener('click', (e)=>{ e.stopPropagation(); const k=card.dataset.videoKey; state[k]=box.checked; localStorage.setItem(key, JSON.stringify(state)); render(); }); });
+  render();
+})();
+</script>
+{% endif %}
+{% endblock %}

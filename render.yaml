@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: career-crox-interns-crm
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 1 --threads 8 --preload --keep-alive 15 --timeout 120
+    plan: free

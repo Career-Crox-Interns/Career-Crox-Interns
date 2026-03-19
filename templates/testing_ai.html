@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Testing AI Features • Career Crox CRM{% endblock %}
+{% block page_title %}Testing AI Features{% endblock %}
+{% block page_subtitle %}Ask Aaria, CV tools, employee activity monitor, and queue testing in one place{% endblock %}
+{% block content %}
+<div class="dashboard-grid professional-dashboard-grid compact-ai-page">
+  <div class="clean-hero panel professional-hero compact-hero colorful-hero fade-up ai-lab-hero">
+    <div>
+      <div class="lux-hero-kicker">AARIA LAB</div>
+      <h1 class="professional-hero-title compact-hero-title">Aaria command center and AI operations</h1>
+      <p class="professional-hero-sub">Enter up to 10 commands in one sequence. Name, ID, phone last digits, recruiter code sab chalenge. Example: call and open whatsapp send hi to 3001; update salary C001 to 22000; approve S001; message RC-101: call me.</p>
+      <div class="professional-hero-tags"><span>Ask Aaria</span><span>Resume Tools</span><span>Activity Monitor</span><span>Queue Log</span></div>
+    </div>
+  </div>
+  <div class="small-grid two top-gap-small ai-lab-grid compact-gap-grid">
+    <div class="panel fade-up compact-panel">
+      <div class="panel-title">Quick Aaria Commands</div><div class="top-gap-small"><a class="mini-btn view bounceable" href="{{ aaria_command_guide_pdf }}" target="_blank">Open Command Guide PDF</a></div>
+      <div class="activity-list">
+        <div class="activity-item"><div class="activity-left"><div class="activity-name">call and open whatsapp send hi to 3001</div><div class="activity-sub">Same line me call + WhatsApp</div></div></div>
+        <div class="activity-item"><div class="activity-left"><div class="activity-name">update salary C001 to 22000</div><div class="activity-sub">Salary update</div></div></div>
+        <div class="activity-item"><div class="activity-left"><div class="activity-name">update location C001 to Noida</div><div class="activity-sub">Location update</div></div></div>
+        <div class="activity-item"><div class="activity-left"><div class="activity-name">assign task callback to RC-101</div><div class="activity-sub">Task assign</div></div></div>
+        <div class="activity-item"><div class="activity-left"><div class="activity-name">message RC-101: call me now</div><div class="activity-sub">Internal chat message</div></div></div>
+        <div class="activity-item"><div class="activity-left"><div class="activity-name">approve S001</div><div class="activity-sub">Pending approval action</div></div></div>
+      </div>
+    </div>
+    <div class="panel fade-up compact-panel">
+      <div class="panel-title">Aaria History - Last 10 Tasks</div>
+      <div class="crm-table-wrap dense-wrap compact-table-wrap">
+        <table class="crm-table colorful-table dense-table" id="aariaQueueTable" data-configurable-table="1" data-config-title="Aaria Queue"><thead><tr><th data-col-key="when">When</th><th data-col-key="serial">Serial</th><th data-col-key="command">Command</th><th data-col-key="status">Status</th><th data-col-key="result">Result</th></tr></thead><tbody>{% for row in queue_rows %}<tr><td>{{ row['created_at'][:16].replace('T',' ') }}</td><td>{{ row['serial_hint'] }}</td><td>{{ row['command_text'] }}</td><td><span class="status-chip">{{ row['status'] }}</span></td><td>{{ row['result_text'] }}</td></tr>{% else %}<tr><td colspan="5">No Aaria tasks yet.</td></tr>{% endfor %}</tbody></table>
+      </div>
+    </div>
+  </div>
+  <div class="small-grid two top-gap-small ai-lab-grid compact-gap-grid">
+    <div class="panel fade-up">
+      <div class="panel-title">Bulk Notes / Call / WhatsApp Studio</div>
+      <div class="helper-text">Select up to five candidates at a time. Add a common note or run a call or WhatsApp queue one by one.</div>
+      <div class="field accent-field top-gap-small"><label>Search Candidate</label><input type="text" id="bulkSearch" placeholder="Name / ID / phone"></div>
+      <div class="bulk-picker-list" id="bulkCandidateList">{% for c in candidate_options %}<label class="bulk-pick-item"><input type="checkbox" value="{{ c['candidate_id'] }}" data-name="{{ c['full_name'] }}" data-phone="{{ c['phone'] }}"> <span><strong>{{ c['full_name'] }}</strong> • {{ c['candidate_id'] }} • {{ c['phone'] }}</span></label>{% endfor %}</div>
+      <div class="helper-text top-gap-small" id="bulkSelectedHint">Selected: 0 / 5</div>
+      <div class="field accent-field top-gap-small"><label>Common Message / Note</label><textarea id="bulkMessage" rows="3" placeholder="Enter a common message, follow-up note, or WhatsApp text"></textarea></div>
+      <div class="aaria-actions"><button class="mini-btn view bounceable" type="button" id="bulkNoteBtn">Add Note</button><button class="mini-btn call bounceable" type="button" id="bulkCallBtn">Dial Call</button><button class="mini-btn edit bounceable" type="button" id="bulkWaBtn">Let's WhatsApp</button><button class="ghost-btn bounceable" type="button" id="bulkNextBtn" disabled>Next</button></div>
+      <div class="aaria-result top-gap-small" id="bulkResult">Bulk studio ready.</div>
+    </div>
+    <div class="panel fade-up">
+      <div class="panel-title">Queue Preview</div>
+      <div class="soft-panel" id="bulkQueuePreview">The queue is currently empty. Select candidates and then start a call or WhatsApp queue.</div>
+    </div>
+  </div>
+  <div class="small-grid two top-gap-small ai-lab-grid compact-gap-grid">
+    <div class="panel fade-up"><div class="panel-title">CV Tools</div><form method="POST" enctype="multipart/form-data" class="report-form-grid"><div class="field accent-field report-span-2"><label>Upload Resume / Image / PDF / Word File</label><input type="file" name="cv_file" required></div><div class="field accent-field"><label>Action</label><select name="cv_action"><option value="extract_details">Extract Details</option><option value="pdf_to_word">PDF to Word</option><option value="word_to_pdf">Word to PDF</option><option value="image_to_word">Image to Word</option><option value="word_to_image">Word to Image</option></select></div><div class="field accent-field"><label>Output</label><input value="Generated within CRM" readonly></div><div class="modal-actions-bar report-span-2"><button class="submit-btn bounceable" type="submit">Run CV Tool</button></div></form>{% if cv_result %}<div class="top-gap panel soft-panel"><div class="panel-title">Latest Result</div><div class="helper-text">Source: {{ cv_result.source_name }}</div><div class="helper-text">Output: {{ cv_result.output_name }}</div><div class="summary-strip-grid top-gap-small colorful-summary-grid">{% for key, value in cv_result.summary.items() %}<div><span>{{ key }}</span><strong>{{ value or '-' }}</strong></div>{% endfor %}</div><div class="top-gap-small"><a class="mini-btn call bounceable" href="{{ url_for('download_generated_file', filename=cv_result.output_name) }}">Download Output</a></div></div>{% endif %}</div>
+    <div class="panel fade-up"><div class="panel-title">Employee Activity Risk View</div><div class="crm-table-wrap dense-wrap"><table class="crm-table colorful-table dense-table" id="activityRiskTable" data-configurable-table="1" data-config-title="Risk Table"><thead><tr><th data-col-key="name">Employee</th><th data-col-key="username">Username</th><th data-col-key="views">Page Views</th><th data-col-key="candidate_views">Candidate Views</th><th data-col-key="risk">Risk</th></tr></thead><tbody>{% for row in risk_rows %}<tr><td>{{ row['full_name'] }}</td><td>{{ row['username'] }}</td><td>{{ row['page_views'] }}</td><td>{{ row['candidate_views'] }}</td><td><span class="status-chip">{{ row['risk'] }}</span></td></tr>{% else %}<tr><td colspan="5">No activity yet.</td></tr>{% endfor %}</tbody></table></div><div class="helper-text top-gap-small">A high-risk flag is a review signal only and does not by itself confirm misconduct.</div></div>
+  </div>
+  <div class="table-panel top-gap glassy-card fade-up"><div class="table-toolbar"><div><div class="table-title">Recent Employee Activity</div><div class="subtle">Searches, page opens, candidate views, Aaria actions.</div></div><div class="toolbar-actions"><button class="mini-btn view bounceable" type="button" data-configure-table="activityTable">Columns</button></div></div><div class="crm-table-wrap dense-wrap"><table class="crm-table colorful-table dense-table" id="activityTable" data-configurable-table="1" data-config-title="Employee Activity"><thead><tr><th data-col-key="when">When</th><th data-col-key="name">Employee</th><th data-col-key="username">Username</th><th data-col-key="recruiter">Recruiter Code</th><th data-col-key="action">Action</th><th data-col-key="candidate">Candidate ID</th><th data-col-key="metadata">Metadata</th></tr></thead><tbody>{% for row in activity_rows %}<tr><td>{{ row['when'] }}</td><td>{{ row['full_name'] }}</td><td>{{ row['username'] }}</td><td>{{ row['recruiter_code'] }}</td><td>{{ row['action'] }}</td><td>{{ row['candidate_id'] }}</td><td>{{ row['metadata'] }}</td></tr>{% else %}<tr><td colspan="7">No activity logged yet.</td></tr>{% endfor %}</tbody></table></div></div>
+</div>
+{% endblock %}
+
+{% block scripts %}<script>
+(function(){
+  const list=document.getElementById('bulkCandidateList'); if(!list) return;
+  const search=document.getElementById('bulkSearch'); const msg=document.getElementById('bulkMessage'); const result=document.getElementById('bulkResult'); const hint=document.getElementById('bulkSelectedHint'); const preview=document.getElementById('bulkQueuePreview'); const nextBtn=document.getElementById('bulkNextBtn');
+  let queue=[]; let queueIndex=0; let queueMode='call';
+  function selected(){ return [...list.querySelectorAll('input[type="checkbox"]:checked')].slice(0,5); }
+  function syncChecks(){ const picked=selected(); [...list.querySelectorAll('input[type="checkbox"]')].forEach(cb=>{ if(!cb.checked) cb.disabled=picked.length>=5; }); hint.textContent=`Selected: ${picked.length} / 5`; }
+  list.addEventListener('change', syncChecks); syncChecks();
+  if(search){ search.addEventListener('input', ()=>{ const q=(search.value||'').toLowerCase(); [...list.querySelectorAll('.bulk-pick-item')].forEach(item=>{ item.style.display=item.textContent.toLowerCase().includes(q)?'':'none'; }); }); }
+  async function prepare(action){ const ids=selected().map(cb=>cb.value); if(!ids.length){ result.textContent='Select at least one candidate first.'; return; } const payload={action, candidate_ids:ids, message:msg.value, note:msg.value}; const r=await fetch('{{ url_for('bulk_action') }}',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)}); const data=await r.json(); if(!data.ok){ result.textContent=data.message || 'Bulk action failed.'; return; } if(action==='bulk_note'){ result.textContent=data.message; return; } queue=data.queue||[]; queueIndex=0; queueMode=action; renderQueue(); openCurrent(); }
+  function renderQueue(){ if(!queue.length){ preview.textContent='Queue abhi khali hai.'; nextBtn.disabled=true; return; } const current=queue[queueIndex]||queue[queue.length-1]; preview.innerHTML=`<strong>${current.full_name}</strong> • ${current.candidate_id} • ${current.phone}<br><span class="helper-text">${queueIndex+1} / ${queue.length} ready. Message: ${current.message||'-'}</span>`; nextBtn.disabled=queueIndex>=queue.length-1; result.textContent=`${queue.length} contacts queue me ready.`; }
+  function openCurrent(){ const current=queue[queueIndex]; if(!current) return; const a=document.createElement('a'); a.href=(queueMode==='call')?current.call_link:current.wa_link; if(queueMode!=='call') a.target='_blank'; a.rel='noopener'; a.style.display='none'; document.body.appendChild(a); a.click(); a.remove(); renderQueue(); }
+  document.getElementById('bulkNoteBtn')?.addEventListener('click', ()=>prepare('bulk_note'));
+  document.getElementById('bulkCallBtn')?.addEventListener('click', ()=>prepare('call_queue'));
+  document.getElementById('bulkWaBtn')?.addEventListener('click', ()=>prepare('whatsapp_queue'));
+  nextBtn?.addEventListener('click', ()=>{ if(queueIndex<queue.length-1){ queueIndex += 1; openCurrent(); } });
+})();
+</script>{% endblock %}

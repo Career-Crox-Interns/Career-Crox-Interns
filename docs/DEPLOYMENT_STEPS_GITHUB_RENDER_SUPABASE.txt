@@ -1,0 +1,24 @@
+Career Crox CRM Deployment Guide
+
+1. Open the project folder.
+2. Check .env.example or .env and keep your keys ready.
+3. Create a GitHub repository.
+4. Upload the full project files.
+5. Create a Supabase project.
+6. Copy the Supabase URL and API keys.
+7. Add those values in your environment variables.
+8. Create a Render Web Service.
+9. Connect the GitHub repository to Render.
+10. Add the same environment variables in Render.
+11. Deploy the service.
+12. Open the Render URL and test login.
+13. Test candidates, Aaria, reports, approvals, and chat.
+14. If something is missing, stop and fix it before using it with the team.
+
+Where to find things:
+- GitHub: repository settings, code tab, deploy keys, environment secrets if used.
+- Supabase: project settings, API section, database tables.
+- Render: dashboard, web service settings, logs, environment variables.
+
+Basic order:
+GitHub first -> Supabase second -> Render third -> Final testing last.

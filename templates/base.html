@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ active_theme }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Career Crox CRM{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="brand-box glassy-card compact-brand-box">
+            <div class="compact-brand-row">
+                <img class="compact-brand-logo" src="{{ url_for('static', filename='img/career-crox-brand-icon.png') }}" alt="Career Crox">
+                <div>
+                    <div class="brand-mini">Career Crox</div>
+                    <div class="brand-wordmark small-wordmark">Recruitment CRM</div>
+                </div>
+            </div>
+        </div>
+
+        <nav class="sidebar-nav">
+            {% set nav_order = ['Dashboard','Candidates','Submissions','Submission Slice','Interviews','Tasks','Attendance & Breaks','Reports','Client Pipeline','Revenue Hub','Performance Centre','AI Operations','JD Centre','Dialer','Meeting Room','Learning Hub','Social Career Crox','Wallet & Rewards','Payout Tracker','Recent Activity','Admin Control'] %}
+            {% for wanted in nav_order %}
+                {% for label, endpoint, kwargs in sidebar_items %}
+                    {% if label == wanted and label != "Let's Chit-Chat" %}
+                        {% set role = current_user_data.role if current_user_data else '' %}{% if (label in ['Client Pipeline','Revenue Hub','Wallet & Rewards','Payout Tracker','Admin Control'] and role != 'manager') or (label in ['Performance Centre','Recent Activity','Reports'] and role not in ['manager','tl']) %}{% else %}
+                        {% set link = url_for(endpoint, **kwargs) %}
+                        {% set active = request.path == link or (endpoint == 'module_page' and request.path.startswith('/module/' ~ kwargs.get('slug'))) %}
+                        <a class="nav-item {% if active %}active{% endif %} bounceable {% if label in ['Client Pipeline','Revenue Hub','Wallet & Rewards', 'Payout Tracker', 'Recent Activity', 'Admin Control', 'Performance Centre'] %}manager-only-link{% endif %}" href="{{ link }}" {% if label in ['Client Pipeline','Revenue Hub','Wallet & Rewards', 'Payout Tracker', 'Recent Activity', 'Admin Control', 'Performance Centre'] %}data-manager-only="1"{% endif %}><span>{{ label }}</span></a>
+                        {% endif %}
+                    {% endif %}
+                {% endfor %}
+            {% endfor %}
+        </nav>
+
+        <div class="theme-panel glassy-card prominent-theme-box">
+            <div class="theme-heading-row"><div class="theme-heading">Theme Studio</div><button class="ghost-btn bounceable" type="button" id="themeStudioToggle" aria-expanded="false">Choose Theme</button></div>
+            <div class="theme-panel-body" id="themeStudioBody" hidden>
+            <div class="theme-grid">
+                <button class="theme-dot theme-corporate-light active-theme" data-theme="corporate-light" title="Corporate Light"></button>
+                <button class="theme-dot theme-ocean" data-theme="ocean" title="Ocean"></button>
+                <button class="theme-dot theme-rose" data-theme="rose" title="Rose"></button>
+                <button class="theme-dot theme-mint" data-theme="mint" title="Mint"></button>
+                <button class="theme-dot theme-sunset" data-theme="sunset" title="Sunset"></button>
+                <button class="theme-dot theme-lavender" data-theme="lavender" title="Lavender"></button>
+                <button class="theme-dot theme-dark-pro" data-theme="dark-pro" title="Dark Pro"></button>
+                <button class="theme-dot theme-dark-midnight" data-theme="dark-midnight" title="Dark Midnight"></button>
+                <button class="theme-dot theme-dark-vscode" data-theme="dark-vscode" title="Dark VSCode"></button>
+                <button class="theme-dot theme-silver-pro" data-theme="silver-pro" title="Silver Pro"></button>
+                            </div>
+            <div class="theme-labels"><span>Select a preset</span><span>Preview updates instantly</span></div>
+            <div class="custom-theme-box">
+                <div class="custom-theme-title">Live Color Mixer</div>
+                <div class="custom-theme-grid">
+                    <label>Interface 1<input type="color" id="themeMixA" value="#ffb36b"></label>
+                    <label>Interface 2<input type="color" id="themeMixB" value="#6db7ff"></label>
+                    <label>Button 1<input type="color" id="themeBtnA" value="#5f7cff"></label>
+                    <label>Button 2<input type="color" id="themeBtnB" value="#f77f9b"></label>
+                </div>
+                <button class="ghost-btn bounceable custom-theme-reset" type="button" id="customThemeReset">Reset Mix</button>
+            </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-wrap">
+        <header class="topbar">
+            <div class="topbar-left">
+                <div class="topbar-title topbar-brand-title"><img class="topbar-logo" src="{{ url_for('static', filename='img/career-crox-brand-icon.png') }}" alt="Career Crox"><span>{% block page_title %}Career Crox Dashboard{% endblock %}</span></div>
+                <div class="topbar-sub">{% block page_subtitle %}Professional recruitment operations workspace{% endblock %}</div>
+            </div>
+            <div class="topbar-center">
+                <form class="search-box glassy-card" method="GET" action="{{ url_for('global_search') }}">
+                    <input type="text" name="q" placeholder="Search candidate, task, JD, phone, approval" value="{{ request.args.get('q', '') }}">
+                    <button class="ghost-btn bounceable" type="submit">Search</button>
+                </form>
+            </div>
+            <div class="topbar-right">
+                <div class="top-action-wrap">
+                    <button class="add-profile-btn bounceable" type="button" id="addMenuButton">Quick Add</button>
+                    <div class="add-menu glassy-card professional-add-menu" id="addMenuPanel">
+                        <a href="#" data-quick-modal="candidate-modal">Add Candidate</a>
+                        <a href="#" data-quick-modal="note-modal">Add Note</a>
+                        {% if current_user_data and current_user_data.role in ['manager','tl'] %}<a href="#" data-quick-modal="task-modal">Add Task</a>{% endif %}
+                        {% if current_user_data and current_user_data.role in ['manager','tl'] %}<a href="#" data-quick-modal="jd-modal">Add JD</a>{% endif %}
+                        <a href="#" data-quick-modal="interview-modal">Add Interview</a>
+                        <a href="{{ url_for('submissions') }}">Open Submissions</a>
+                        <a href="{{ url_for('submission_slice') }}">Submission Slice</a>
+                        {% if current_user_data and current_user_data.role in ['manager','tl'] %}<a href="{{ url_for('reports_page') }}">Open Reports</a>{% endif %}
+                        {% if manager_role %}<a href="{{ url_for('client_pipeline_page') }}">Client Pipeline</a><a href="{{ url_for('revenue_hub_page') }}">Revenue Hub</a>{% endif %}
+                        {% if leadership_role %}<a href="{{ url_for('performance_centre_page') }}">Performance Centre</a>{% endif %}
+                        <a href="{{ url_for('testing_ai_page') }}">AI Operations</a>
+                        <a href="{{ url_for('attendance_breaks') }}">Attendance &amp; Breaks</a>
+                    </div>
+                </div>
+                {% if current_user_data and current_user_data.role in ['manager','tl'] %}<a class="top-pill bounceable" href="{{ url_for('approvals_page') }}" data-pill="approvals">Approvals <span class="pill-count">{{ approval_requests_count }}</span></a>{% endif %}
+                <a class="top-pill bounceable" href="{{ url_for('notifications_page') }}" data-pill="notifications">Notifications <span class="pill-count">{{ unread_notifications }}</span></a>
+                <a class="top-pill bounceable" href="{{ url_for('chat_page') }}">Team Chat</a>
+                {% if current_user_data %}
+                <div class="user-chip glassy-card user-chip-menu">
+                    <div>
+                        <div class="user-name">{{ current_user_data['full_name'] }}</div>
+                        <div class="user-role">{{ current_user_data['designation'] }}</div>
+                        {% if session.get('impersonator') %}<div class="impersonation-line">Viewing as team member</div>{% endif %}
+                    </div>
+                    <div class="user-chip-actions">
+                        {% if can_switch_back %}<a class="mini-btn view bounceable logout-mini" href="{{ url_for('stop_impersonation') }}">Back to head account</a>{% endif %}
+                        <a class="mini-btn edit bounceable logout-mini" href="{{ url_for('logout') }}">Logout</a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </header>
+
+        <section class="page-scroll">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-stack">
+                        {% for category, message in messages %}
+                            <div class="flash {{ category }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </section>
+    
+</main>
+</div>
+
+{% if current_lock_state.locked %}
+<div class="crm-lock-overlay show">
+  <div class="crm-lock-card glassy-card">
+    <div class="panel-title">CRM Locked</div>
+    <p>{{ current_lock_state.reason }}</p>
+    {% if current_lock_state.request_id %}<div class="helper-text">Request ID: {{ current_lock_state.request_id }}</div>{% endif %}
+    <div class="lock-late-box top-gap-small">
+      <span>Late running timer</span>
+      <strong id="lockLateTimer" data-requested-at="{{ current_lock_state.requested_at }}">00:00:00</strong>
+    </div>
+    <div class="helper-text top-gap-small">The timer shows how long the request has remained overdue.</div>
+    <div class="top-gap-small">
+      {% if current_lock_state.pending %}
+      <button class="submit-btn slim-btn muted-btn" type="button" disabled>Approval request sent</button>
+      {% else %}
+      <form method="POST" action="{{ url_for('attendance_request_unlock') }}">
+        <input type="hidden" name="reason" value="{{ current_lock_state.reason or 'Unlock approval requested from locked CRM popup' }}">
+        <button class="submit-btn bounceable slim-btn" type="submit">Request for approval</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% if current_user_data %}
+<button class="aaria-fab bounceable" id="aariaFab" type="button"><span class="aaria-fab-badge" id="aariaFabAvatar" aria-hidden="true">AI</span><span>Open Aaria</span></button>
+<div class="aaria-shell" id="aariaShell">
+  <div class="aaria-card glassy-card premium-aaria-card aaria-no-avatar-card">
+    <div class="aaria-head compact-aaria-head">
+      <div class="aaria-head-left compact-head-left">
+        <div class="aaria-mini-logo-wrap" id="aariaLogoWrap"><span id="aariaAvatar" class="aaria-mini-badge" aria-hidden="true">AI</span></div>
+        <div>
+          <div class="panel-title">Aaria</div>
+          <div class="helper-text" id="aariaStatusBadge">Ready for work</div>
+        </div>
+      </div>
+      <div class="toolbar-actions"><button class="ghost-btn" type="button" id="aariaMaximize">Maximize</button><button class="ghost-btn" type="button" id="aariaClose">Close</button></div>
+    </div>
+    <div class="aaria-body aaria-body-flat">
+      <div class="aaria-workbench compact-aaria-workbench">
+        <section class="soft-panel aaria-main-panel aaria-main-panel-v24">
+          <div class="aaria-panel-topbar compact-topbar aaria-panel-topbar-v24">
+            <div>
+              <div class="panel-title">Instruction Form</div>
+              <div class="helper-text">Choose the action, search the target profile, and add content only when it is needed.</div>
+            </div>
+            <div class="aaria-inline-preview aaria-inline-preview-v24" id="aariaCandidatePreview">Search a profile to load the target preview here.</div>
+          </div>
+          <div class="aaria-form-grid compact-form-grid aaria-form-grid-v24">
+            <div class="field compact-field aaria-action-field-v24">
+              <label>Action</label>
+              <select id="aariaActionSelect"></select>
+            </div>
+            <div class="field compact-field aaria-target-field aaria-target-field-v24">
+              <label>Profile / Target</label>
+              <div class="aaria-target-picker-row">
+                <input id="aariaSerial" list="aariaTargetDatalist" autocomplete="off" placeholder="Search profile: Neha / C001 / 43210 / RC-101">
+                <button class="ghost-btn bounceable aaria-target-search-btn" type="button" id="aariaTargetSearchBtn">Find</button>
+              </div>
+              <div class="helper-text">Type the profile name, candidate ID, phone digits, or recruiter code. Then click the profile from the list below.</div>
+              <div class="aaria-target-selected" id="aariaTargetSelected">No profile selected yet.</div>
+              <div class="aaria-target-results" id="aariaTargetResults" hidden></div>
+            </div>
+            <div class="field compact-field aaria-content-field-v24" id="aariaDetailFieldWrap">
+              <label id="aariaDetailLabel">Content</label>
+              <textarea id="aariaDetailInput" rows="2" placeholder="Enter content"></textarea>
+            </div>
+          </div>
+          <div class="aaria-form-actions compact-form-actions aaria-form-actions-v24">
+            <button class="mini-btn view bounceable" type="button" id="aariaAddInstruction">Add to Queue</button>
+            <button class="mini-btn edit bounceable" type="button" id="aariaBuildCommands">Build Commands</button>
+            <button class="ghost-btn bounceable" type="button" id="aariaClearFields">Clear</button>
+          </div>
+          <div class="aaria-two-column-v24 top-gap-small">
+            <div class="aaria-instruction-board aaria-instruction-board-v24">
+              <div class="aaria-board-head">
+                <div class="panel-title">Bulk Queue Builder</div>
+                <div class="helper-text">Use this space for notes, salary, location, qualification, task, and other bulk work. The queue stretches to use the panel properly instead of wasting half the screen like it pays rent.</div>
+              </div>
+              <div class="aaria-builder-list compact-visible-list" id="aariaBuilderList"></div>
+            </div>
+            <div class="soft-subpanel aaria-side-stack-v24">
+              <div class="field compact-field">
+                <label>Command Composer</label>
+                <textarea id="aariaCommand" rows="7" placeholder="Phone & WhatsApp:&#10;1. call C001&#10;2. whatsapp We are waiting for your reply to C002&#10;&#10;Bulk:&#10;3. add task for C003 callback today&#10;4. update salary C004 to 22000&#10;5. note C005 candidate asked for evening shift"></textarea>
+              </div>
+              <div class="aaria-actions compact-actions">
+                <button class="mini-btn view bounceable" type="button" id="aariaVoiceBtn">Voice</button>
+                <button class="mini-btn edit bounceable" type="button" id="aariaPreviewBtn">Preview</button>
+                <button class="mini-btn call bounceable" type="button" id="aariaRunBtn">Run</button>
+                <button class="ghost-btn bounceable" type="button" id="aariaClearComposer">Clear</button>
+              </div>
+              <div class="aaria-bulk-section soft-subpanel" id="aariaBulkSection" hidden>
+                <div class="panel-title">Bulk Section</div>
+                <div class="helper-text" id="aariaBulkMeta">Notes, salary, location, qualification, task, and similar updates run together in one click.</div>
+                <div class="aaria-bulk-list top-gap-small" id="aariaBulkList"></div>
+              </div>
+              <div class="aaria-result" id="aariaResult"><div class="aaria-result-card success">Aaria is ready.</div></div>
+              <div class="aaria-action-queue soft-subpanel" id="aariaActionQueue" hidden>
+                <div class="panel-title">Phone &amp; WhatsApp Section</div>
+                <div class="helper-text" id="aariaActionQueueMeta">Calls and WhatsApp drafts run one by one so the current item must be completed before the next one opens.</div>
+                <div class="aaria-action-queue-card top-gap-small" id="aariaActionQueueCard"></div>
+                <div class="aaria-actions top-gap-small compact-actions">
+                  <button class="mini-btn call bounceable" type="button" id="aariaQueueOpenBtn">Open Current</button>
+                  <button class="mini-btn view bounceable" type="button" id="aariaQueueDoneBtn">Mark Done &amp; Run Next</button>
+                  <button class="ghost-btn bounceable" type="button" id="aariaQueueSkipBtn">Skip</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+        <section class="soft-panel aaria-history-panel compact-history-panel aaria-history-panel-v24">
+          <div class="panel-title">Recent Aaria Tasks</div>
+          <div class="activity-list aaria-history-visible-list top-gap-small">
+            {% for row in aaria_recent_history[:5] %}
+            <button class="activity-item aaria-history-item" type="button" data-command="{{ row['command_text']|e }}" style="width:100%;text-align:left;border:0;background:transparent;">
+              <div class="activity-left">
+                <div class="activity-name">{{ row['command_text'] }}</div>
+                <div class="activity-sub">{{ row['created_at'][:16].replace('T',' ') }} • {{ row['result_text'] }}</div>
+              </div>
+            </button>
+            {% else %}
+            <div class="helper-text">No recent Aaria tasks yet.</div>
+            {% endfor %}
+          </div>
+          <div class="top-gap-small"><a class="mini-btn view bounceable aaria-guide-btn" href="{{ aaria_command_guide_pdf }}" target="_blank">Open Command Guide PDF</a></div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <datalist id="aariaTargetDatalist">{% for item in aaria_target_suggestions %}<option value="{{ item }}"></option>{% endfor %}</datalist>
+</div>
+{% endif %}
+<div class="demo-modal-shell" id="demoModalShell"><div class="demo-modal glassy-card"><div class="demo-modal-top"><div class="panel-title" id="demoModalTitle">Quick Add</div><button class="ghost-btn bounceable" type="button" id="demoModalClose">Close</button></div><div id="demoModalBody"></div></div></div>
+<script src="{{ url_for('static', filename='js/themes.js') }}"></script>
+<script>
+const addBtn = document.getElementById('addMenuButton');
+const addPanel = document.getElementById('addMenuPanel');
+if (addBtn && addPanel) {
+  addBtn.addEventListener('click', (e) => { e.stopPropagation(); addPanel.classList.toggle('show'); });
+  document.addEventListener('click', (e) => { if (!addPanel.contains(e.target) && e.target !== addBtn) addPanel.classList.remove('show'); });
+}
+const DEMO_FORMS = {
+  'candidate-modal': {title:'Add Candidate', html:`<form method="POST" action="{{ url_for('create_candidate') }}" class="modal-grid-form wide-modal-grid candidate-modal-grid"><div class="field accent-field"><label>Call Connected</label><select name="call_connected"><option value="">Select</option><option>Yes</option><option>No</option><option>Partially</option></select></div><div class="field accent-field"><label>Looking for Job</label><select name="looking_for_job"><option>Yes</option><option>No</option></select></div><div class="field accent-field"><label>Name</label><input name="full_name" placeholder="Candidate name" required></div><div class="field accent-field"><label>Phone</label><input name="phone" placeholder="10 digit phone" required></div><div class="field accent-field"><label>Qualification</label><input name="qualification" placeholder="Qualification"></div><div class="field accent-field"><label>Location</label><input name="location" placeholder="Current city"></div><div class="field accent-field"><label>Degree</label><select name="qualification_level"><option value="">Select</option><option>Non-Graduate</option><option>Graduate</option></select></div><div class="field accent-field"><label>Preferred Extra Location</label><select name="preferred_location_other"><option value="">Select</option><option>Mumbai</option><option>Bangalore</option><option>Chennai</option><option>Pune</option></select></div><div class="field accent-field"><label>Total Experience (months)</label><input name="total_experience" inputmode="numeric" placeholder="6"></div><div class="field accent-field"><label>Relevant Experience (months)</label><input name="relevant_experience" inputmode="numeric" placeholder="4"></div><div class="field accent-field"><label>In-hand Monthly</label><input name="in_hand_salary" inputmode="numeric" placeholder="18000"></div><div class="field accent-field"><label>CTC Monthly</label><input name="ctc_monthly" inputmode="numeric" placeholder="22000"></div><div class="field accent-field"><label>Career Gap</label><select name="career_gap"><option value="">Select</option><option>No Gap</option><option>Currently Working</option><option>0-3 Months</option><option>3-6 Months</option><option>6-12 Months</option><option>1+ Year</option></select></div><div class="field accent-field"><label>Interview Availability</label><select name="interview_availability"><option value="">Select</option><option>Immediate</option><option>Today</option><option>Tomorrow</option><option>This Week</option><option>After Notice Period</option></select></div><div class="field accent-field modal-span-2"><label>Preferred Primary Locations</label><div class="checkbox-stack small-checkbox-stack"><label><input type="checkbox" name="preferred_locations" value="Noida"> Noida</label><label><input type="checkbox" name="preferred_locations" value="Gurgaon"> Gurgaon</label></div></div><div class="field accent-field"><label>Process</label><input name="process" placeholder="Airtel / Blinkit"></div><div class="field accent-field"><label>Recruiter Code</label><input name="recruiter_code" placeholder="RC-201"></div><div class="field accent-field"><label>Status</label><input name="status" placeholder="Eligible"></div><div class="field accent-field"><label>All Details Sent</label><select name="all_details_sent"><option>Pending</option><option>Completed</option></select></div><div class="field accent-field modal-span-2"><label>Initial Note</label><textarea name="notes" placeholder="Add first note"></textarea></div><div class="modal-actions-bar modal-span-2"><button class="submit-btn bounceable" type="submit">Save Candidate</button></div></form>`},
+  'note-modal': {title:'Add Note', html:`<form method="POST" action="{{ url_for('create_quick_note') }}" class="modal-grid-form wide-modal-grid compact-two-col"><div class="field accent-field"><label>Candidate ID</label><input name="candidate_id" placeholder="C001" required></div><div class="field accent-field"><label>Note Type</label><select name="note_type"><option value="public">Public</option><option value="private">Private</option></select></div><div class="field accent-field modal-span-2"><label>Note</label><textarea name="note_body" placeholder="Add note text" required></textarea></div><div class="modal-actions-bar modal-span-2"><button class="submit-btn bounceable" type="submit">Save Note</button></div></form>`},
+  'task-modal': {title:'Add Task', html:`<form method="POST" action="{{ url_for('create_task') }}" class="modal-grid-form wide-modal-grid compact-two-col"><div class="field accent-field modal-span-2"><label>Task title</label><input name="title" placeholder="Task name" required></div><div class="field accent-field modal-span-2"><label>Assigned Username / Name</label><input name="assigned_to_username" list="employeeSuggestions" placeholder="Type r, rabia, sakshi, RC code" required></div><div class="field accent-field modal-span-2"><label>Description</label><textarea name="description" placeholder="Task details"></textarea></div><div class="field accent-field"><label>Priority</label><select name="priority"><option>Normal</option><option>High</option><option>Low</option></select></div><div class="field accent-field"><label>Status</label><select name="status"><option>Open</option><option>Pending</option><option>Closed</option></select></div><div class="field accent-field modal-span-2"><label>Due Date & Time</label><input name="due_date" type="datetime-local"></div><div class="modal-actions-bar modal-span-2"><button class="submit-btn bounceable" type="submit">Save Task</button></div></form>`},
+  'jd-modal': {title:'Add JD', html:`<form method="POST" action="{{ url_for('create_jd') }}" enctype="multipart/form-data" class="modal-grid-form wide-modal-grid compact-two-col"><div class="field accent-field"><label>Job Title</label><input name="job_title" placeholder="Role title" required></div><div class="field accent-field"><label>Company</label><input name="company" placeholder="Client / process" required></div><div class="field accent-field"><label>Location</label><input name="location" placeholder="Noida"></div><div class="field accent-field"><label>Experience</label><input name="experience" placeholder="0-1 year"></div><div class="field accent-field"><label>Salary</label><input name="salary" placeholder="16K-22K"></div><div class="field accent-field"><label>Status</label><input name="jd_status" placeholder="Open"></div><div class="field accent-field modal-span-2"><label>Upload JD PDF</label><input name="jd_pdf" type="file" accept="application/pdf,.pdf"></div><div class="field accent-field modal-span-2"><label>Notes</label><textarea name="notes" placeholder="JD summary"></textarea></div><div class="modal-actions-bar modal-span-2"><button class="submit-btn bounceable" type="submit">Save JD</button></div></form>`},
+  'interview-modal': {title:'Add Interview', html:`<form method="POST" action="{{ url_for('create_interview') }}" class="modal-grid-form wide-modal-grid compact-two-col"><div class="field accent-field"><label>Candidate ID</label><input name="candidate_id" placeholder="C001" required></div><div class="field accent-field"><label>JD ID</label><input name="jd_id" placeholder="J001"></div><div class="field accent-field"><label>Stage</label><input name="stage" placeholder="Interview Scheduled"></div><div class="field accent-field"><label>Status</label><input name="status" placeholder="Scheduled"></div><div class="field accent-field modal-span-2"><label>Date & Time</label><input name="scheduled_at" type="datetime-local" required></div><div class="modal-actions-bar modal-span-2"><button class="submit-btn bounceable" type="submit">Save Interview</button></div></form>`}
+};
+const demoShell = document.getElementById('demoModalShell');
+const demoTitle = document.getElementById('demoModalTitle');
+const demoBody = document.getElementById('demoModalBody');
+const demoClose = document.getElementById('demoModalClose');
+function openDemoModal(key){ const d = DEMO_FORMS[key]; if(!d || !demoShell || !demoTitle || !demoBody) return; demoTitle.textContent = d.title; demoBody.innerHTML = d.html; demoShell.classList.add('show'); }
+document.querySelectorAll('[data-quick-modal]').forEach(el => el.addEventListener('click', (e) => { e.preventDefault(); openDemoModal(el.dataset.quickModal || el.dataset.demoModal); if (addPanel) addPanel.classList.remove('show'); }));
+if (demoClose) demoClose.addEventListener('click', () => demoShell.classList.remove('show'));
+if (demoShell) demoShell.addEventListener('click', (e) => { if (e.target === demoShell) demoShell.classList.remove('show'); });
+document.querySelectorAll('[data-theme]').forEach(btn => { btn.addEventListener('click', function(){ fetch("{{ url_for('save_theme') }}", { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({theme: this.dataset.theme}) }).catch(() => {}); }); });
+function wireSelectAll(context=document) {
+  context.querySelectorAll('.select-all').forEach(master => {
+    if (master.dataset.bound) return; master.dataset.bound = '1';
+    master.addEventListener('change', () => { const table = master.closest('table'); if (!table) return; table.querySelectorAll('.row-check').forEach(cb => cb.checked = master.checked); table.querySelectorAll('tbody tr').forEach(tr => tr.classList.toggle('selected-row', master.checked)); });
+  });
+}
+wireSelectAll(document);
+(function(){ const themeToggle=document.getElementById('themeStudioToggle'); const themeBody=document.getElementById('themeStudioBody'); if(themeToggle&&themeBody){ themeToggle.addEventListener('click', ()=>{ const open=themeBody.hasAttribute('hidden'); if(open){ themeBody.removeAttribute('hidden'); themeToggle.textContent='Hide Theme Options'; themeToggle.setAttribute('aria-expanded','true'); } else { themeBody.setAttribute('hidden','hidden'); themeToggle.textContent='Choose Theme'; themeToggle.setAttribute('aria-expanded','false'); } }); } document.querySelectorAll('select[multiple]').forEach(sel=>{ if(sel.dataset.multiTools) return; sel.dataset.multiTools='1'; const bar=document.createElement('div'); bar.className='multi-select-tools'; bar.innerHTML='<button type="button" class="ghost-btn bounceable">Select All</button><button type="button" class="ghost-btn bounceable">Clear</button>'; const [allBtn,clearBtn]=bar.querySelectorAll('button'); allBtn.addEventListener('click', ()=>{ [...sel.options].forEach(opt=>opt.selected=true); }); clearBtn.addEventListener('click', ()=>{ [...sel.options].forEach(opt=>opt.selected=false); }); sel.parentNode.insertBefore(bar, sel.nextSibling); }); })();
+function initConfigurableTables(){
+  const shell = document.getElementById('columnConfigShell'); const body = document.getElementById('columnConfigBody'); const title = document.getElementById('columnConfigTitle'); const closeBtn = document.getElementById('columnConfigClose'); if (!shell || !body) return;
+  const saveKey = (tableId) => `cc_cols_${tableId}`;
+  const readState = (table) => { const raw = localStorage.getItem(saveKey(table.id)); const headers = [...table.querySelectorAll('thead th')].map((th, idx) => ({ key: th.dataset.colKey || `col_${idx}`, label: th.dataset.colLabel || th.textContent.trim() || `Column ${idx + 1}`, width: parseInt(th.dataset.defaultWidth || th.offsetWidth || 140, 10) })); const fallback = {order: headers.map(h => h.key), hidden: [], widths: Object.fromEntries(headers.map(h => [h.key, h.width]))}; if (!raw) return fallback; try { const parsed = JSON.parse(raw); return { order: parsed.order || fallback.order, hidden: parsed.hidden || [], widths: Object.assign({}, fallback.widths, parsed.widths || {}) }; } catch(e){ return fallback; } };
+  const saveState = (table, state) => localStorage.setItem(saveKey(table.id), JSON.stringify(state));
+  const ensureBaseIndex = (table) => { table.querySelectorAll('tr').forEach(row => { [...row.children].forEach((cell, idx) => { if (!cell.dataset.baseIndex) cell.dataset.baseIndex = String(idx); if (row.parentElement.tagName === 'THEAD' && !cell.dataset.colKey) cell.dataset.colKey = `col_${idx}`; }); }); };
+  const applyState = (table, state) => { ensureBaseIndex(table); const order = state.order; table.querySelectorAll('tr').forEach(row => { const cells = [...row.children]; const cellByKey = {}; cells.forEach(cell => { const idx = parseInt(cell.dataset.baseIndex || '0', 10); const header = table.querySelector(`thead th[data-base-index="${idx}"]`) || table.querySelectorAll('thead th')[idx]; const key = header ? header.dataset.colKey : `col_${idx}`; cellByKey[key] = cell; }); order.forEach(key => { if (cellByKey[key]) row.appendChild(cellByKey[key]); }); order.forEach(key => { const cell = cellByKey[key]; if (!cell) return; const hidden = state.hidden.includes(key); cell.style.display = hidden ? 'none' : ''; const width = state.widths[key]; if (width) { cell.style.width = `${width}px`; cell.style.minWidth = `${width}px`; } }); }); };
+  function openConfig(tableId){ const table = document.getElementById(tableId); if (!table) return; const headers = [...table.querySelectorAll('thead th')].map((th, idx) => ({ key: th.dataset.colKey || `col_${idx}`, label: th.dataset.colLabel || th.textContent.trim() || `Column ${idx + 1}` })); let state = readState(table); applyState(table, state); title.textContent = `Columns • ${table.dataset.configTitle || tableId}`; const renderList = () => { body.innerHTML = ''; const wrap = document.createElement('div'); wrap.className = 'column-list-wrap'; state.order.forEach((key) => { const meta = headers.find(h => h.key === key); if (!meta) return; const item = document.createElement('div'); item.className = 'column-list-item'; item.draggable = true; item.dataset.key = key; item.innerHTML = `<div class="column-list-head"><span class="drag-handle">↕</span><label><input type="checkbox" ${state.hidden.includes(key) ? '' : 'checked'}> ${meta.label}</label></div><div class="column-width-box"><span>Width</span><input type="range" min="90" max="420" step="10" value="${state.widths[key] || 150}"><strong>${state.widths[key] || 150}px</strong></div>`; const checkbox = item.querySelector('input[type="checkbox"]'); const slider = item.querySelector('input[type="range"]'); const strong = item.querySelector('strong'); checkbox.addEventListener('change', () => { state.hidden = state.hidden.filter(v => v !== key); if (!checkbox.checked) state.hidden.push(key); applyState(table, state); saveState(table, state); }); slider.addEventListener('input', () => { state.widths[key] = parseInt(slider.value, 10); strong.textContent = `${slider.value}px`; applyState(table, state); saveState(table, state); }); item.addEventListener('dragstart', () => item.classList.add('dragging')); item.addEventListener('dragend', () => { item.classList.remove('dragging'); state.order = [...wrap.querySelectorAll('.column-list-item')].map(el => el.dataset.key); applyState(table, state); saveState(table, state); }); item.addEventListener('dragover', (e) => { e.preventDefault(); const dragging = wrap.querySelector('.dragging'); if (!dragging || dragging === item) return; const items = [...wrap.querySelectorAll('.column-list-item:not(.dragging)')]; const next = items.find(el => e.clientY <= el.getBoundingClientRect().top + el.offsetHeight / 2); if (next) wrap.insertBefore(dragging, next); else wrap.appendChild(dragging); }); wrap.appendChild(item); }); body.appendChild(wrap); const resetBtn = document.createElement('button'); resetBtn.type = 'button'; resetBtn.className = 'ghost-btn top-gap-small'; resetBtn.textContent = 'Reset View'; resetBtn.addEventListener('click', () => { localStorage.removeItem(saveKey(table.id)); state = readState(table); applyState(table, state); renderList(); }); body.appendChild(resetBtn); }; renderList(); shell.classList.add('show'); }
+  document.querySelectorAll('[data-configure-table]').forEach(btn => { btn.addEventListener('click', () => openConfig(btn.dataset.configureTable)); });
+  if (closeBtn) closeBtn.addEventListener('click', () => shell.classList.remove('show'));
+  shell.addEventListener('click', (e) => { if (e.target === shell) shell.classList.remove('show'); });
+  document.querySelectorAll('table[data-configurable-table]').forEach(table => { ensureBaseIndex(table); applyState(table, readState(table)); });
+}
+initConfigurableTables();
+if (window.location.pathname !== '/login') {
+  let pingInFlight = false;
+  let lastPingAt = 0;
+  const ping = (force=false) => {
+    const now = Date.now();
+    if (pingInFlight) return;
+    if (!force && (now - lastPingAt) < 120000) return;
+    pingInFlight = true;
+    fetch("{{ url_for('attendance_ping') }}", {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({page: window.location.pathname})
+    }).then(r=>r.json()).then(data=>{
+      lastPingAt = Date.now();
+      if(data && data.locked && !window.location.pathname.includes('/attendance')) {
+        window.location.href='{{ url_for('attendance_breaks') }}';
+      }
+    }).catch(() => {}).finally(() => { pingInFlight = false; });
+  };
+  ping(true);
+  setInterval(() => ping(false), 120000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) ping(true); });
+  window.addEventListener('focus', () => ping(true));
+}
+const toast = document.getElementById('toastPop');
+function playGentleTone(){
+  try{
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if(!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(660, ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.22);
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.05, ctx.currentTime + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.38);
+    o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.4);
+  }catch(e){}
+}
+const lockLateTimerEl = document.getElementById('lockLateTimer');
+if (lockLateTimerEl) {
+  const requestedAt = lockLateTimerEl.dataset.requestedAt ? new Date(String(lockLateTimerEl.dataset.requestedAt).replace(' ', 'T')) : null;
+  const renderLockLate = () => {
+    if (!requestedAt || String(requestedAt) === 'Invalid Date') { lockLateTimerEl.textContent = '00:00:00'; return; }
+    const diff = Math.max(0, Date.now() - requestedAt.getTime());
+    const hrs = String(Math.floor(diff / 3600000)).padStart(2, '0');
+    const mins = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+    const secs = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+    lockLateTimerEl.textContent = `${hrs}:${mins}:${secs}`;
+  };
+  renderLockLate();
+  setInterval(renderLockLate, 1000);
+}
+
+
+if (toast) { setTimeout(() => toast.classList.add('show'), 120); setTimeout(() => toast.classList.remove('show'), 3200); playGentleTone(); }
+const unreadCountEl = document.querySelector('[data-pill="notifications"] .pill-count');
+if (unreadCountEl) {
+  const key = 'cc_unread_notifications';
+  const currentCount = parseInt(unreadCountEl.textContent || '0', 10) || 0;
+  const lastCount = parseInt(sessionStorage.getItem(key) || '0', 10) || 0;
+  if (currentCount > lastCount) playGentleTone();
+  sessionStorage.setItem(key, String(currentCount));
+}
+
+(function(){
+  const fab=document.getElementById('aariaFab');
+  const fabAvatar=document.getElementById('aariaFabAvatar');
+  const shell=document.getElementById('aariaShell');
+  const closeBtn=document.getElementById('aariaClose');
+  const maxBtn=document.getElementById('aariaMaximize');
+  const previewBtn=document.getElementById('aariaPreviewBtn');
+  const runBtn=document.getElementById('aariaRunBtn');
+  const voiceBtn=document.getElementById('aariaVoiceBtn');
+  const serialEl=document.getElementById('aariaSerial');
+  const actionSelect=document.getElementById('aariaActionSelect');
+  const detailInput=document.getElementById('aariaDetailInput');
+  const detailField=document.getElementById('aariaDetailFieldWrap');
+  const detailLabel=document.getElementById('aariaDetailLabel');
+  const targetResults=document.getElementById('aariaTargetResults');
+  const targetSearchBtn=document.getElementById('aariaTargetSearchBtn');
+  const targetSelected=document.getElementById('aariaTargetSelected');
+  const clearFieldsBtn=document.getElementById('aariaClearFields');
+  const cmdEl=document.getElementById('aariaCommand');
+  const resultEl=document.getElementById('aariaResult');
+  const previewEl=document.getElementById('aariaCandidatePreview');
+  const avatar=document.getElementById('aariaAvatar');
+  const statusBadge=document.getElementById('aariaStatusBadge');
+  const logoWrap=document.getElementById('aariaLogoWrap');
+  const builderList=document.getElementById('aariaBuilderList');
+  const addInstructionBtn=document.getElementById('aariaAddInstruction');
+  const buildCommandsBtn=document.getElementById('aariaBuildCommands');
+  const clearComposerBtn=document.getElementById('aariaClearComposer');
+  const queueBox=document.getElementById('aariaActionQueue');
+  const queueMeta=document.getElementById('aariaActionQueueMeta');
+  const queueCard=document.getElementById('aariaActionQueueCard');
+  const queueOpenBtn=document.getElementById('aariaQueueOpenBtn');
+  const queueDoneBtn=document.getElementById('aariaQueueDoneBtn');
+  const queueSkipBtn=document.getElementById('aariaQueueSkipBtn');
+  if(!fab||!shell) return;
+
+  const maxInstructionRows=25;
+  let pendingActionQueue=[];
+  let instructionState=[];
+  let idlePulse=0;
+  const actionConfig={
+    call:{label:'Call', needsDetail:false}, whatsapp:{label:'WhatsApp', needsDetail:true, detailLabel:'Message'},
+    add_note:{label:'Add Note', needsDetail:true, detailLabel:'Note'}, update_salary:{label:'Update Salary', needsDetail:true, detailLabel:'Salary'},
+    update_location:{label:'Update Location', needsDetail:true, detailLabel:'Location'}, update_qualification:{label:'Update Qualification', needsDetail:true, detailLabel:'Qualification'},
+    update_experience:{label:'Update Experience', needsDetail:true, detailLabel:'Experience'}, update_interview:{label:'Update Interview', needsDetail:true, detailLabel:'Date and time'},
+    create_task:{label:'Add Task', needsDetail:true, detailLabel:'Task title'}, send_message:{label:'Send Internal Message', needsDetail:true, detailLabel:'Message'},
+    approve_submission:{label:'Approve', needsDetail:false}, reject_submission:{label:'Reject', needsDetail:false}, unlock_crm:{label:'Unlock CRM', needsDetail:false}, mark_notifications_read:{label:'Mark Notifications Read', needsDetail:false}
+  };
+
+  const actionStates={
+    idle:'Ready for work', review:'Reviewing commands', work:'Working', found:'Candidate found', error:'Needs a retry', done:'Done', listening:'Listening', queued:'Queue ready'
+  };
+
+  const suggestionValues=Array.from(document.querySelectorAll('#aariaTargetDatalist option')).map(opt => (opt.value||'').trim()).filter(Boolean);
+
+  function hideTargetResults(){
+    if(!targetResults) return;
+    targetResults.hidden=true;
+    targetResults.innerHTML='';
+  }
+
+  function updateSelectedTarget(value=''){
+    if(!targetSelected) return;
+    const clean=(value||'').trim();
+    if(!clean){
+      targetSelected.textContent='No profile selected yet.';
+      targetSelected.classList.remove('active');
+      return;
+    }
+    targetSelected.textContent=`Selected profile: ${clean}`;
+    targetSelected.classList.add('active');
+  }
+
+  function pickTarget(value){
+    if(!serialEl) return;
+    serialEl.value=value || '';
+    updateSelectedTarget(value || '');
+    hideTargetResults();
+    resolveCandidate();
+    setAvatar('found','Target selected');
+  }
+
+  function renderTargetResults(query=''){
+    if(!targetResults) return;
+    const q=(query||'').trim().toLowerCase();
+    if(q.length < 1){ hideTargetResults(); updateSelectedTarget(''); return; }
+    const matched=suggestionValues.filter(item => item.toLowerCase().includes(q)).slice(0,8);
+    if(!matched.length){
+      targetResults.hidden=false;
+      targetResults.innerHTML='<button type="button" class="aaria-target-option empty">No matching profile found</button>';
+      return;
+    }
+    targetResults.hidden=false;
+    targetResults.innerHTML=matched.map((item,idx)=>`<button type="button" class="aaria-target-option" data-target-value="${String(item).replace(/"/g,'&quot;')}"><span class="mini-chip">${idx+1}</span><span>${item}</span></button>`).join('');
+    targetResults.querySelectorAll('[data-target-value]').forEach(btn => btn.addEventListener('click', ()=> pickTarget(btn.dataset.targetValue || '')));
+  }
+
+  function setAvatar(kind='idle', status){
+    if(avatar) avatar.textContent='AI';
+    if(fabAvatar) fabAvatar.textContent='AI';
+    if(statusBadge) statusBadge.textContent=status || actionStates[kind] || actionStates.idle;
+    if(logoWrap){
+      logoWrap.dataset.state=kind;
+    }
+    if(fabAvatar){
+      fabAvatar.dataset.state=kind;
+    }
+  }
+
+  function fillActionSelect(){
+    if(!actionSelect) return;
+    actionSelect.innerHTML=Object.entries(actionConfig).map(([key,meta])=>`<option value="${key}">${meta.label}</option>`).join('');
+  }
+
+  function syncActionDetail(){
+    const meta=actionConfig[actionSelect?.value] || {needsDetail:false, detailLabel:'Detail'};
+    if(detailField) detailField.hidden=!meta.needsDetail;
+    if(detailLabel) detailLabel.textContent=meta.detailLabel || 'Content';
+    if(detailInput){ detailInput.placeholder=meta.detailLabel || 'Enter content'; if(!meta.needsDetail) detailInput.value=''; }
+  }
+
+  function openShell(){ shell.classList.add('show'); fab.classList.add('active'); setAvatar('idle','Ready for work'); }
+  function closeShell(){ shell.classList.remove('show'); shell.classList.remove('maximized'); fab.classList.remove('active'); if(maxBtn) maxBtn.textContent='Maximize'; }
+  fab.addEventListener('click', ()=> shell.classList.contains('show') ? closeShell() : openShell());
+  closeBtn && closeBtn.addEventListener('click', closeShell);
+  maxBtn && maxBtn.addEventListener('click', ()=>{ shell.classList.toggle('maximized'); maxBtn.textContent=shell.classList.contains('maximized')?'Restore':'Maximize'; });
+  shell.addEventListener('click', (e)=>{ if(e.target===shell) closeShell(); });
+
+  fillActionSelect();
+  syncActionDetail();
+  updateSelectedTarget('');
+  setAvatar('idle','Ready for work');
+  setInterval(()=>{ if(!shell.classList.contains('show') || shell.classList.contains('busy')) return; idlePulse=(idlePulse+1)%3; const states=['idle','review','work']; setAvatar(states[idlePulse], actionStates[states[idlePulse]]); }, 3200);
+  actionSelect && actionSelect.addEventListener('change', syncActionDetail);
+
+  function getFormData(){
+    return {
+      target:(serialEl?.value || '').trim(),
+      action:(actionSelect?.value || '').trim(),
+      detail:(detailInput?.value || '').trim()
+    };
+  }
+
+  function clearForm(){
+    if(serialEl) serialEl.value='';
+    updateSelectedTarget('');
+    if(actionSelect) actionSelect.value='call';
+    if(detailInput) detailInput.value='';
+    syncActionDetail();
+    setAvatar('idle','Ready for work');
+  }
+
+  function commandFromItem(item){
+    const target=(item.target||'').trim();
+    const action=(item.action||'').trim();
+    const detail=(item.detail||'').trim();
+    if(!action) return '';
+    if(action==='mark_notifications_read') return 'mark all notifications read';
+    if(!target && action!=='mark_notifications_read') return '';
+    if(action==='call') return `call ${target}`;
+    if(action==='whatsapp') return `whatsapp ${detail||'Hi'} to ${target}`;
+    if(action==='add_note') return `note ${target} ${detail}`;
+    if(action==='update_salary') return `update salary ${target} to ${detail}`;
+    if(action==='update_location') return `update location ${target} to ${detail}`;
+    if(action==='update_qualification') return `update qualification ${target} to ${detail}`;
+    if(action==='update_experience') return `update experience ${target} to ${detail}`;
+    if(action==='update_interview') return `update interview ${target} to ${detail}`;
+    if(action==='create_task') return `add task for ${target} ${detail}`;
+    if(action==='send_message') return `message ${target}: ${detail}`;
+    if(action==='approve_submission') return `approve ${target}`;
+    if(action==='reject_submission') return `reject ${target}`;
+    if(action==='unlock_crm') return `unlock ${target}`;
+    return '';
+  }
+
+  function renderInstructionState(){
+    if(!builderList) return;
+    if(!instructionState.length){
+      builderList.innerHTML='<div class="helper-text">No instructions added yet. Fill the three fields above and click Add Instruction.</div>';
+      return;
+    }
+    builderList.innerHTML=instructionState.map((item,idx)=>{
+      const meta=actionConfig[item.action] || {label:item.action || 'Action'};
+      const detailHtml=item.detail ? `<div class="aaria-compact-detail">${item.detail}</div>` : '';
+      return `<div class="aaria-compact-item" data-index="${idx}">
+        <div class="aaria-compact-index">${idx+1}</div>
+        <div class="aaria-compact-main">
+          <div class="aaria-compact-top"><strong>${item.target || 'General instruction'}</strong><span class="mini-chip">${meta.label}</span></div>
+          ${detailHtml}
+        </div>
+        <div class="aaria-compact-actions">
+          <button type="button" class="ghost-btn bounceable aaria-load-row" data-load="${idx}">Load</button>
+          <button type="button" class="ghost-btn bounceable aaria-remove-row" data-remove="${idx}">Remove</button>
+        </div>
+      </div>`;
+    }).join('');
+    builderList.querySelectorAll('[data-load]').forEach(btn=>btn.addEventListener('click', ()=>{
+      const idx=parseInt(btn.dataset.load,10);
+      const item=instructionState[idx];
+      if(!item) return;
+      if(serialEl) serialEl.value=item.target || '';
+      updateSelectedTarget(item.target || '');
+      if(actionSelect) actionSelect.value=item.action || 'call';
+      syncActionDetail();
+      if(detailInput) detailInput.value=item.detail || '';
+      setAvatar('review','Instruction loaded');
+    }));
+    builderList.querySelectorAll('[data-remove]').forEach(btn=>btn.addEventListener('click', ()=>{
+      const idx=parseInt(btn.dataset.remove,10);
+      instructionState.splice(idx,1);
+      renderInstructionState();
+      buildComposerFromState(false);
+    }));
+  }
+
+  function buildComposerFromState(showToast=true){
+    const source = instructionState.length ? instructionState : [getFormData()];
+    const commands=source.map(commandFromItem).filter(Boolean);
+    cmdEl.value=commands.map((cmd,idx)=>`${idx+1}. ${cmd}`).join('\n');
+    if(showToast){
+      resultEl.innerHTML='<div class="aaria-result-card success"><div class="aaria-result-title">Commands ready</div><div class="aaria-result-text">Review the list and run when ready.</div></div>';
+      setAvatar('review','Reviewing commands');
+    }
+  }
+
+  function addInstruction(){
+    const item=getFormData();
+    const meta=actionConfig[item.action] || {needsDetail:false};
+    if(item.action!=='mark_notifications_read' && !item.target){
+      resultEl.innerHTML='<div class="aaria-result-card error">Add a target before saving the instruction.</div>';
+      setAvatar('error','Needs a retry');
+      return;
+    }
+    if(meta.needsDetail && !item.detail){
+      resultEl.innerHTML='<div class="aaria-result-card error">This action needs a detail value.</div>';
+      setAvatar('error','Needs a retry');
+      return;
+    }
+    if(instructionState.length >= maxInstructionRows){
+      resultEl.innerHTML='<div class="aaria-result-card error">You can keep up to 25 instructions in one batch.</div>';
+      setAvatar('error','Needs a retry');
+      return;
+    }
+    instructionState.push(item);
+    renderInstructionState();
+    buildComposerFromState(false);
+    resultEl.innerHTML=`<div class="aaria-result-card success"><div class="aaria-result-title">Instruction added</div><div class="aaria-result-text">${item.target || 'General'} has been added to the queue.</div></div>`;
+    setAvatar('done','Instruction saved');
+    clearForm();
+  }
+
+  addInstructionBtn && addInstructionBtn.addEventListener('click', addInstruction);
+  buildCommandsBtn && buildCommandsBtn.addEventListener('click', ()=>buildComposerFromState(true));
+  clearFieldsBtn && clearFieldsBtn.addEventListener('click', clearForm);
+  clearComposerBtn && clearComposerBtn.addEventListener('click', ()=>{ cmdEl.value=''; instructionState=[]; renderInstructionState(); resultEl.innerHTML='<div class="aaria-result-card success">Composer cleared.</div>'; setAvatar('idle','Ready for work'); });
+  renderInstructionState();
+
+  async function resolveCandidate(){
+    const serial=(serialEl?.value||'').trim();
+    if(!serial){
+      previewEl.textContent='Search a candidate to see profile details, number status, and current stage here.';
+      return;
+    }
+    try{
+      const r=await fetch(`{{ url_for('aaria_resolve') }}?serial=${encodeURIComponent(serial)}`);
+      const data=await r.json();
+      if(data.ok){
+        previewEl.innerHTML=`<strong>${data.candidate.full_name}</strong><br><span class="helper-text">${data.candidate.candidate_id} • ${data.candidate.phone} • ${data.candidate.status} • ${data.candidate.location}</span>`;
+        setAvatar('found','Candidate found');
+      } else {
+        previewEl.textContent='No visible candidate matched that lookup.';
+      }
+    }catch(e){
+      previewEl.textContent='Lookup failed.';
+      setAvatar('error','Needs a retry');
+    }
+  }
+  serialEl && serialEl.addEventListener('change', ()=>{ hideTargetResults(); updateSelectedTarget(serialEl.value||''); resolveCandidate(); });
+  serialEl && serialEl.addEventListener('input', ()=>{ const value=(serialEl.value||''); renderTargetResults(value); if(value.length>=2) resolveCandidate(); else updateSelectedTarget(''); });
+  targetSearchBtn && targetSearchBtn.addEventListener('click', ()=>{ renderTargetResults(serialEl?.value || ''); if((serialEl?.value||'').trim()) resolveCandidate(); });
+  serialEl && serialEl.addEventListener('focus', ()=>{ renderTargetResults(serialEl?.value||''); });
+  serialEl && serialEl.addEventListener('keydown', (e)=>{ if(e.key==='Escape') hideTargetResults(); });
+  document.addEventListener('click', (e)=>{ if(!targetResults || !serialEl) return; if(e.target===serialEl || targetResults.contains(e.target)) return; hideTargetResults(); });
+
+  function openActionLink(link){ if(!link) return; const a=document.createElement('a'); a.href=link; if(String(link).startsWith('http')) a.target='_blank'; a.rel='noopener'; a.style.display='none'; document.body.appendChild(a); a.click(); a.remove(); }
+  function renderPendingQueue(){
+    if(!queueBox) return;
+    if(!pendingActionQueue.length){ queueBox.hidden=true; queueCard.innerHTML=''; return; }
+    const current=pendingActionQueue[0];
+    const waiting=pendingActionQueue.slice(1,4).map((item,idx)=>`<div class="aaria-queue-wait-item"><span class="mini-chip">${idx+2}</span><span>${item.command||'Pending action'}</span></div>`).join('');
+    queueBox.hidden=false;
+    queueMeta.textContent=`${pendingActionQueue.length} action${pendingActionQueue.length>1?'s':''} pending. Current action is shown first.`;
+    queueCard.innerHTML=`<div class="aaria-queue-current"><div class="panel-title">Processing now</div><div class="activity-name top-gap-small">${current.command||'Pending action'}</div><div class="activity-sub">${current.message||''}</div></div>${waiting?`<div class="top-gap-small"><div class="helper-text">Queued next</div><div class="aaria-queue-wait-list top-gap-small">${waiting}</div></div>`:''}`;
+  }
+  function startQueue(autoOpen){ renderPendingQueue(); if(autoOpen&&pendingActionQueue.length) openActionLink(pendingActionQueue[0].action_link); }
+  queueOpenBtn && queueOpenBtn.addEventListener('click', ()=>{ if(pendingActionQueue.length) openActionLink(pendingActionQueue[0].action_link); });
+  queueDoneBtn && queueDoneBtn.addEventListener('click', ()=>{ if(!pendingActionQueue.length) return; pendingActionQueue.shift(); startQueue(true); setAvatar('done','Done'); });
+  queueSkipBtn && queueSkipBtn.addEventListener('click', ()=>{ if(!pendingActionQueue.length) return; pendingActionQueue.shift(); renderPendingQueue(); setAvatar('error','Skipped'); });
+
+  function renderBatch(data, mode){
+    const results=data.batch_results||[];
+    if(!results.length){ resultEl.innerHTML=`<div class="aaria-result-card success">${data.message||'Done.'}</div>`; return; }
+    resultEl.innerHTML=results.map(item=>{
+      const state=item.ok===false?'error':(item.action_type==='call'?'call':'success');
+      const suggestion=item.fix_suggestion?`<div class="aaria-fix-row">Try instead: <button type="button" class="aaria-fix-btn" data-fix="${String(item.fix_suggestion).replace(/"/g,'&quot;')}">${item.fix_suggestion}</button></div>`:'';
+      return `<div class="aaria-result-card ${state}"><div class="aaria-result-title">${item.command||'Instruction'}</div><div class="aaria-result-text">${item.message||item.result_text||''}</div>${suggestion}</div>`;
+    }).join('');
+    resultEl.querySelectorAll('.aaria-fix-btn').forEach(btn=>btn.addEventListener('click',()=>{ if(cmdEl){ cmdEl.value=btn.dataset.fix||''; cmdEl.focus(); } }));
+    if(mode!=='preview'){
+      pendingActionQueue=results.filter(item=>item.action_link&&['call','whatsapp'].includes(item.action_type||'')).map(item=>({command:item.command,message:item.message,action_link:item.action_link,action_type:item.action_type}));
+      startQueue(true);
+    } else {
+      pendingActionQueue=[]; renderPendingQueue();
+    }
+  }
+
+  async function run(mode){
+    const payload={serial:serialEl?.value || '', command:cmdEl?.value || '', mode};
+    shell.classList.add('busy');
+    setAvatar(mode==='preview' ? 'review' : 'work', mode==='preview' ? 'Reviewing commands' : 'Working');
+    resultEl.innerHTML='<div class="aaria-result-card">Aaria is processing...</div>';
+    try{
+      const r=await fetch('{{ url_for('aaria_execute') }}',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+      const data=await r.json();
+      renderBatch(data, mode);
+      if(data.candidate){ previewEl.innerHTML=`<strong>${data.candidate.full_name}</strong><br><span class="helper-text">${data.candidate.candidate_id} • ${data.candidate.phone} • ${data.candidate.status} • ${data.candidate.location}</span>`; }
+      setAvatar(data.ok===false ? 'error' : (mode==='preview' ? 'review' : 'done'));
+    }catch(err){
+      resultEl.innerHTML='<div class="aaria-result-card error">Aaria request failed. Please try again.</div>';
+      setAvatar('error','Needs a retry');
+    }
+    shell.classList.remove('busy');
+  }
+  previewBtn && previewBtn.addEventListener('click', ()=>run('preview'));
+  runBtn && runBtn.addEventListener('click', ()=>run('execute'));
+  cmdEl && cmdEl.addEventListener('keydown', (e)=>{ if((e.ctrlKey||e.metaKey) && e.key==='Enter') run('execute'); });
+  document.querySelectorAll('.aaria-history-item').forEach(btn=>btn.addEventListener('click', ()=>{ if(cmdEl){ cmdEl.value=btn.dataset.command||''; cmdEl.focus(); } openShell(); }));
+
+  if(voiceBtn && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)){
+    const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+    const rec=new SpeechRecognition(); rec.lang='en-IN'; rec.interimResults=false; rec.maxAlternatives=1;
+    voiceBtn.addEventListener('click', ()=>{ try{ rec.start(); resultEl.innerHTML='<div class="aaria-result-card">Listening...</div>'; setAvatar('listening','Listening'); }catch(e){} });
+    rec.addEventListener('result', ev=>{ const txt=ev.results[0][0].transcript; cmdEl.value=((cmdEl.value||'').trim()+' '+txt).trim(); resultEl.innerHTML='<div class="aaria-result-card success">Voice command captured.</div>'; setAvatar('done','Voice captured'); });
+    rec.addEventListener('error', ()=>{ resultEl.innerHTML='<div class="aaria-result-card error">Voice input is not available.</div>'; setAvatar('error','Needs a retry'); });
+  } else if(voiceBtn){ voiceBtn.style.display='none'; }
+})();
+
+(function(){
+  document.addEventListener('click', function(e){
+    const row = e.target.closest('[data-row-link]');
+    if(!row) return;
+    if(e.target.closest('a,button,input,select,textarea,label,form')) return;
+    const href = row.getAttribute('data-row-link');
+    if(href) window.location.href = href;
+  });
+})();
+
+(function(){
+  const reminder=document.getElementById('followupReminderToast');
+  const reminderText=document.getElementById('followupReminderText');
+  const completeBtn=document.getElementById('followupCompleteBtn');
+  const rescheduleBtn=document.getElementById('followupRescheduleBtn');
+  const dismissBtn=document.getElementById('followupDismissBtn');
+  let followupCandidateId='';
+  async function checkFollowup(){ if(!reminder) return; try{ const r=await fetch('{{ url_for("api_followups_upcoming") }}'); const data=await r.json(); if(data && data.ok){ followupCandidateId=data.candidate_id; reminder.hidden=false; reminderText.textContent=`${data.full_name} • ${data.follow_up_at.replace("T"," ").slice(0,16)} • ${data.follow_up_note || "Follow-up pending"}`; } }catch(e){} }
+  if(reminder){ setInterval(checkFollowup, 60000); setTimeout(checkFollowup, 3000); }
+  dismissBtn && dismissBtn.addEventListener('click', ()=>{ reminder.hidden=true; });
+  completeBtn && completeBtn.addEventListener('click', async()=>{ if(!followupCandidateId) return; await fetch('{{ url_for("api_followups_action") }}',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({candidate_id:followupCandidateId, action:'complete'})}).catch(()=>{}); reminder.hidden=true; });
+  rescheduleBtn && rescheduleBtn.addEventListener('click', async()=>{ if(!followupCandidateId) return; const val=prompt('Enter new follow-up date and time in YYYY-MM-DD HH:MM format'); if(!val) return; await fetch('{{ url_for("api_followups_action") }}',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({candidate_id:followupCandidateId, action:'reschedule', follow_up_at:val})}).catch(()=>{}); reminder.hidden=true; });
+  const late=document.getElementById('lockLateTimer');
+  if(!late) return;
+  const raw=late.dataset.requestedAt||'';
+  const start=raw?new Date(raw.replace(' ','T')):null;
+  const render=()=>{
+    if(!start || String(start)==='Invalid Date'){ late.textContent='00:00:00'; return; }
+    const diff=Math.max(0, Date.now()-start.getTime());
+    const hrs=String(Math.floor(diff/3600000)).padStart(2,'0');
+    const mins=String(Math.floor((diff%3600000)/60000)).padStart(2,'0');
+    const secs=String(Math.floor((diff%60000)/1000)).padStart(2,'0');
+    late.textContent=`${hrs}:${mins}:${secs}`;
+  };
+  render();
+  setInterval(render,1000);
+})();
+</script>
+
+<div class="followup-reminder-toast glassy-card" id="followupReminderToast" hidden><div class="panel-title">Upcoming Follow-up</div><div class="helper-text" id="followupReminderText">Follow-up reminder</div><div class="toolbar-actions top-gap-small"><button class="mini-btn call bounceable" type="button" id="followupCompleteBtn">Completed</button><button class="mini-btn view bounceable" type="button" id="followupRescheduleBtn">Reschedule</button><button class="ghost-btn bounceable" type="button" id="followupDismissBtn">Close</button></div></div>
+<div class="manager-access-modal" id="managerAccessModal">
+  <div class="manager-access-card glassy-card">
+    <div class="panel-title">Restricted Access</div>
+    <p>This section is available to managers only. Please contact your reporting manager if you need access.</p>
+    <div class="modal-actions-bar"><button class="submit-btn bounceable slim-btn" type="button" id="managerAccessClose">Close</button></div>
+  </div>
+</div>
+{% block scripts %}{% endblock %}
+</body>
+</html>

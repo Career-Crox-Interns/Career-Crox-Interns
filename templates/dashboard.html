@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Dashboard • Career Crox CRM{% endblock %}
+{% block content %}
+<div class="dashboard-grid professional-dashboard-grid">
+    <div class="clean-hero panel professional-hero compact-color-hero glow-box">
+        <div>
+            <div class="lux-hero-kicker">CAREER CROX</div>
+            <h1 class="professional-hero-title">Recruitment Operations Dashboard</h1>
+            <p class="professional-hero-sub">Professional CRM dashboard for recruiter operations, submissions, notes, interviews, and attendance control.</p>
+            <div class="professional-hero-tags">
+                <span>Candidate Operations</span>
+                <span>Approval Workflow</span>
+                <span>Theme Control</span>
+                <span>Attendance Tracking</span>
+                <a class="mini-btn call bounceable" href="{{ url_for('testing_ai_page') }}">Open Aaria Lab</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="stats-row">
+        <div class="stat-card blue"><div class="stat-label">Total Profiles</div><div class="stat-value">{{ total_profiles }}</div></div>
+        <div class="stat-card orange"><div class="stat-label">Today Calls</div><div class="stat-value">{{ today_calls }}</div></div>
+        <div class="stat-card purple"><div class="stat-label">Interviews Today</div><div class="stat-value">{{ interviews_today }}</div></div>
+        <div class="stat-card green"><div class="stat-label">Pending Approvals</div><div class="stat-value">{{ pending_approvals }}</div></div>
+    </div>
+
+    <div class="action-row">
+        <a class="action-card action-profiles bounceable" href="{{ url_for('candidates') }}">Candidates <span>→</span></a>
+        <a class="action-card action-task bounceable" href="{{ url_for('submissions') }}">Submissions <span>→</span></a>
+        <a class="action-card action-dialer bounceable" href="{{ url_for('jds') }}">JD Centre <span>→</span></a>
+        <a class="action-card action-admin bounceable" href="{{ url_for('attendance_breaks') }}">Attendance &amp; Breaks <span>→</span></a>
+    </div>
+
+    {% if current_user_data.role == 'manager' %}
+    <div class="action-row">
+        <a class="action-card action-profiles bounceable" href="{{ url_for('client_pipeline_page') }}">Client Pipeline <span>→</span></a>
+        <a class="action-card action-task bounceable" href="{{ url_for('revenue_hub_page') }}">Revenue Hub <span>→</span></a>
+        <a class="action-card action-dialer bounceable" href="{{ url_for('performance_centre_page') }}">Performance Centre <span>→</span></a>
+        <a class="action-card action-admin bounceable" href="{{ url_for('recent_activity_page') }}">Recent Activity <span>→</span></a>
+    </div>
+    {% elif current_user_data.role == 'tl' %}
+    <div class="action-row">
+        <a class="action-card action-dialer bounceable" href="{{ url_for('performance_centre_page') }}">Performance Centre <span>→</span></a>
+        <a class="action-card action-admin bounceable" href="{{ url_for('recent_activity_page') }}">Recent Activity <span>→</span></a>
+        <a class="action-card action-task bounceable" href="{{ url_for('reports_page') }}">Reports <span>→</span></a>
+        <a class="action-card action-profiles bounceable" href="{{ url_for('testing_ai_page') }}">AI Operations <span>→</span></a>
+    </div>
+    {% endif %}
+
+    <div class="section-row dashboard-section-grid">
+        <div class="panel">
+            <div class="panel-title">Recent Candidate Activity</div>
+            <div class="activity-list">
+                {% for item in recent_activity %}
+                <div class="activity-item">
+                    <div class="activity-left">
+                        <div class="activity-name">{{ item['full_name'] }}</div>
+                        <div class="activity-sub">{{ item['status'] }} • {{ item['recruiter_name'] or 'Unassigned' }} • {{ item['location'] }}</div>
+                    </div>
+                    <a class="badge active" href="{{ url_for('candidate_detail', candidate_code=item['code']) }}">Open</a>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">Task Queue</div>
+            <div class="activity-list">
+                {% for task in due_tasks %}
+                <div class="activity-item">
+                    <div class="activity-left">
+                        <div class="activity-name">{{ task['title'] }}</div>
+                        <div class="activity-sub">{{ task['full_name'] }} • {{ task['priority'] }} • {{ task['due_at'] }}</div>
+                    </div>
+                    <div class="badge pending">{{ task['status'] }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">Theme Studio</div>
+            <button class="ghost-btn bounceable" type="button" id="dashboardThemeToggle">Choose Theme</button>
+            <div class="theme-card-list" id="dashboardThemeList" hidden>
+                {% for theme in theme_options %}
+                <button class="theme-row-btn" type="button" data-theme="{{ theme['key'] }}">{{ theme['label'] }}</button>
+                {% endfor %}
+            </div>
+            <div class="helper-text top-gap-small">Use the theme panel in the sidebar to change the workspace theme instantly.</div>
+            <div class="metric-strip top-gap">
+                <div><span>Active Workers</span><strong>{{ active_workers }}</strong></div>
+                <div><span>Managers / TL</span><strong>{{ active_managers }}</strong></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-row dashboard-section-grid">
+        <div class="panel">
+            <div class="panel-title">Notifications</div>
+            <div class="activity-list">
+                {% for n in unread_notes %}
+                <div class="activity-item">
+                    <div class="activity-left">
+                        <div class="activity-name">{{ n['title'] }}</div>
+                        <div class="activity-sub">{{ n['message'] }}</div>
+                    </div>
+                    <div class="badge {% if n['is_read'] %}closed{% else %}pending{% endif %}">{{ n['created_at'] }}</div>
+                </div>
+                {% else %}
+                <div class="helper-text">No current notifications.</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">Team Monitoring</div>
+            <div class="activity-list">
+                {% for member in manager_monitoring %}
+                <div class="activity-item">
+                    <div class="activity-left">
+                        <div class="activity-name">{{ member['full_name'] }}</div>
+                        <div class="activity-sub">{{ member['designation'] }} • Candidates {{ member['candidate_count'] }} • Open tasks {{ member['open_tasks'] }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}<script>(function(){ const btn=document.getElementById('dashboardThemeToggle'); const list=document.getElementById('dashboardThemeList'); if(btn&&list){ btn.addEventListener('click', ()=>{ const open=list.hasAttribute('hidden'); if(open){ list.removeAttribute('hidden'); btn.textContent='Hide Theme Options'; } else { list.setAttribute('hidden','hidden'); btn.textContent='Choose Theme'; } }); } })();</script>{% endblock %}

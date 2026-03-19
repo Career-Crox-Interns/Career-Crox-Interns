@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% block title %}Candidates • Career Crox CRM{% endblock %}
+{% block page_title %}Candidates{% endblock %}
+{% block page_subtitle %}Filter, search, select profiles, and start dial actions from the candidate pipeline.{% endblock %}
+{% block content %}
+<div class="table-panel top-gap-small glassy-card fade-up">
+  <div class="table-toolbar compact-toolbar compact-toolbar-v2">
+    <form method="GET" class="toolbar-actions filter-bar colorful-filter-bar">
+      <input class="inline-input colorful-input" type="text" name="q" value="{{ q }}" placeholder="Search candidate / phone / process">
+      <select class="inline-input colorful-input" name="recruiter">
+        <option value="">All Recruiters</option>
+        {% for r in recruiters %}<option value="{{ r['username'] }}" {% if current_recruiter==r['username'] %}selected{% endif %}>{{ r['username'] }} • {{ r['full_name'] }}</option>{% endfor %}
+      </select>
+      <select class="inline-input colorful-input" name="status">
+        <option value="">All Status</option>
+        {% for s in statuses %}<option value="{{ s }}" {% if current_status==s %}selected{% endif %}>{{ s }}</option>{% endfor %}
+      </select>
+      <select class="inline-input colorful-input" name="location">
+        <option value="">All Locations</option>
+        {% for loc in locations %}<option value="{{ loc }}" {% if current_location==loc %}selected{% endif %}>{{ loc }}</option>{% endfor %}
+      </select>
+      <select class="inline-input colorful-input" name="qualification">
+        <option value="">All Degrees</option>
+        {% for ql in qualifications %}<option value="{{ ql }}" {% if current_qualification==ql %}selected{% endif %}>{{ ql }}</option>{% endfor %}
+      </select>
+      <button class="ghost-btn bounceable" type="submit">Apply Filters</button>
+    </form>
+    <div class="toolbar-actions">
+      <button class="mini-btn view bounceable" type="button" data-configure-table="candidatesTable">Columns</button>
+      <a class="mini-btn view bounceable" href="{{ url_for('submissions') }}">Submissions</a>
+      <a class="mini-btn edit bounceable" href="{{ url_for('interviews') }}">Interviews</a>
+      <button class="mini-btn call bounceable" type="button" data-demo-modal="candidate-modal">Add Candidate</button>
+    </div>
+  </div>
+</div>
+
+<div class="table-panel top-gap glassy-card fade-up">
+    <div class="table-toolbar">
+        <div>
+            <div class="table-title">Candidate Pipeline</div>
+            <div class="subtle">Profiles found: {{ candidates|length }}</div>
+        </div>
+        <div class="toolbar-actions">
+            <button class="mini-btn view bounceable" type="button" id="bulkCallStart">Start Dialing</button>
+            <button class="mini-btn edit bounceable" type="button" id="bulkWaStart">Open WhatsApp</button>
+        </div>
+    </div>
+    <div class="helper-text top-gap-small" id="candidateBulkHint">Select profiles and start one-by-one call or WhatsApp actions from this page.</div>
+    <div class="soft-panel top-gap-small" id="candidateBulkQueue" hidden><div class="panel-title">Dial Queue</div><div id="candidateBulkQueueText" class="helper-text">No queue loaded.</div><div class="toolbar-actions top-gap-small"><button class="mini-btn call bounceable" type="button" id="candidateBulkOpen">Open Current</button><button class="mini-btn view bounceable" type="button" id="candidateBulkNext">Mark Completed &amp; Next</button><button class="ghost-btn bounceable" type="button" id="candidateBulkSkip">Skip</button></div></div>
+    <div class="crm-table-wrap dense-wrap">
+        <table class="crm-table colorful-table dense-table" id="candidatesTable" data-configurable-table="1" data-config-title="Candidates Table">
+            <thead>
+                <tr>
+                    <th data-col-key="select" data-col-label="Select"><input type="checkbox" class="select-all"></th>
+                    <th data-col-key="name" data-col-label="Name">Name</th>
+                    <th data-col-key="phone" data-col-label="Phone">Phone</th>
+                    <th data-col-key="candidate_id" data-col-label="Candidate ID">Candidate ID</th>
+                    <th data-col-key="recruiter_code" data-col-label="Recruiter Code">Recruiter Code</th>
+                    <th data-col-key="location" data-col-label="Location">Location</th>
+                    <th data-col-key="total_exp" data-col-label="Total Exp">Total Exp</th>
+                    <th data-col-key="relevant_exp" data-col-label="Relevant Exp">Relevant Exp</th>
+                    <th data-col-key="in_hand" data-col-label="In-hand">In-hand</th>
+                    <th data-col-key="status" data-col-label="Status">Status</th>
+                    <th data-col-key="recruiter_name" data-col-label="Recruiter">Recruiter</th>
+                    <th data-col-key="process" data-col-label="Process">Process</th>
+                    <th data-col-key="actions" data-col-label="Actions">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in candidates %}
+                <tr class="row-link clickable-row" data-candidate-id="{{ c['code'] }}" data-row-link="{{ url_for('candidate_detail', candidate_code=c['code']) }}" onclick="window.location='{{ url_for('candidate_detail', candidate_code=c['code']) }}'">
+                    <td><input type="checkbox" class="row-check candidate-select" value="{{ c['code'] }}"></td>
+                    <td><strong>{{ c['full_name'] }}</strong></td>
+                    <td>{{ display_phone(c['phone']) }}</td>
+                    <td>{{ c['code'] }}</td>
+                    <td>{{ c['recruiter_code'] }}</td>
+                    <td>{{ c['location'] }}</td>
+                    <td>{{ c['total_experience'] }}</td>
+                    <td>{{ c['relevant_experience'] }}</td>
+                    <td>{{ c['in_hand_salary'] }}</td>
+                    <td><span class="status-chip">{{ c['status'] }}</span></td>
+                    <td>{{ c['recruiter_name'] }}</td>
+                    <td>{{ c['process'] }}</td>
+                    <td><div class="icon-actions nowrap-actions"><a class="icon-btn call bounceable" href="{{ url_for('log_call', candidate_code=c['code']) }}" title="Call">☎</a><a class="icon-btn wa bounceable" target="_blank" href="{{ url_for('open_whatsapp', candidate_code=c['code']) }}" title="WhatsApp">✆</a><a class="icon-btn edit bounceable" href="{{ url_for('candidate_detail', candidate_code=c['code']) }}" title="Edit">✎</a></div></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="13">No candidates found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const queueBox=document.getElementById('candidateBulkQueue');
+  const queueText=document.getElementById('candidateBulkQueueText');
+  const openBtn=document.getElementById('candidateBulkOpen');
+  const nextBtn=document.getElementById('candidateBulkNext');
+  const skipBtn=document.getElementById('candidateBulkSkip');
+  let queue=[];
+  function selectedIds(){ return [...document.querySelectorAll('.candidate-select:checked')].map(cb=>cb.value); }
+  function openLink(link){ if(!link) return; const a=document.createElement('a'); a.href=link; if(String(link).startsWith('http')) a.target='_blank'; a.rel='noopener'; a.style.display='none'; document.body.appendChild(a); a.click(); a.remove(); }
+  function renderQueue(){ if(!queue.length){ queueBox.hidden=true; return; } queueBox.hidden=false; const current=queue[0]; queueText.textContent=`${queue.length} pending. Current: ${current.full_name} (${current.candidate_id})`; }
+  async function loadQueue(action){ const ids=selectedIds(); if(!ids.length){ queueText.textContent='Select at least one candidate.'; queueBox.hidden=false; return; } const body={candidate_ids:ids, action: action==='call' ? 'bulk_call' : 'bulk_wa'}; const r=await fetch('{{ url_for('bulk_action') }}',{method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)}); const data=await r.json(); queue=data.queue||[]; renderQueue(); if(queue.length) openLink(action==='call' ? queue[0].call_link : queue[0].wa_link); }
+  document.getElementById('bulkCallStart')?.addEventListener('click', ()=>loadQueue('call'));
+  document.getElementById('bulkWaStart')?.addEventListener('click', ()=>loadQueue('wa'));
+  openBtn && openBtn.addEventListener('click', ()=>{ if(queue.length){ const current=queue[0]; openLink(current.call_link||current.wa_link); } });
+  nextBtn && nextBtn.addEventListener('click', ()=>{ if(queue.length){ queue.shift(); renderQueue(); if(queue.length){ const current=queue[0]; openLink(current.call_link||current.wa_link); } } });
+  skipBtn && skipBtn.addEventListener('click', ()=>{ if(queue.length){ queue.shift(); renderQueue(); } });
+})();
+</script>
+{% endblock %}
