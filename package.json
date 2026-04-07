@@ -1,0 +1,18 @@
+{
+  "name": "career-crox-render-clean",
+  "private": true,
+  "version": "1.0.3",
+  "engines": {
+    "node": "20.x",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "render-build": "npm install --prefix backend --registry=https://registry.npmjs.org/ && npm install --prefix frontend --registry=https://registry.npmjs.org/ && npm run build --prefix frontend && node scripts/copy-spa.mjs",
+    "build": "npm run render-build",
+    "start": "npm start --prefix backend",
+    "start:render": "npm start --prefix backend",
+    "local:setup": "npm install --prefix backend && npm install --prefix frontend",
+    "local:backend": "npm run dev --prefix backend",
+    "local:frontend": "npm run dev --prefix frontend"
+  }
+}
