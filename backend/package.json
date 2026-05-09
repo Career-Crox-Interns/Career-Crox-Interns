@@ -1,0 +1,21 @@
+{
+  "name": "career-crox-node-backend",
+  "version": "1.0.0",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "render-build": "npm ci --omit=optional --registry=https://registry.npmjs.org/ && node scripts/render-prepare.mjs"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.16.3",
+    "multer": "^2.1.1",
+    "pdf-lib": "^1.17.1"
+  }
+}

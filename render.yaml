@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: career-crox
+    runtime: node
+    plan: free
+    buildCommand: npm run render-build
+    startCommand: npm run start:render
+    healthCheckPath: /health
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: true
+      - key: HOST
+        value: 0.0.0.0
+      - key: REQUIRE_POSTGRES
+        value: true
+
+      - key: NODE_ENV
+        value: production
+      - key: PG_POOL_MAX
+        value: 10
+      - key: PG_QUERY_TIMEOUT_MS
+        value: 22000
+      - key: PG_STATEMENT_TIMEOUT_MS
+        value: 22000
+      - key: CRM_HOT_LEADS_MANAGER_MAX_ROWS
+        value: 200
+      - key: CRM_DIALER_MAX_SELECTION
+        value: 200
+      - key: DIALER_LIVE_STATUS_CACHE_MS
+        value: 12000
+      - key: DIALER_DEFAULT_QUEUE_LIMIT
+        value: 80
+      - key: CRM_RECORDING_UPLOAD_MAX_BYTES
+        value: 18874368
+      - key: VITE_MIN_ACTIVE_POLL_MS
+        value: 120000
+      - key: VITE_MIN_HIDDEN_POLL_MS
+        value: 900000
+      - key: BOOTSTRAP_ON_START
+        value: false
+      - key: VITE_AUTO_SYSTEM_POPUPS
+        value: false
+      - key: VITE_AUTO_SEMI_HOURLY_POPUPS
+        value: false
+      - key: VITE_IDLE_AUTO_PAUSE_MS
+        value: 300000

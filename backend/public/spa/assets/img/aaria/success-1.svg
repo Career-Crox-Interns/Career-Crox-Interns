@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 320" role="img" aria-label="Aaria avatar">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#eef8ff"/>
+      <stop offset="100%" stop-color="#f7efff"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7ad7ff"/>
+      <stop offset="50%" stop-color="#6a8dff"/>
+      <stop offset="100%" stop-color="#9b7dff"/>
+    </linearGradient>
+    <linearGradient id="hair" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2b1a17"/>
+      <stop offset="100%" stop-color="#6a4338"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="320" height="320" rx="38" fill="url(#bg)"/>
+  <rect x="16" y="16" width="288" height="288" rx="30" fill="rgba(255,255,255,0.72)" stroke="rgba(87,110,160,0.18)"/>
+  <circle cx="160" cy="120" r="74" fill="#f7d8c8"/>
+  <path d="M81 122 Q76 58 129 44 Q182 25 220 65 Q238 84 236 132 Q232 111 217 98 Q204 74 173 71 Q117 69 99 113 Q94 123 91 140 Z" fill="url(#hair)"/>
+  <path d="M101 177 Q88 244 66 282 L120 282 Q128 245 127 209 Z" fill="url(#hair)" opacity="0.95"/>
+  <path d="M215 175 Q230 244 252 282 L198 282 Q191 246 191 210 Z" fill="url(#hair)" opacity="0.95"/>
+  <path d="M92 108 Q103 101 114 108" stroke="#4b342d" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M142 108 Q153 101 164 108" stroke="#4b342d" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M96 122 Q104 128 112 122" stroke="#2A2B40" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M144 122 Q152 128 160 122" stroke="#2A2B40" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M124 136 Q128 140 132 136" stroke="#ddab95" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <path d="M110 144 Q128 166 147 144" stroke="#b96a6d" stroke-width="4" fill="none" stroke-linecap="round"/>
+  <path d="M80 276 Q100 212 160 212 Q220 212 240 276 Z" fill="#eadbcf"/>
+  <path d="M102 276 Q114 228 160 228 Q206 228 218 276 Z" fill="#fefefe"/>
+  <path d="M148 228 L172 228 L160 248 Z" fill="#f7d8c8"/>
+  <rect x="22" y="22" width="110" height="36" rx="18" fill="url(#card)" opacity="0.95"/>
+  <text x="77" y="45" text-anchor="middle" font-family="Arial, sans-serif" font-size="17" font-weight="700" fill="#ffffff">Aaria</text>
+  <rect x="174" y="246" width="118" height="38" rx="18" fill="#ffffff" stroke="rgba(87,110,160,0.16)"/>
+  <text x="233" y="270" text-anchor="middle" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#35507a">Done</text>
+</svg>
