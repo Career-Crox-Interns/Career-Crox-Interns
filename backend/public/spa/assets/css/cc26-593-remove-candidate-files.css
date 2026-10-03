@@ -1,0 +1,1399 @@
+/* CC26_593 remove Call Recordings + Candidate Files UI completely */
+.candidate-files-panel{display:none!important}
+
+
+/* CC26_696 - readable, space-efficient pipeline layout.
+   Visual CSS only: no polling, network calls, schema changes or hidden options.
+   Scoped to CRM lists; candidate detail forms, chat and dialogs remain unchanged. */
+@media (min-width: 980px) {
+  body:not(.login-body) .main-wrap .interview-summary-grid.six-up {
+    padding: 6px !important; gap: 7px !important;
+    grid-template-columns: repeat(6,minmax(0,1fr)) !important;
+  }
+  body:not(.login-body) .interview-summary-grid .metric-card.compact {
+    min-height: 70px !important; height: auto !important;
+    padding: 7px 11px !important; border-radius: 13px !important;
+    gap: 0 !important; justify-content: center !important;
+  }
+  body:not(.login-body) .interview-summary-grid .metric-card .metric-label {
+    font-size: 12.5px !important; line-height: 1.18 !important; font-weight: 900 !important;
+  }
+  body:not(.login-body) .interview-summary-grid .metric-card .metric-value {
+    font-size: 27px !important; line-height: 1 !important; font-weight: 900 !important;
+  }
+  body:not(.login-body) .interview-summary-grid .metric-card .metric-sub {
+    font-size: 11px !important; line-height: 1.12 !important;
+    overflow: hidden !important; text-overflow: ellipsis !important;
+  }
+  body:not(.login-body) .interview-workspace-panel {
+    padding: 9px 10px !important; margin-top: 8px !important; border-radius: 17px !important;
+  }
+  body:not(.login-body) .interview-toolbar-wrap {
+    padding: 0 2px 5px !important; margin: 0 0 5px !important;
+    min-height: 0 !important; gap: 7px !important;
+  }
+  body:not(.login-body) .interview-toolbar-wrap .table-title {
+    font-size: 17px !important; line-height: 1.18 !important;
+  }
+  body:not(.login-body) .interview-toolbar-actions {
+    gap: 6px !important; flex-wrap: wrap !important;
+  }
+  body:not(.login-body) .interview-sort-strip { gap: 6px !important; }
+  body:not(.login-body) .interview-quick-filter-strip {
+    gap: 7px !important; margin: 3px 0 6px !important;
+  }
+  body:not(.login-body) .interview-quick-filter-strip .compact-select-shell,
+  body:not(.login-body) .interview-sort-strip .compact-select-shell {
+    min-width: 0 !important; min-height: 0 !important;
+    padding: 5px 8px !important; border-radius: 11px !important;
+  }
+  body:not(.login-body) .interview-quick-filter-strip .compact-shell-label,
+  body:not(.login-body) .interview-sort-strip .compact-shell-label {
+    font-size: 11.5px !important; line-height: 1.1 !important;
+    font-weight: 900 !important; margin-bottom: 4px !important;
+  }
+  body:not(.login-body) .interview-quick-filter-strip .compact-inline-input,
+  body:not(.login-body) .interview-sort-strip .compact-inline-input {
+    font-size: 15px !important; line-height: 1.2 !important;
+    font-weight: 750 !important; min-height: 33px !important;
+    height: 33px !important; padding: 3px 7px !important;
+    max-width: 100% !important; width: 100% !important;
+  }
+  body:not(.login-body) .interview-selection-row {
+    margin: 3px 0 6px !important; padding: 5px 8px !important;
+    gap: 7px !important; border-radius: 12px !important;
+  }
+  body:not(.login-body) .interview-selection-row :is(button,.selection-count-chip) {
+    min-height: 35px !important; font-size: 13.5px !important;
+    padding-top: 5px !important; padding-bottom: 5px !important;
+  }
+  body:not(.login-body) .interview-groups-stack {
+    display: flex !important; flex-direction: column !important; gap: 8px !important;
+    margin-top: 5px !important;
+  }
+  body:not(.login-body) .interview-date-panel {
+    padding: 8px !important; border-radius: 13px !important;
+    margin: 0 !important;
+  }
+  body:not(.login-body) .interview-date-header {
+    margin: 0 !important; padding: 0 3px 4px !important;
+    gap: 7px !important; min-height: 25px !important;
+  }
+  body:not(.login-body) .interview-date-header .panel-title {
+    font-size: 16.5px !important; line-height: 1.18 !important;
+    letter-spacing: 0 !important; font-weight: 900 !important;
+  }
+  /* Remove this repeated explanatory sentence, never the date or counts. */
+  body:not(.login-body) .interview-date-header .helper-text { display: none !important; }
+  body:not(.login-body) .interview-date-header .metric-mini-chip,
+  body:not(.login-body) .interview-recruiter-head .metric-mini-chip {
+    width: auto !important; min-height: 24px !important; height: auto !important;
+    padding: 3px 8px !important; border-radius: 9px !important;
+    font-size: 12px !important; line-height: 1.2 !important;
+    white-space: nowrap !important; box-shadow: none !important;
+  }
+  body:not(.login-body) .interview-recruiter-blocks {
+    margin-top: 4px !important; gap: 6px !important;
+  }
+  body:not(.login-body) .interview-recruiter-panel {
+    padding: 6px !important; border-radius: 12px !important;
+    margin: 0 !important;
+  }
+  body:not(.login-body) .interview-recruiter-head {
+    min-height: 26px !important; padding: 0 4px 3px !important;
+    margin: 0 !important; gap: 8px !important;
+  }
+  body:not(.login-body) .interview-recruiter-title {
+    font-size: 17px !important; line-height: 1.2 !important; font-weight: 900 !important;
+  }
+  body:not(.login-body) .interview-recruiter-panel .crm-table-wrap {
+    margin-top: 3px !important; border-radius: 9px !important;
+  }
+  body:not(.login-body) .interview-readable-table {
+    width: 100% !important; min-width: 1160px !important;
+    table-layout: auto !important;
+  }
+  body:not(.login-body) .interview-readable-table :is(th,td) {
+    padding: 6px 7px !important; line-height: 1.24 !important;
+    vertical-align: middle !important;
+  }
+  body:not(.login-body) .interview-readable-table thead th {
+    font-size: 12px !important; font-weight: 900 !important;
+    white-space: normal !important;
+  }
+  body:not(.login-body) .interview-readable-table tbody td {
+    font-size: 15.5px !important; font-weight: 750 !important;
+  }
+  body:not(.login-body) .interview-readable-table tbody td:nth-child(2) {
+    min-width: 175px !important;
+  }
+  body:not(.login-body) .interview-readable-table tbody td:nth-child(2) strong {
+    display: inline-block !important; font-size: 20px !important;
+    line-height: 1.18 !important; font-weight: 900 !important;
+    letter-spacing: -.015em !important;
+  }
+  body:not(.login-body) .interview-readable-table tbody td:nth-child(3) {
+    font-size: 16.5px !important; font-weight: 850 !important;
+    white-space: nowrap !important;
+  }
+  body:not(.login-body) .interview-readable-table tbody td:nth-child(2) .subtle,
+  body:not(.login-body) .interview-readable-table .submission-mini-text {
+    font-size: 12px !important; line-height: 1.2 !important;
+  }
+  body:not(.login-body) .interview-readable-table :is(th,td):first-child {
+    min-width: 64px !important; width: 64px !important;
+    max-width: 64px !important;
+  }
+  body:not(.login-body) .interview-readable-table :is(th,td):last-child {
+    min-width: 116px !important; width: 116px !important;
+  }
+  body:not(.login-body) .interview-readable-table .compact-row-actions {
+    gap: 4px !important;
+  }
+  body:not(.login-body) .interview-readable-table .row-check-btn,
+  body:not(.login-body) .interview-readable-table .modern-icon-btn {
+    width: 31px !important; height: 31px !important;
+    min-width: 31px !important; min-height: 31px !important;
+    border-radius: 9px !important;
+  }
+}
+/* Shared pipeline + remaining CRM list pages: larger data, less empty framing. */
+body:not(.login-body) .main-wrap :is(.candidates-overview-table,.submissions-table,.followups-readable-table,.interview-readable-table) thead th {
+  font-size: 12.5px !important; line-height: 1.22 !important;
+  padding-top: 7px !important; padding-bottom: 7px !important;
+  font-weight: 900 !important;
+}
+body:not(.login-body) .main-wrap :is(.submissions-table,.followups-readable-table) tbody td {
+  font-size: 15.5px !important; line-height: 1.27 !important;
+  padding: 7px 7px !important; vertical-align: middle !important;
+  font-weight: 750 !important;
+}
+body:not(.login-body) .main-wrap .submissions-table tbody td:nth-child(3) strong,
+body:not(.login-body) .main-wrap .followups-readable-table tbody td:first-child strong {
+  display: inline-block !important; font-size: 19.5px !important;
+  line-height: 1.2 !important; font-weight: 900 !important;
+  letter-spacing: -.01em !important;
+}
+body:not(.login-body) .main-wrap .submissions-table tbody td:nth-child(4),
+body:not(.login-body) .main-wrap .followups-readable-table tbody td:nth-child(2),
+body:not(.login-body) .main-wrap .followups-readable-table tbody td:nth-child(3) {
+  font-size: 16.5px !important; font-weight: 850 !important;
+}
+body:not(.login-body) .main-wrap :is(.submissions-table,.followups-readable-table,.interview-readable-table) .subtle {
+  font-size: 12.5px !important; line-height: 1.22 !important;
+}
+body:not(.login-body) .main-wrap :is(.submissions-table,.followups-readable-table,.interview-readable-table) .status-chip {
+  font-size: 12.5px !important; line-height: 1.2 !important;
+  padding: 4px 7px !important; min-height: 0 !important;
+}
+body:not(.login-body) .main-wrap .candidates-overview-table thead th,
+body:not(.login-body) .main-wrap .candidates-overview-table tbody td {
+  padding: 7px 7px !important; line-height: 1.23 !important;
+}
+body:not(.login-body) .main-wrap .candidates-overview-table .candidate-name-cell strong {
+  font-size: 20px !important; line-height: 1.18 !important;
+}
+body:not(.login-body) .main-wrap .candidates-overview-table :is(.candidate-number-cell,.candidate-location-cell,.candidate-qualification-cell) {
+  font-size: 16.5px !important; line-height: 1.22 !important;
+}
+body:not(.login-body) .main-wrap .candidates-overview-table :is(.bucket-status-chip,.bucket-priority-chip),
+body:not(.login-body) .main-wrap .candidates-overview-table .subtle {
+  line-height: 1.2 !important;
+}
+body:not(.login-body) .main-wrap :is(.bucket-toolbar-panel,.table-panel):not(.candidate-detail-full-panel) {
+  padding-top: 10px !important; padding-bottom: 10px !important;
+}
+body:not(.login-body) .main-wrap .candidate-master-row:not(.candidate-detail-full-panel *) {
+  padding: 6px 9px !important; margin-top: 6px !important;
+  border-radius: 13px !important;
+}
+body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.workflow-summary-grid) {
+  gap: 8px !important;
+}
+body:not(.login-body) .main-wrap .bucket-card-grid .bucket-click-card {
+  min-height: 76px !important; padding: 9px 11px !important;
+  border-radius: 13px !important;
+}
+body:not(.login-body) .main-wrap .bucket-card-grid .bucket-click-card :is(span,.stat-label) {
+  font-size: 14px !important; line-height: 1.2 !important;
+}
+body:not(.login-body) .main-wrap .bucket-card-grid .bucket-click-card :is(strong,.stat-value) {
+  font-size: 29px !important; line-height: 1.05 !important;
+}
+body:not(.login-body) .main-wrap .bucket-card-grid .bucket-click-card small {
+  font-size: 11.5px !important; line-height: 1.15 !important;
+}
+body:not(.login-body) .main-wrap .task-summary-grid > :is(.metric-card,.task-summary-button,.stat-card),
+body:not(.login-body) .main-wrap .workflow-summary-grid > :is(.metric-card,.stat-card) {
+  min-height: 76px !important; padding: 9px 12px !important;
+  border-radius: 13px !important;
+}
+body:not(.login-body) .main-wrap :is(.task-summary-grid,.workflow-summary-grid) :is(.stat-label,.metric-label,span) {
+  font-size: 14px !important; line-height: 1.2 !important; font-weight: 850 !important;
+}
+body:not(.login-body) .main-wrap :is(.task-summary-grid,.workflow-summary-grid) :is(.stat-value,.metric-value,strong) {
+  font-size: 29px !important; line-height: 1.04 !important;
+}
+body:not(.login-body) .main-wrap :is(.task-summary-grid,.workflow-summary-grid) :is(.stat-sub,.metric-sub,small) {
+  font-size: 11.5px !important; line-height: 1.18 !important;
+}
+body:not(.login-body) .main-wrap :is(.bucket-toolbar-panel,.interview-workspace-panel) .compact-select-shell select,
+body:not(.login-body) .main-wrap :is(.bucket-toolbar-panel,.interview-workspace-panel) .inline-input {
+  font-size: 15px !important; font-weight: 750 !important;
+}
+/* On small screens never impose desktop widths; preserve horizontal table access. */
+@media(max-width:979px) {
+  body:not(.login-body) .main-wrap .interview-date-panel,
+  body:not(.login-body) .main-wrap .interview-recruiter-panel {
+    padding: 8px !important; margin: 0 !important;
+  }
+  body:not(.login-body) .main-wrap .interview-date-header .helper-text {display:none!important}
+  body:not(.login-body) .main-wrap .interview-date-panel .panel-title {font-size:17px!important}
+  body:not(.login-body) .main-wrap .interview-readable-table tbody td:nth-child(2) strong {font-size:18px!important}
+}
+
+
+/* Hot Leads has 24 columns and keeps its own horizontal scroll; do not force
+   the 11-column Candidates width map onto its different data shape. */
+body:not(.login-body) .main-wrap .hot-leads-candidate-table .hot-leads-cell-text {
+  font-size: 15.2px !important; line-height: 1.3 !important;
+}
+body:not(.login-body) .main-wrap .hot-leads-candidate-table tbody td:nth-child(4) .hot-leads-cell-text {
+  font-size: 19.5px !important; font-weight: 900 !important;
+}
+body:not(.login-body) .main-wrap .hot-leads-candidate-table tbody td:nth-child(3) .hot-leads-cell-text,
+body:not(.login-body) .main-wrap .hot-leads-candidate-table tbody td:nth-child(5) .hot-leads-cell-text {
+  font-size: 16.5px !important; font-weight: 850 !important;
+}
+
+/* CC26_696 - use desktop width for candidate/submission data, not giant columns. */
+@media (min-width: 1350px) {
+  html body:not(.login-body) .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) {
+    width: 100% !important; min-width: 1250px !important;
+    table-layout: fixed !important;
+  }
+  html body:not(.login-body) .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td) {
+    box-sizing: border-box !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+  }
+  html body:not(.login-body) .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(1) {width:48px!important;min-width:48px!important;max-width:48px!important}
+  html body:not(.login-body) .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(2) {width:80px!important;min-width:80px!important;max-width:80px!important}
+  html body:not(.login-body) .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(3) {width:205px!important;min-width:205px!important;max-width:205px!important}
+  html body:not(.login-body) .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(4) {width:130px!important;min-width:130px!important;max-width:130px!important}
+  html body:not(.login-body) .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(5) {width:110px!important;min-width:110px!important;max-width:110px!important}
+  html body:not(.login-body) .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(6) {width:112px!important;min-width:112px!important;max-width:112px!important}
+  html body:not(.login-body) .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(7) {width:105px!important;min-width:105px!important;max-width:105px!important}
+  html body:not(.login-body) .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(8) {width:105px!important;min-width:105px!important;max-width:105px!important}
+  html body:not(.login-body) .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(9) {width:128px!important;min-width:128px!important;max-width:128px!important}
+  html body:not(.login-body) .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(10){width:90px!important;min-width:90px!important;max-width:90px!important}
+  html body:not(.login-body) .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(11){width:165px!important;min-width:165px!important;max-width:165px!important}
+  html body:not(.login-body) .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) .compact-row-actions {
+    flex-wrap: wrap !important; white-space: normal !important; gap: 4px !important;
+  }
+  html body:not(.login-body) .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) .mini-wa-template-select {
+    max-width: 145px !important; min-width: 100px !important; width: 100% !important;
+  }
+  html body:not(.login-body) .main-wrap .submissions-table {
+    width: 100% !important; min-width: 1180px !important;
+    table-layout: fixed !important;
+  }
+  html body:not(.login-body) .main-wrap .submissions-table :is(th,td) {
+    box-sizing: border-box !important;
+    overflow-wrap: anywhere !important;
+    white-space: normal !important;
+  }
+  html body:not(.login-body) .main-wrap .submissions-table :is(th,td):nth-child(1){width:64px!important;min-width:64px!important;max-width:64px!important}
+  html body:not(.login-body) .main-wrap .submissions-table :is(th,td):nth-child(2){width:56px!important;min-width:56px!important;max-width:56px!important}
+  html body:not(.login-body) .main-wrap .submissions-table :is(th,td):nth-child(3){width:205px!important;min-width:205px!important;max-width:205px!important}
+  html body:not(.login-body) .main-wrap .submissions-table :is(th,td):nth-child(4){width:92px!important;min-width:92px!important;max-width:92px!important}
+  html body:not(.login-body) .main-wrap .submissions-table :is(th,td):nth-child(5){width:132px!important;min-width:132px!important;max-width:132px!important}
+  html body:not(.login-body) .main-wrap .submissions-table :is(th,td):nth-child(6){width:100px!important;min-width:100px!important;max-width:100px!important}
+  html body:not(.login-body) .main-wrap .submissions-table :is(th,td):nth-child(7){width:93px!important;min-width:93px!important;max-width:93px!important}
+  html body:not(.login-body) .main-wrap .submissions-table :is(th,td):nth-child(8){width:91px!important;min-width:91px!important;max-width:91px!important}
+  html body:not(.login-body) .main-wrap .submissions-table :is(th,td):nth-child(9){width:97px!important;min-width:97px!important;max-width:97px!important}
+  html body:not(.login-body) .main-wrap .submissions-table :is(th,td):nth-child(10){width:130px!important;min-width:130px!important;max-width:130px!important}
+  html body:not(.login-body) .main-wrap .submissions-table :is(th,td):nth-child(11){width:130px!important;min-width:130px!important;max-width:130px!important}
+}
+
+
+/* CC26_712 - existing stylesheet, TABLES ONLY. No metric-card/page/sidebar CSS. */
+:root{--cc708-head:'Roboto','Segoe UI',Arial,sans-serif;--cc708-font:'Roboto','Segoe UI',Arial,sans-serif;--cc708-cell-bg:#fff;--cc708-cell-border:#dde7f3;--cc708-cell-alt:#f8fbff;--cc708-head-text:#193e67;--cc708-head-border:#c6d6ea;}
+
+:root {
+  --cc707-font: 'Segoe UI Variable Text','Segoe UI',Arial,system-ui,sans-serif;
+  --cc707-head: 'Segoe UI Variable Display','Segoe UI',Arial,system-ui,sans-serif;
+  --cc707-ink: #1a344e;
+  --cc707-navy: #1c3c62;
+  --cc707-border: #dfe8f2;
+}
+/* Native table layout for every standard list, not a CSS grid: thead, tbody, tr
+   and td share one column sizing algorithm, including empty & long rows. */
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) {
+  display:table!important;width:100%!important;max-width:none!important;border-collapse:separate!important;border-spacing:0!important;
+  table-layout:fixed!important;font-family:var(--cc707-font)!important;
+}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead {
+  display:table-header-group!important;position:static!important;width:auto!important;height:auto!important;clip:auto!important;overflow:visible!important;margin:0!important;padding:0!important;white-space:normal!important;
+}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody {display:table-row-group!important;width:auto!important;}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tr {
+  display:table-row!important;min-height:0!important;height:auto!important;margin:0!important;padding:0!important;border:0!important;box-shadow:none!important;
+  background:none!important;
+}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) :is(th,td) {
+  box-sizing:border-box!important;display:table-cell!important;position:static!important;
+  grid-column:auto!important;grid-row:auto!important;min-width:0!important;max-width:none!important;min-height:0!important;
+  flex-direction:initial!important;justify-content:initial!important;align-items:initial!important;
+  white-space:normal!important;overflow-wrap:normal!important;word-break:normal!important;
+  border:0!important;border-bottom:1px solid var(--cc707-border)!important;
+}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th {
+  height:37px!important;padding:8px 6px!important;vertical-align:middle!important;
+  font:750 11.5px/1.17 var(--cc707-head)!important;letter-spacing:0!important;
+  text-transform:none!important;text-align:left!important;
+  background:#ecf2fa!important;color:#314d72!important;
+  border-top:1px solid #dbe6f3!important;
+}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th:first-child {border-top-left-radius:8px!important;}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th:last-child {border-top-right-radius:8px!important;}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody td {
+  height:47px!important;padding:7px 6px!important;vertical-align:middle!important;
+  font:650 14px/1.18 var(--cc707-font)!important;letter-spacing:-.01em!important;
+  color:var(--cc707-ink)!important;background:#fff!important;
+}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody tr:nth-child(even) td {background:#f8fbff!important;}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody tr:hover td {background:#edf5ff!important;}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody td::before {display:none!important;content:none!important;}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody td strong {
+  font:800 18px/1.1 var(--cc707-head)!important;letter-spacing:-.024em!important;color:#173b60!important;
+}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody td .subtle,
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody td .submission-mini-text {
+  font:650 11.5px/1.15 var(--cc707-font)!important;color:#637a98!important;
+}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) .status-chip,
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) .bucket-status-chip {
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  max-width:100%!important;min-height:24px!important;padding:4px 7px!important;
+  font:700 12px/1.15 var(--cc707-font)!important;border-radius:7px!important;
+  overflow-wrap:break-word!important;white-space:normal!important;
+}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) .row-check-btn {min-width:27px!important;width:27px!important;height:27px!important;min-height:27px!important;}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) .compact-row-actions {display:flex!important;justify-content:center!important;gap:4px!important;flex-wrap:nowrap!important;}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) .modern-icon-btn {height:27px!important;width:27px!important;min-width:27px!important;min-height:27px!important;padding:0!important;}
+/* Interview column proportions: data starts directly below corresponding header. */
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table {min-width:1095px!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(1) {width:4%!important;text-align:center!important;padding-left:4px!important;padding-right:4px!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(2) {width:16%!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(3) {width:12%!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(4) {width:8%!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(5) {width:10%!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(6) {width:11%!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(7) {width:11%!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(8) {width:10%!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(9) {width:10%!important;font-size:12.5px!important;overflow-wrap:anywhere!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(10){width:8%!important;text-align:center!important;padding-left:3px!important;padding-right:3px!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table tbody td:nth-child(3) {font-size:15.5px!important;font-weight:800!important;color:#225581!important;white-space:nowrap!important;}
+/* Headers: semantic accent colours, restrained and consistent, not neon. */
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table thead th:nth-child(2){color:#173b69!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table thead th:nth-child(3){color:#225b96!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table thead th:is(:nth-child(4),:nth-child(5)){color:#18766e!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table thead th:nth-child(6){color:#705399!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table thead th:nth-child(7){color:#985c30!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table thead th:nth-child(8){color:#7354a2!important;}
+/* preserve all actual status/content; only a faint red row style */
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.submissions-table) tbody tr.cc-negative-profile-row td {
+  background:#fff0f1!important;border-bottom-color:#f3cbd1!important;
+}
+/* Candidates/submissions can have different column counts: native header alignment
+   and a contained horizontal scrollbar take precedence over illegible squeezing. */
+body:not(.login-body) .app-shell .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table){min-width:1400px!important;}
+body:not(.login-body) .app-shell .main-wrap .submissions-table{min-width:1260px!important;}
+body:not(.login-body) .app-shell .main-wrap .followups-readable-table{min-width:910px!important;}
+body:not(.login-body) .app-shell .main-wrap .crm-table-wrap {max-width:100%!important;overflow-x:auto!important;overflow-y:visible!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-recruiter-panel .crm-table th:first-child,
+body:not(.login-body) .app-shell .main-wrap .interview-recruiter-panel .crm-table td:first-child {min-width:0!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-recruiter-panel .crm-table th:last-child,
+body:not(.login-body) .app-shell .main-wrap .interview-recruiter-panel .crm-table td:last-child {min-width:0!important;}
+/* DARK themes: no white text on white body or vice versa. */
+html:is([data-theme='dark-pro'],[data-theme='dark-midnight'],[data-theme='dark-vscode'],[data-theme='neon-slate'],[data-theme='look-midnight'],[data-theme='midnight'],[data-theme='dark-navy'],[data-theme='crimson-noir'],[data-theme='berry-night']) body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody td{background:#202e46!important;color:#edf5ff!important;border-bottom-color:#394e6d!important;}
+html:is([data-theme='dark-pro'],[data-theme='dark-midnight'],[data-theme='dark-vscode'],[data-theme='neon-slate'],[data-theme='look-midnight'],[data-theme='midnight'],[data-theme='dark-navy'],[data-theme='crimson-noir'],[data-theme='berry-night']) body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody td strong{color:#f4f7ff!important;}
+html:is([data-theme='dark-pro'],[data-theme='dark-midnight'],[data-theme='dark-vscode'],[data-theme='neon-slate'],[data-theme='look-midnight'],[data-theme='midnight'],[data-theme='dark-navy'],[data-theme='crimson-noir'],[data-theme='berry-night']) body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th{background:#2d405c!important;color:#d8e6fc!important;border-bottom-color:#536886!important;}
+
+/* Candidate list uses more fields than interviews. Preserve visible controls,
+   preferring a contained table scrollbar over broken/tiny action buttons. */
+body:not(.login-body) .app-shell .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(1){width:4%!important;}
+body:not(.login-body) .app-shell .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(2){width:10%!important;}
+body:not(.login-body) .app-shell .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(3){width:15%!important;}
+body:not(.login-body) .app-shell .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(4){width:10%!important;}
+body:not(.login-body) .app-shell .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(5){width:8%!important;}
+body:not(.login-body) .app-shell .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(6){width:10%!important;}
+body:not(.login-body) .app-shell .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(7){width:9%!important;}
+body:not(.login-body) .app-shell .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(8){width:9%!important;}
+body:not(.login-body) .app-shell .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(9){width:7%!important;}
+body:not(.login-body) .app-shell .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(10){width:6%!important;}
+body:not(.login-body) .app-shell .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(11){width:12%!important;}
+/* At smaller desktop widths, never let a table's intrinsic width expand the
+   whole page: the table itself is the only horizontally scrollable surface. */
+body:not(.login-body) .app-shell .main-wrap :is(.interview-workspace-panel,.interview-groups-stack,.interview-date-panel,.interview-recruiter-blocks,.interview-recruiter-panel,.crm-table-wrap){
+  min-width:0!important;max-width:100%!important;box-sizing:border-box!important;
+}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(2){width:15%!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(10){width:9%!important;}
+/* make table block cleaner */
+body:not(.login-body) .app-shell .main-wrap .crm-table-wrap{border:1px solid #dbe5f2!important;border-radius:10px!important;background:#fff!important;overflow-x:auto!important;}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table){
+  border-collapse:separate!important;border-spacing:0!important;background:#fff!important;
+}
+/* highlighted headers */
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th{
+  background:linear-gradient(180deg,#eef4fb 0%, #e3ecf8 100%)!important;
+  color:var(--cc708-head-text)!important;
+  font-size:12.5px!important;
+  line-height:1.15!important;
+  font-weight:900!important;
+  text-transform:none!important;
+  height:40px!important;
+  border-top:1px solid var(--cc708-head-border)!important;
+  border-bottom:1px solid var(--cc708-head-border)!important;
+  border-right:1px solid #d7e2f0!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.75)!important;
+}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th:first-child{
+  border-left:1px solid var(--cc708-head-border)!important;
+}
+/* stronger columns */
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody td{
+  background:var(--cc708-cell-bg)!important;
+  border-bottom:1px solid var(--cc708-cell-border)!important;
+  border-right:1px solid #eef3f9!important;
+  font-size:14.5px!important;
+  font-weight:700!important;
+  line-height:1.18!important;
+  color:#1a3553!important;
+  height:45px!important;
+}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody td:first-child{
+  border-left:1px solid #eef3f9!important;
+}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody tr:nth-child(even) td{background:var(--cc708-cell-alt)!important;}
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody tr:hover td{background:#edf5ff!important;}
+/* more obvious primary values */
+body:not(.login-body) .app-shell .main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody td strong{
+  font-family:var(--cc708-head)!important;
+  font-size:19px!important;
+  font-weight:900!important;
+  color:#183c63!important;
+}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table tbody td:nth-child(3),
+body:not(.login-body) .app-shell .main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) tbody td:nth-child(4){
+  color:#1f5a8f!important;font-weight:800!important;
+}
+/* interview specific nicer widths without tiny headers */
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table{min-width:1100px!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(1){width:4.5%!important;text-align:center!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(2){width:17%!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(3){width:12%!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(4){width:8.5%!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(5){width:10%!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(6){width:11%!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(7){width:11%!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(8){width:10.5%!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(9){width:10.5%!important;font-size:13px!important;overflow-wrap:anywhere!important;}
+body:not(.login-body) .app-shell .main-wrap .interview-readable-table :is(th,td):nth-child(10){width:7%!important;text-align:center!important;}
+/* CC26_710 | LOCAL APPROVAL ONLY | ROBOTO TABLE TYPOGRAPHY ONLY.
+   No size, color, card, button, spacing, layout, API or backend changes.
+   Rule covers headers, cells, and textual descendants (not icon fonts).
+   Roboto is loaded once via a cacheable external Google Fonts stylesheet;
+   installed Roboto works offline and the page remains usable with fallback.
+*/
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(table.crm-table,table.interview-readable-table,table.candidates-overview-table,table.submissions-table,table.followups-readable-table,table.hot-leads-candidate-table,table) :is(th, td),
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(table.crm-table,table.interview-readable-table,table.candidates-overview-table,table.submissions-table,table.followups-readable-table,table.hot-leads-candidate-table,table) :is(th, td) :is(
+  span:not([class*="icon"]):not([class*="fa-"]),
+  strong, b, small, em, p, div:not([class*="icon"]),
+  label, time, a:not([class*="icon"]),
+  button:not([class*="icon"]), input, select, textarea
+) {
+  font-family: "Roboto", "Segoe UI", Arial, sans-serif !important;
+}
+/* CC26_712 — FINAL TABLE-ONLY ROBOTO + PREMIUM COLOUR SYSTEM.
+   No icons added, no extra network requests, no summary-card/sidebar changes.
+   Native HTML table, semantic coloured headers and restrained row values.
+*/
+:root {
+  --cc712-ink: #203d64;
+  --cc712-line: #d4e2f0;
+  --cc712-name: #244cb0;
+  --cc712-phone: #086f9e;
+  --cc712-location: #15803d;
+  --cc712-preferred: #087e98;
+  --cc712-communication: #4f46bb;
+  --cc712-status: #693bb1;
+  --cc712-details: #a75b10;
+  --cc712-date: #335b88;
+  --cc712-action: #345575;
+}
+/* Use a native table, never the experimental grid-card layout. */
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(
+  table.interview-readable-table,
+  table.candidates-overview-table:not(.hot-leads-candidate-table),
+  table.submissions-table,
+  table.followups-readable-table
+) {
+  display: table !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  table-layout: fixed !important;
+  font-family: 'Roboto','Segoe UI',Arial,sans-serif !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(
+  table.interview-readable-table,
+  table.candidates-overview-table:not(.hot-leads-candidate-table),
+  table.submissions-table,
+  table.followups-readable-table
+) thead { display: table-header-group !important; }
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(
+  table.interview-readable-table,
+  table.candidates-overview-table:not(.hot-leads-candidate-table),
+  table.submissions-table,
+  table.followups-readable-table
+) tbody { display: table-row-group !important; }
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(
+  table.interview-readable-table,
+  table.candidates-overview-table:not(.hot-leads-candidate-table),
+  table.submissions-table,
+  table.followups-readable-table
+) tr { display: table-row !important; }
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(
+  table.interview-readable-table,
+  table.candidates-overview-table:not(.hot-leads-candidate-table),
+  table.submissions-table,
+  table.followups-readable-table
+) :is(th,td) {
+  display: table-cell !important;
+  grid-column: auto !important;
+  grid-row: auto !important;
+  vertical-align: middle !important;
+  font-family: 'Roboto','Segoe UI',Arial,sans-serif !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(
+  table.interview-readable-table,
+  table.candidates-overview-table:not(.hot-leads-candidate-table),
+  table.submissions-table,
+  table.followups-readable-table
+) thead th {
+  font-family: 'Roboto','Segoe UI',Arial,sans-serif !important;
+  font-size: 15px !important;
+  line-height: 1.15 !important;
+  letter-spacing: 0 !important;
+  font-weight: 800 !important;
+  padding: 9px 7px !important;
+  height: 49px !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  color: var(--cc712-ink) !important;
+  border-top: 1px solid var(--cc712-line) !important;
+  border-right: 1px solid #d5e1f1 !important;
+  border-bottom: 2px solid #b8cde4 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.65) !important;
+  background: #eaf1fc !important;
+  text-align: left !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(
+  table.interview-readable-table,
+  table.candidates-overview-table:not(.hot-leads-candidate-table),
+  table.submissions-table,
+  table.followups-readable-table
+) thead th:first-child {
+  font-size: 11px !important;
+  text-align: center !important;
+  padding-left: 3px !important;
+  padding-right: 3px !important;
+  border-left: 1px solid var(--cc712-line) !important;
+}
+/* Every column receives its own visible colour: tinted header + readable text. */
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th:nth-child(2) {background:#e8efff!important;color:#244cb0!important;border-bottom-color:#7fa2ed!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th:nth-child(3) {background:#e3f4ff!important;color:#086f9e!important;border-bottom-color:#6ebce4!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th:nth-child(4) {background:#e6f8e9!important;color:#167439!important;border-bottom-color:#88cda1!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th:nth-child(5) {background:#e2f8fa!important;color:#087e98!important;border-bottom-color:#81d3dc!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th:nth-child(6) {background:#efedff!important;color:#4f46bb!important;border-bottom-color:#afa4f0!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th:nth-child(7) {background:#f5eaff!important;color:#693bb1!important;border-bottom-color:#c2a0e9!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th:nth-child(8) {background:#fff1e0!important;color:#a75b10!important;border-bottom-color:#e7b974!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th:nth-child(9) {background:#e7f1fc!important;color:#335b88!important;border-bottom-color:#95b9e2!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th:nth-child(10) {background:#edf2f9!important;color:#345575!important;border-bottom-color:#a9bcd3!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th:nth-child(11) {background:#e8f6f1!important;color:#226d59!important;border-bottom-color:#93cbb5!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.submissions-table,.followups-readable-table) thead th:nth-child(12) {background:#f6edfb!important;color:#79519b!important;border-bottom-color:#d3b5e4!important;}
+/* Same semantic palette when the other CRM tables use different column orders. */
+body:not(.login-body) .app-shell .main-wrap.main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) thead th:nth-child(3),
+body:not(.login-body) .app-shell .main-wrap.main-wrap .submissions-table thead th:nth-child(3),
+body:not(.login-body) .app-shell .main-wrap.main-wrap .followups-readable-table thead th:nth-child(1) {background:#e8efff!important;color:#244cb0!important;border-bottom-color:#7fa2ed!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) thead th:nth-child(4),
+body:not(.login-body) .app-shell .main-wrap.main-wrap .followups-readable-table thead th:nth-child(3) {background:#e3f4ff!important;color:#086f9e!important;border-bottom-color:#6ebce4!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table) thead th:nth-child(5),
+body:not(.login-body) .app-shell .main-wrap.main-wrap .submissions-table thead th:nth-child(6) {background:#e6f8e9!important;color:#167439!important;border-bottom-color:#88cda1!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) thead th:nth-child(8),
+body:not(.login-body) .app-shell .main-wrap.main-wrap .submissions-table thead th:nth-child(7),
+body:not(.login-body) .app-shell .main-wrap.main-wrap .followups-readable-table thead th:nth-child(6) {background:#f5eaff!important;color:#693bb1!important;border-bottom-color:#c2a0e9!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap .submissions-table thead th:nth-child(9) {background:#fff1e0!important;color:#a75b10!important;border-bottom-color:#e7b974!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.submissions-table,.followups-readable-table) thead th:last-child {background:#edf2f9!important;color:#345575!important;border-bottom-color:#a9bcd3!important;}
+/* No icons are injected into headers. Keep the table text bold and balanced. */
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(
+  table.interview-readable-table,
+  table.candidates-overview-table:not(.hot-leads-candidate-table),
+  table.submissions-table,
+  table.followups-readable-table
+) tbody td {
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  line-height: 1.2 !important;
+  height: 47px !important;
+  border-right: 1px solid #e5edf7 !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody td strong {
+  font-family:'Roboto','Segoe UI',Arial,sans-serif!important;
+  font-size:20px!important;
+  font-weight:800!important;
+  letter-spacing:-.015em!important;
+}
+/* Coloured candidate names only (not serial numbers, IDs or badges). */
+body:not(.login-body) .app-shell .main-wrap.main-wrap .interview-readable-table tbody tr:nth-child(4n+1) td:nth-child(2) strong,
+body:not(.login-body) .app-shell .main-wrap.main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) tbody tr:nth-child(4n+1) td:nth-child(3) strong,
+body:not(.login-body) .app-shell .main-wrap.main-wrap .submissions-table tbody tr:nth-child(4n+1) td:nth-child(3) strong,
+body:not(.login-body) .app-shell .main-wrap.main-wrap .followups-readable-table tbody tr:nth-child(4n+1) td:nth-child(1) strong {color:#2351c2!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap .interview-readable-table tbody tr:nth-child(4n+2) td:nth-child(2) strong,
+body:not(.login-body) .app-shell .main-wrap.main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) tbody tr:nth-child(4n+2) td:nth-child(3) strong,
+body:not(.login-body) .app-shell .main-wrap.main-wrap .submissions-table tbody tr:nth-child(4n+2) td:nth-child(3) strong,
+body:not(.login-body) .app-shell .main-wrap.main-wrap .followups-readable-table tbody tr:nth-child(4n+2) td:nth-child(1) strong {color:#9d319d!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap .interview-readable-table tbody tr:nth-child(4n+3) td:nth-child(2) strong,
+body:not(.login-body) .app-shell .main-wrap.main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) tbody tr:nth-child(4n+3) td:nth-child(3) strong,
+body:not(.login-body) .app-shell .main-wrap.main-wrap .submissions-table tbody tr:nth-child(4n+3) td:nth-child(3) strong,
+body:not(.login-body) .app-shell .main-wrap.main-wrap .followups-readable-table tbody tr:nth-child(4n+3) td:nth-child(1) strong {color:#0b777b!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap .interview-readable-table tbody tr:nth-child(4n+4) td:nth-child(2) strong,
+body:not(.login-body) .app-shell .main-wrap.main-wrap .candidates-overview-table:not(.hot-leads-candidate-table) tbody tr:nth-child(4n+4) td:nth-child(3) strong,
+body:not(.login-body) .app-shell .main-wrap.main-wrap .submissions-table tbody tr:nth-child(4n+4) td:nth-child(3) strong,
+body:not(.login-body) .app-shell .main-wrap.main-wrap .followups-readable-table tbody tr:nth-child(4n+4) td:nth-child(1) strong {color:#a23e53!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap .interview-readable-table tbody td:nth-child(3) {color:var(--cc712-phone)!important;font-weight:800!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap .interview-readable-table tbody td:nth-child(4) {color:var(--cc712-location)!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap .interview-readable-table tbody td:nth-child(5) {color:var(--cc712-preferred)!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap .interview-readable-table tbody td:nth-child(6) {color:var(--cc712-communication)!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap .interview-readable-table tbody td:nth-child(9) {color:var(--cc712-date)!important;font-size:13px!important;}
+/* Status/detail badges retain their business-meaning colours. */
+body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.interview-readable-table,.submissions-table) tbody tr.cc-negative-profile-row td {
+  background:#fff0f2!important;
+  border-bottom-color:#ecc6ce!important;
+}
+/* Existing dark themes get darker tints rather than white header backgrounds. */
+html:is([data-theme*='dark'],[data-theme*='midnight'],[data-theme='berry-night'],[data-theme='crimson-noir'],[data-theme='neon-slate']) body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) thead th {
+  background:#283950!important;
+  color:#e5f0ff!important;
+  border-color:#506883!important;
+}
+html:is([data-theme*='dark'],[data-theme*='midnight'],[data-theme='berry-night'],[data-theme='crimson-noir'],[data-theme='neon-slate']) body:not(.login-body) .app-shell .main-wrap.main-wrap :is(.interview-readable-table,.candidates-overview-table:not(.hot-leads-candidate-table),.submissions-table,.followups-readable-table) tbody tr td strong {color:#e8f1ff!important;}
+
+
+
+
+/* CC26_713 LOCAL APPROVAL — Candidates list only.
+ * Compact AppSheet-like native rows. Preserves existing coloured headers,
+ * Roboto, statuses, cards, actions, notes, security and data flow.
+ * No extra CSS request, font request, timer or API call.
+ */
+body:not(.login-body) .app-shell .main-wrap.main-wrap .candidates-scroll-wrap {
+  overflow-x: auto !important;
+  overflow-y: hidden !important;
+  max-width: 100% !important;
+  padding: 0 0 5px !important;
+  scrollbar-width: thin !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap .candidates-scroll-wrap::-webkit-scrollbar {height:9px !important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) {
+  display: table !important;
+  width: 100% !important;
+  min-width: 1295px !important;
+  max-width: none !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  table-layout: fixed !important;
+  font-family: 'Roboto','Segoe UI',Arial,sans-serif !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) :is(thead,tbody,tr) {
+  width: auto !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td) {
+  box-sizing: border-box !important;
+  display: table-cell !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  vertical-align: middle !important;
+  font-family: 'Roboto','Segoe UI',Arial,sans-serif !important;
+  overflow-wrap: break-word !important;
+  word-break: normal !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) thead th {
+  height: 36px !important;
+  padding: 5px 7px !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+  line-height: 1.12 !important;
+  letter-spacing: 0 !important;
+  white-space: normal !important;
+  text-transform: none !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr {
+  height: auto !important;
+  min-height: 0 !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) tbody td {
+  height: 45px !important;
+  min-height: 0 !important;
+  padding: 4px 7px !important;
+  font-size: 14px !important;
+  line-height: 1.15 !important;
+  font-weight: 600 !important;
+  white-space: normal !important;
+}
+/* Actual candidate fields, not generic nested cards elsewhere. */
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) .candidate-id-cell strong {
+  display: inline !important;
+  font-size: 14px !important;
+  line-height: 1.12 !important;
+  font-weight: 750 !important;
+  white-space: nowrap !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) .candidate-name-cell strong {
+  display: inline !important;
+  font-size: 17px !important;
+  line-height: 1.09 !important;
+  font-weight: 800 !important;
+  letter-spacing: -.015em !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) .candidate-name-cell .subtle {
+  display: block !important;
+  margin: 1px 0 0 !important;
+  font-size: 11px !important;
+  line-height: 1.12 !important;
+  font-weight: 600 !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) .candidate-number-cell,
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) .candidate-location-cell,
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) .candidate-qualification-cell {
+  font-size: 14px !important;
+  line-height: 1.15 !important;
+  font-weight: 650 !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) .bucket-status-chip,
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) .bucket-priority-chip {
+  min-height: 20px !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 2px 5px !important;
+  border-radius: 7px !important;
+  font-size: 11px !important;
+  line-height: 1.14 !important;
+  font-weight: 700 !important;
+  white-space: normal !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) .bucket-highlight-cell .subtle,
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) .last-viewed-stack .subtle {
+  display: block !important;
+  margin: 2px 0 0 !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  line-height: 1.05 !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) .submission-mini-text {
+  margin: 2px 0 0 !important;
+  font-size: 10.5px !important;
+  line-height: 1.1 !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) .last-viewed-stack {
+  min-width: 0 !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) .row-check-btn {
+  min-width: 26px !important;
+  min-height: 26px !important;
+  width: 26px !important;
+  height: 26px !important;
+  padding: 4px !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) .compact-row-actions {
+  display: flex !important;
+  align-items: center !important;
+  flex-flow: row nowrap !important;
+  justify-content: flex-start !important;
+  gap: 4px !important;
+  min-width: 0 !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) .compact-row-actions .modern-icon-btn {
+  flex: 0 0 27px !important;
+  width: 27px !important;
+  height: 27px !important;
+  min-width: 27px !important;
+  min-height: 27px !important;
+  padding: 3px !important;
+}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) .mini-wa-template-select {
+  flex: 0 0 86px !important;
+  width: 86px !important;
+  min-width: 86px !important;
+  max-width: 86px !important;
+  min-height: 27px !important;
+  height: 27px !important;
+  padding: 2px 3px !important;
+  font-size: 11px !important;
+}
+/* Column widths total 1295px. No columns or controls removed. */
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(1) {width:42px!important;min-width:42px!important;max-width:42px!important;padding-left:4px!important;padding-right:4px!important;text-align:center!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(2) {width:85px!important;min-width:85px!important;max-width:85px!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(3) {width:180px!important;min-width:180px!important;max-width:180px!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(4) {width:122px!important;min-width:122px!important;max-width:122px!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(5) {width:116px!important;min-width:116px!important;max-width:116px!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(6) {width:120px!important;min-width:120px!important;max-width:120px!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(7) {width:107px!important;min-width:107px!important;max-width:107px!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(8) {width:107px!important;min-width:107px!important;max-width:107px!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(9) {width:145px!important;min-width:145px!important;max-width:145px!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(10) {width:74px!important;min-width:74px!important;max-width:74px!important;}
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(11) {width:197px!important;min-width:197px!important;max-width:197px!important;}
+/* Stop wide-table width causing the entire CRM to scroll horizontally. */
+body:not(.login-body) .app-shell .main-wrap.main-wrap .bucket-toolbar-panel,
+body:not(.login-body) .app-shell .main-wrap.main-wrap .candidates-scroll-wrap {min-width:0!important;max-width:100%!important;box-sizing:border-box!important;}
+/* Empty state spans the table; never apply data column width to colspan rows. */
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) tbody td[colspan] {
+  width:auto!important;min-width:0!important;max-width:none!important;height:45px!important;padding:9px 12px!important;
+}
+/* Scoped dark-theme compatibility; leave other pages' colors unchanged. */
+html:is([data-theme*='dark'],[data-theme*='midnight'],[data-theme='berry-night'],[data-theme='crimson-noir'],[data-theme='neon-slate']) body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) tbody td {
+  border-bottom-color:#354b6c!important;
+}
+/* Header selection control must not keep the old 42px height. */
+body:not(.login-body) .app-shell .main-wrap.main-wrap table.candidates-overview-table:not(.hot-leads-candidate-table) thead .table-master-check {
+  width: 27px !important;
+  min-width: 27px !important;
+  max-width: 27px !important;
+  height: 27px !important;
+  min-height: 27px !important;
+  max-height: 27px !important;
+  margin: 0 auto !important;
+  padding: 3px !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+
+
+
+/* CC26_714 - local approval only: plain readable native Candidates table.
+   Scoped to Candidates, never to Hot Leads or shared UI. No new assets,
+   JavaScript, database requests, hidden data, or changes to other cards. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) {
+  min-width: 1109px !important;
+  width: 100% !important;
+  table-layout: fixed !important;
+  border-spacing: 0 !important;
+  font-family: Roboto,'Segoe UI',Arial,sans-serif !important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap .candidates-scroll-wrap {
+  overflow-x: auto !important;
+  max-width: 100% !important;
+  padding-bottom: 2px !important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(thead th,tbody td) {
+  font-family: Roboto,'Segoe UI',Arial,sans-serif !important;
+  box-sizing: border-box !important;
+  line-height: 1.2 !important;
+  font-weight: 400 !important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) thead th {
+  height: 36px !important;
+  padding: 5px 5px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0 !important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody td {
+  height: 43px !important;
+  padding: 3px 5px !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+}
+/* Name is plain readable text, NOT a button or bold/highlighted pill. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td.candidate-name-cell > strong,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td.candidate-name-cell .cp-name {
+  display: inline !important;
+  font: 500 16px/1.15 Roboto,'Segoe UI',Arial,sans-serif !important;
+  letter-spacing: 0 !important;
+  color: #225581 !important;
+  -webkit-text-fill-color: #225581 !important;
+  background: transparent !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  outline: 0 !important;
+  text-decoration: none !important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td.candidate-name-cell > .subtle,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td.candidate-name-cell > .submission-mini-text {
+  display: block !important;
+  color: #64738a !important;
+  -webkit-text-fill-color: #64738a !important;
+  background: transparent !important;
+  padding: 0 !important;
+  margin: 1px 0 0 !important;
+  font: 400 11px/1.15 Roboto,'Segoe UI',Arial,sans-serif !important;
+  white-space: normal !important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td.candidate-id-cell > strong {
+  font: 500 12.5px/1.2 Roboto,'Segoe UI',Arial,sans-serif !important;
+  color: #375677 !important;
+  -webkit-text-fill-color: #375677 !important;
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td.candidate-number-cell,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td.candidate-location-cell,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td.candidate-qualification-cell {
+  font: 400 14px/1.16 Roboto,'Segoe UI',Arial,sans-serif !important;
+  letter-spacing: 0 !important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td.candidate-number-cell {
+  font-variant-numeric: tabular-nums !important;
+  color: #24517c !important;
+  -webkit-text-fill-color: #24517c !important;
+  white-space: nowrap !important;
+}
+/* Date / Days and Priority chips stay functional but do not dominate the row. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody .bucket-status-chip,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody .bucket-priority-chip {
+  min-height: 18px !important;
+  padding: 2px 4px !important;
+  border-radius: 5px !important;
+  box-shadow: none !important;
+  font: 400 12px/1.15 Roboto,'Segoe UI',Arial,sans-serif !important;
+}
+/* Status retains its meaning/colours, but is a subtle compact label. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td:nth-child(8) .bucket-status-chip {
+  min-height: 19px !important;
+  padding: 2px 5px !important;
+  font: 400 12.5px/1.15 Roboto,'Segoe UI',Arial,sans-serif !important;
+  border-radius: 5px !important;
+  box-shadow: none !important;
+  max-width: 100% !important;
+}
+/* Tone down status chips without changing status meanings or values. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td:nth-child(8) .bucket-status-chip.safe {
+  background: #e6f7ef !important;
+  background-image: none !important;
+  color: #176246 !important;
+  -webkit-text-fill-color: #176246 !important;
+  border: 1px solid #c5e9d5 !important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td:nth-child(8) .bucket-status-chip.info {
+  background: #e9f1ff !important;
+  background-image: none !important;
+  color: #1f548c !important;
+  -webkit-text-fill-color: #1f548c !important;
+  border: 1px solid #d4e4fa !important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td:nth-child(8) .bucket-status-chip.warning {
+  background: #fff0f1 !important;
+  background-image: none !important;
+  color: #9f424a !important;
+  -webkit-text-fill-color: #9f424a !important;
+  border: 1px solid #f2d4d7 !important;
+}
+/* Last Viewed must be plain date text, no coloured/button background. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td:nth-child(9) .last-viewed-stack {
+  min-width: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td:nth-child(9) .last-viewed-stack .bucket-status-chip {
+  display: block !important;
+  min-height: 0 !important;
+  height: auto !important;
+  max-width: 100% !important;
+  width: auto !important;
+  font: 400 12px/1.15 Roboto,'Segoe UI',Arial,sans-serif !important;
+  color: #2d5d76 !important;
+  -webkit-text-fill-color: #2d5d76 !important;
+  background: transparent !important;
+  background-image: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  text-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  white-space: normal !important;
+  overflow-wrap: normal !important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td:nth-child(9) .last-viewed-stack .subtle,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody .bucket-highlight-cell .subtle {
+  display: block !important;
+  font: 400 11px/1.12 Roboto,'Segoe UI',Arial,sans-serif !important;
+  margin: 1px 0 0 !important;
+  color: #6b7589 !important;
+  -webkit-text-fill-color: #6b7589 !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+/* Preserve all 11 columns, select, call, WhatsApp and template selector.
+   Sizes sum to 1109 px; wider screens use natural spare width. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(1) {width:34px!important;min-width:34px!important;max-width:34px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(2) {width:62px!important;min-width:62px!important;max-width:62px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(3) {width:126px!important;min-width:126px!important;max-width:126px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(4) {width:115px!important;min-width:115px!important;max-width:115px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(5) {width:84px!important;min-width:84px!important;max-width:84px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(6) {width:94px!important;min-width:94px!important;max-width:94px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(7) {width:90px!important;min-width:90px!important;max-width:90px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(8) {width:96px!important;min-width:96px!important;max-width:96px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(9) {width:161px!important;min-width:161px!important;max-width:161px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(10) {width:55px!important;min-width:55px!important;max-width:55px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(11) {width:192px!important;min-width:192px!important;max-width:192px!important;}
+/* Tiny select column leaves maximum width to useful text. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):first-child {
+  padding-left: 2px !important;
+  padding-right: 2px !important;
+}
+/* Native table empty state stays full width. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td[colspan] {
+  width: auto !important;min-width: 0 !important;max-width: none !important;
+}
+/* Keep text legible under a genuinely dark theme; leave statuses theme-managed. */
+html:is([data-theme*='dark'],[data-theme*='midnight'],[data-theme='berry-night'],[data-theme='crimson-noir'],[data-theme='neon-slate']) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td.candidate-name-cell > strong,
+html:is([data-theme*='dark'],[data-theme*='midnight'],[data-theme='berry-night'],[data-theme='crimson-noir'],[data-theme='neon-slate']) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td.candidate-name-cell .cp-name {
+  color: #cbe0ff !important; -webkit-text-fill-color: #cbe0ff !important;
+}
+html:is([data-theme*='dark'],[data-theme*='midnight'],[data-theme='berry-night'],[data-theme='crimson-noir'],[data-theme='neon-slate']) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td:nth-child(9) .last-viewed-stack .bucket-status-chip {
+  color: #d3e2f6 !important; -webkit-text-fill-color: #d3e2f6 !important;
+}
+
+
+/* CC26_715 - Candidates only: crisp, equal-sized Roboto values + largest headers.
+   LOCAL TEST approval. Pure CSS in an existing asset, no new HTTP request.
+   All 11 columns, real data, selection, status semantics, actions and cards retained. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) {
+  min-width:1194px!important;
+  width:100%!important;
+  table-layout:fixed!important;
+  font-family:Roboto,'Segoe UI',Arial,sans-serif!important;
+  text-rendering:optimizeLegibility!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) thead th {
+  font-family:Roboto,'Segoe UI',Arial,sans-serif!important;
+  font-size:18px!important;
+  font-weight:600!important;
+  line-height:1.15!important;
+  letter-spacing:0!important;
+  color:#091527!important;
+  -webkit-text-fill-color:currentColor!important;
+  min-height:58px!important;
+  height:58px!important;
+  padding:7px 5px!important;
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+  word-break:normal!important;
+  text-shadow:none!important;
+  opacity:1!important;
+  border-right:1px solid #b4c4da!important;
+  border-bottom-width:2px!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) thead th:first-child {
+  font-size:16px!important;
+  text-align:center!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody td {
+  font-family:Roboto,'Segoe UI',Arial,sans-serif!important;
+  font-size:16px!important;
+  font-weight:500!important;
+  line-height:1.18!important;
+  letter-spacing:0!important;
+  color:#091527!important;
+  -webkit-text-fill-color:currentColor!important;
+  height:auto!important;
+  min-height:48px!important;
+  padding:4px 5px!important;
+  vertical-align:middle!important;
+  text-shadow:none!important;
+  opacity:1!important;
+  border-right:1px solid #d4deeb!important;
+  border-bottom:1px solid #d4deeb!important;
+  background:#fff!important;
+}
+/* Equal type size for all visible text inside all data columns. Icons are not text. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody td :is(strong,b,small,span:not([class*='icon']):not([class*='fa-']),div:not([class*='icon']),em,label,a,time,select,option) {
+  font-family:Roboto,'Segoe UI',Arial,sans-serif!important;
+  font-size:16px!important;
+  font-weight:500!important;
+  line-height:1.18!important;
+  letter-spacing:0!important;
+  text-shadow:none!important;
+  opacity:1!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody td :is(strong,b,small,span:not([class*='icon']):not([class*='fa-']),div:not([class*='icon']),em,label,a,time) {
+  color:#091527!important;
+  -webkit-text-fill-color:currentColor!important;
+}
+/* Main name still plain text, not a pill and not bold. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell>strong,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell .cp-name {
+  display:inline!important;
+  font:500 16px/1.18 Roboto,'Segoe UI',Arial,sans-serif!important;
+  color:#091527!important;
+  -webkit-text-fill-color:#091527!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  padding:0!important;
+  margin:0!important;
+  text-decoration:none!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-id-cell>strong,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell>.subtle,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell>.submission-mini-text,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody .bucket-highlight-cell .subtle,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody .last-viewed-stack .subtle {
+  font:500 16px/1.18 Roboto,'Segoe UI',Arial,sans-serif!important;
+  color:#091527!important;
+  -webkit-text-fill-color:#091527!important;
+  background:transparent!important;
+  margin:0!important;
+  padding:0!important;
+  opacity:1!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell>.subtle,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell>.submission-mini-text,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody .bucket-highlight-cell .subtle {display:block!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-number-cell,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-location-cell,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-qualification-cell {
+  font:500 16px/1.18 Roboto,'Segoe UI',Arial,sans-serif!important;
+  color:#091527!important;
+  -webkit-text-fill-color:#091527!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-number-cell {white-space:nowrap!important;font-variant-numeric:tabular-nums!important;}
+/* Keep existing status and priority meanings; improve contrast and the text size. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody .bucket-status-chip,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody .bucket-priority-chip,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(8) .bucket-status-chip {
+  font:500 16px/1.18 Roboto,'Segoe UI',Arial,sans-serif!important;
+  min-height:24px!important;
+  height:auto!important;
+  padding:3px 5px!important;
+  border-radius:5px!important;
+  text-shadow:none!important;
+  box-shadow:none!important;
+  white-space:normal!important;
+  overflow-wrap:normal!important;
+  opacity:1!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(8) .bucket-status-chip.safe {color:#075225!important;-webkit-text-fill-color:#075225!important;background:#d9f9e4!important;border:1px solid #82d9a0!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(8) .bucket-status-chip.info {color:#0b397e!important;-webkit-text-fill-color:#0b397e!important;background:#e0edff!important;border:1px solid #9abcf6!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(8) .bucket-status-chip.warning {color:#861326!important;-webkit-text-fill-color:#861326!important;background:#ffe8ed!important;border:1px solid #f1aebb!important;}
+/* Last Viewed is plain text; preserve date and viewed-by, both fully readable. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(9) .last-viewed-stack {background:transparent!important;border:0!important;box-shadow:none!important;padding:0!important;margin:0!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(9) .last-viewed-stack .bucket-status-chip {
+  display:block!important;
+  width:auto!important;
+  min-height:0!important;
+  padding:0!important;
+  margin:0!important;
+  font:500 16px/1.18 Roboto,'Segoe UI',Arial,sans-serif!important;
+  color:#091527!important;
+  -webkit-text-fill-color:#091527!important;
+  background:transparent!important;
+  background-image:none!important;
+  border:0!important;
+  box-shadow:none!important;
+  white-space:normal!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(9) .last-viewed-stack .subtle {display:block!important;margin:1px 0 0!important;}
+/* Legacy CC714 scoped viewed-by at 11px; override at the same selector depth. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td:nth-child(9) .last-viewed-stack .subtle,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr > td:nth-child(9) .last-viewed-stack .subtle.top-gap-small {
+  font:500 16px/1.18 Roboto,'Segoe UI',Arial,sans-serif!important;
+  color:#091527!important;
+  -webkit-text-fill-color:#091527!important;
+  margin:1px 0 0!important;
+  background:transparent!important;
+  opacity:1!important;
+}
+/* Action text stays 16px; actual icon-button geometry is unchanged. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody .mini-wa-template-select {
+  font-family:Roboto,'Segoe UI',Arial,sans-serif!important;
+  font-size:16px!important;
+  font-weight:500!important;
+  line-height:1.15!important;
+  color:#091527!important;
+  -webkit-text-fill-color:#091527!important;
+  opacity:1!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr.cc-negative-profile-row td {background:#fff1f2!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr:is(.selected,.is-selected,[aria-selected='true']) td {background:#eaf4ff!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr:hover td {background:#eaf4ff!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody td[colspan] {width:auto!important;min-width:0!important;max-width:none!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(1) {width:36px!important;min-width:36px!important;max-width:36px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(2) {width:65px!important;min-width:65px!important;max-width:65px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(3) {width:139px!important;min-width:139px!important;max-width:139px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(4) {width:118px!important;min-width:118px!important;max-width:118px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(5) {width:91px!important;min-width:91px!important;max-width:91px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(6) {width:104px!important;min-width:104px!important;max-width:104px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(7) {width:96px!important;min-width:96px!important;max-width:96px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(8) {width:116px!important;min-width:116px!important;max-width:116px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(9) {width:182px!important;min-width:182px!important;max-width:182px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(10) {width:61px!important;min-width:61px!important;max-width:61px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):nth-child(11) {width:186px!important;min-width:186px!important;max-width:186px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) :is(th,td):first-child {padding-left:2px!important;padding-right:2px!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-id-cell {overflow-wrap:anywhere!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) thead th:nth-child(1) {background:#edf3ff!important;color:#163d8e!important;-webkit-text-fill-color:#163d8e!important;border-bottom:3px solid #7195db!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) thead th:nth-child(2) {background:#ecf5ff!important;color:#164987!important;-webkit-text-fill-color:#164987!important;border-bottom:3px solid #78ade0!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) thead th:nth-child(3) {background:#eee7ff!important;color:#5721a2!important;-webkit-text-fill-color:#5721a2!important;border-bottom:3px solid #ad8ce3!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) thead th:nth-child(4) {background:#e0f6ff!important;color:#075e83!important;-webkit-text-fill-color:#075e83!important;border-bottom:3px solid #67bddb!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) thead th:nth-child(5) {background:#e2fbea!important;color:#12562a!important;-webkit-text-fill-color:#12562a!important;border-bottom:3px solid #7bce91!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) thead th:nth-child(6) {background:#fff3de!important;color:#784008!important;-webkit-text-fill-color:#784008!important;border-bottom:3px solid #d6a451!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) thead th:nth-child(7) {background:#f1e9ff!important;color:#532b91!important;-webkit-text-fill-color:#532b91!important;border-bottom:3px solid #a895dc!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) thead th:nth-child(8) {background:#ffebf5!important;color:#842254!important;-webkit-text-fill-color:#842254!important;border-bottom:3px solid #dd83ad!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) thead th:nth-child(9) {background:#e4f9f8!important;color:#0b625e!important;-webkit-text-fill-color:#0b625e!important;border-bottom:3px solid #6bbeb6!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) thead th:nth-child(10) {background:#fff1db!important;color:#865018!important;-webkit-text-fill-color:#865018!important;border-bottom:3px solid #ddad6a!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) thead th:nth-child(11) {background:#e9f4ff!important;color:#174a76!important;-webkit-text-fill-color:#174a76!important;border-bottom:3px solid #81b4e0!important;}
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) thead th {background:#182943!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#56769d!important;}
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody td {background:#0b1322!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-right-color:#33445f!important;border-bottom-color:#33445f!important;}
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody td :is(strong,b,small,span:not([class*='icon']):not([class*='fa-']),div:not([class*='icon']),em,label,a,time) {color:#fff!important;-webkit-text-fill-color:#fff!important;}
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell>strong,
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell .cp-name,
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-id-cell>strong,
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-number-cell,
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(9) .last-viewed-stack .bucket-status-chip {color:#fff!important;-webkit-text-fill-color:#fff!important;}
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr.cc-negative-profile-row td {background:#42212b!important;}
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr:hover td {background:#223957!important;}
+/* CC26_715 dark-theme contrast: readable dark chips on light status backgrounds
+   and white metadata on dark cells (a fix discovered during theme regression QA). */
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(9) .last-viewed-stack .subtle,
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(9) .last-viewed-stack .subtle.top-gap-small {
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(8) .bucket-status-chip,
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody .bucket-highlight-cell .bucket-priority-chip,
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(7) .bucket-status-chip {
+  color:#091527!important;-webkit-text-fill-color:#091527!important;
+}
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(8) .bucket-status-chip.safe {
+  color:#075225!important;-webkit-text-fill-color:#075225!important;
+}
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(8) .bucket-status-chip.info {
+  color:#0b397e!important;-webkit-text-fill-color:#0b397e!important;
+}
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(8) .bucket-status-chip.warning {
+  color:#861326!important;-webkit-text-fill-color:#861326!important;
+}
+/* Guard against the original CC714 explicit cell text-fill on dark themes. */
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-number-cell,
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-location-cell,
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-qualification-cell {
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+
+
+/* CC26_716 | Candidates table only. Design approval -> full GitHub / local deployment.
+   Roboto; no additional requests, no new icons, no theme or metric-card changes.
+   Candidate name > normal data > recruiter attribution. All text centered per request. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) thead th {
+  text-align:center!important;vertical-align:middle!important;
+  font:500 18px/1.12 Roboto,'Segoe UI',Arial,sans-serif!important;
+  letter-spacing:0!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody td {
+  text-align:center!important;vertical-align:middle!important;
+  font:500 16px/1.17 Roboto,'Segoe UI',Arial,sans-serif!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell {
+  text-align:center!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell>strong,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell .cp-name {
+  display:inline-block!important;
+  max-width:100%!important;
+  font:500 22px/1.13 Roboto,'Segoe UI',Arial,sans-serif!important;
+  letter-spacing:0!important;
+  color:#164b92!important;-webkit-text-fill-color:#164b92!important;
+  border:0!important;background:transparent!important;box-shadow:none!important;
+  text-align:center!important;padding:0!important;margin:0!important;
+  overflow-wrap:anywhere!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr:nth-child(5n+2)>td.candidate-name-cell>strong{color:#7032b5!important;-webkit-text-fill-color:#7032b5!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr:nth-child(5n+3)>td.candidate-name-cell>strong{color:#087b74!important;-webkit-text-fill-color:#087b74!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr:nth-child(5n+4)>td.candidate-name-cell>strong{color:#95420d!important;-webkit-text-fill-color:#95420d!important;}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr:nth-child(5n)>td.candidate-name-cell>strong{color:#a22364!important;-webkit-text-fill-color:#a22364!important;}
+/* Secondary recruiter name: smaller, different readable colour, not bold and no pill. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell>.subtle,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell>.submission-mini-text {
+  display:block!important;
+  max-width:100%!important;
+  font:400 12.5px/1.14 Roboto,'Segoe UI',Arial,sans-serif!important;
+  color:#376b91!important;-webkit-text-fill-color:#376b91!important;
+  text-align:center!important;margin:1px 0 0!important;
+  background:transparent!important;border:0!important;box-shadow:none!important;
+  white-space:normal!important;overflow-wrap:anywhere!important;
+}
+/* Date / Days and Last Viewed are informational, not bright buttons. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(7) .bucket-status-chip,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(9) .bucket-status-chip {
+  display:inline-block!important;
+  background:transparent!important;background-image:none!important;
+  border:0!important;box-shadow:none!important;
+  padding:0!important;margin:0 auto!important;
+  font:500 16px/1.16 Roboto,'Segoe UI',Arial,sans-serif!important;
+  color:#10243c!important;-webkit-text-fill-color:#10243c!important;
+  min-height:0!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(7) .subtle,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(9) .subtle {
+  display:block!important;font:400 12px/1.12 Roboto,'Segoe UI',Arial,sans-serif!important;
+  color:#315477!important;-webkit-text-fill-color:#315477!important;
+  text-align:center!important;margin:2px 0 0!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(8) .bucket-status-chip {
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  margin:0 auto!important;max-width:100%!important;
+  font:500 15px/1.13 Roboto,'Segoe UI',Arial,sans-serif!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(10) .bucket-priority-chip {
+  display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  margin:0 auto!important;max-width:100%!important;
+  font:500 13px/1.15 Roboto,'Segoe UI',Arial,sans-serif!important;
+  white-space:normal!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(11) .row-actions {
+  display:flex!important;justify-content:center!important;align-items:center!important;
+  gap:4px!important;max-width:100%!important;
+}
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(11) .mini-wa-template-select {
+  max-width:78px!important;min-width:58px!important;font-size:12px!important;
+}
+/* Preserve high contrast when a dark CRM theme is selected. */
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell>strong,
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell>.subtle,
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(7) :is(.bucket-status-chip,.subtle),
+html:is([data-theme*="dark"],[data-theme*="midnight"],[data-theme="berry-night"],[data-theme="crimson-noir"],[data-theme="neon-slate"]) body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td:nth-child(9) :is(.bucket-status-chip,.subtle) {
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+
+/* CC26_716: out-specificy legacy equal-size :is() rule ONLY for candidate name. */
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell.candidate-name-cell.candidate-name-cell>strong,
+html body:not(.login-body) .app-shell .main-wrap.main-wrap table.crm-table.candidates-overview-table:not(.hot-leads-candidate-table) tbody tr>td.candidate-name-cell.candidate-name-cell.candidate-name-cell .cp-name {
+  font-family:Roboto,'Segoe UI',Arial,sans-serif!important;
+  font-size:22px!important;font-weight:500!important;line-height:1.12!important;
+}

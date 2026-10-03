@@ -1,0 +1,791 @@
+/* CC26_553 — Tasks only: visible KPI labels, premium task editor, and usable reminder action.
+   No global card, table, font, or candidate form geometry is changed. */
+html body:not(.login-body) .main-wrap .task-summary-grid button.task-summary-button.metric-card.colorful-card{
+  position:relative!important;isolation:isolate!important;color:#fff!important;-webkit-text-fill-color:#fff!important;
+  border:1px solid rgba(255,255,255,.48)!important;
+  box-shadow:0 11px 22px rgba(26,43,88,.13),inset 0 1px 0 rgba(255,255,255,.34)!important;
+  text-shadow:0 1px 2px rgba(12,29,62,.22)!important;
+  background-image:linear-gradient(118deg,#1559e8 0%,#326ffe 55%,#5659e8 100%)!important;
+}
+html body:not(.login-body) .main-wrap .task-summary-grid button.task-summary-button.tone-purple{background-image:linear-gradient(115deg,#6640c9,#854ce1 52%,#a358e8)!important}
+html body:not(.login-body) .main-wrap .task-summary-grid button.task-summary-button.tone-green{background-image:linear-gradient(115deg,#06764b,#0eaa75 56%,#29bd87)!important}
+html body:not(.login-body) .main-wrap .task-summary-grid button.task-summary-button.tone-orange{background-image:linear-gradient(115deg,#bb5814,#e97c24 56%,#f59e37)!important}
+html body:not(.login-body) .main-wrap .task-summary-grid button.task-summary-button.tone-red{background-image:linear-gradient(115deg,#b51952,#dc2965 56%,#ee5381)!important}
+html body:not(.login-body) .main-wrap .task-summary-grid button.task-summary-button::before{
+  content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:linear-gradient(160deg,rgba(255,255,255,.22),transparent 44%),radial-gradient(circle at 90% 6%,rgba(255,255,255,.22),transparent 45%)!important;
+}
+html body:not(.login-body) .main-wrap .task-summary-grid button.task-summary-button :is(span,strong,small),
+html body:not(.login-body) .main-wrap .task-summary-grid button.task-summary-button :is(span,strong,small) *{
+  position:relative!important;z-index:2!important;opacity:1!important;
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
+  text-shadow:0 1px 2px rgba(12,29,62,.3)!important;
+}
+html body:not(.login-body) .main-wrap .task-summary-grid button.task-summary-button.metric-card-active{
+  outline:2px solid rgba(26,67,143,.6)!important;outline-offset:2px!important;
+}
+
+/* The edit popup uses a bright inner surface regardless of the selected shell theme. */
+body:not(.login-body) .task-modal-fix{
+  position:fixed!important;inset:0!important;z-index:100020!important;
+  padding:clamp(18px,4vh,44px) 16px!important;
+  align-items:center!important;justify-content:center!important;
+  overflow:auto!important;overscroll-behavior:contain!important;
+  background:rgba(16,24,49,.52)!important;
+  backdrop-filter:blur(8px) saturate(1.2)!important;
+  -webkit-backdrop-filter:blur(8px) saturate(1.2)!important;
+}
+body:not(.login-body) .task-modal-fix .task-premium-modal.task-modal-no-overlap{
+  position:relative!important;isolation:isolate!important;overflow:auto!important;
+  width:min(820px,96vw)!important;max-height:min(90vh,880px)!important;
+  border:1px solid rgba(255,255,255,.9)!important;border-radius:24px!important;
+  padding:clamp(16px,2.8vw,28px)!important;
+  background:radial-gradient(circle at 92% 4%,#ffe3ea,transparent 28%),
+             radial-gradient(circle at 4% 8%,#e0ecff,transparent 36%),
+             linear-gradient(155deg,#fff 0%,#f8faff 54%,#fff8fb 100%)!important;
+  box-shadow:0 28px 85px rgba(10,20,48,.32),inset 0 1px 0 rgba(255,255,255,.99)!important;
+  color:#172d54!important;-webkit-text-fill-color:#172d54!important;
+}
+body:not(.login-body) .task-modal-fix .task-modal-no-overlap::before{
+  content:"";display:block!important;position:sticky;top:0;height:4px;margin:-3px 0 13px!important;
+  background:linear-gradient(90deg,#ff7639,#ed427d 34%,#7256fb 68%,#4fbbff)!important;
+  border-radius:99px!important;z-index:3;box-shadow:0 5px 18px rgba(100,85,232,.24);
+}
+body:not(.login-body) .task-modal-fix .task-modal-no-overlap > .panel-title{
+  color:#142e58!important;-webkit-text-fill-color:#142e58!important;
+  font-size:clamp(22px,2.5vw,29px)!important;letter-spacing:-.04em!important;
+  text-shadow:none!important;font-weight:900!important;
+}
+body:not(.login-body) .task-modal-fix .task-modal-no-overlap > .helper-text{
+  color:#54678b!important;-webkit-text-fill-color:#54678b!important;
+  font-size:12px!important;font-weight:750!important;
+}
+body:not(.login-body) .task-modal-fix .task-premium-form{
+  background:transparent!important;display:block!important;
+}
+body:not(.login-body) .task-modal-fix .task-premium-form .field{
+  position:relative;min-width:0!important;
+  background:linear-gradient(135deg,rgba(255,255,255,.91),rgba(240,246,255,.86))!important;
+  border:1px solid #e0e9fc!important;border-radius:15px!important;
+  box-shadow:inset 0 1px 0 #fff,0 4px 12px rgba(25,51,104,.045)!important;
+  padding:10px 11px!important;
+}
+body:not(.login-body) .task-modal-fix .task-premium-form .field > label{
+  color:#304b78!important;-webkit-text-fill-color:#304b78!important;
+  display:block!important;font-size:12px!important;font-weight:850!important;margin:0 0 7px!important;
+}
+body:not(.login-body) .task-modal-fix .task-premium-form :is(input,select,textarea){
+  color:#142d56!important;-webkit-text-fill-color:#142d56!important;
+  background:rgba(255,255,255,.98)!important;border:1px solid #bcd0f4!important;
+  border-radius:11px!important;box-shadow:inset 0 1px 2px rgba(50,74,128,.035)!important;
+  font-weight:700!important;opacity:1!important;
+}
+body:not(.login-body) .task-modal-fix .task-premium-form :is(input,textarea)::placeholder{
+  color:#697f9e!important;-webkit-text-fill-color:#697f9e!important;opacity:1!important;
+}
+body:not(.login-body) .task-modal-fix .task-premium-form :is(input,select,textarea):focus{
+  outline:2px solid rgba(73,111,251,.26)!important;border-color:#7292f6!important;
+  box-shadow:0 0 0 4px rgba(80,120,255,.08)!important;
+}
+body:not(.login-body) .task-modal-fix .task-premium-form textarea{
+  min-height:100px!important;max-height:180px!important;resize:vertical!important;
+}
+body:not(.login-body) .task-modal-fix .task-assignee-suggest{
+  z-index:40!important;background:#fff!important;box-shadow:0 16px 34px rgba(31,53,108,.16)!important;
+  border:1px solid #bed0f2!important;
+}
+body:not(.login-body) .task-modal-fix .task-assignee-option{
+  color:#183d6a!important;-webkit-text-fill-color:#183d6a!important;
+  background:linear-gradient(120deg,#f4f8ff,#fff)!important;
+}
+body:not(.login-body) .task-modal-fix .task-assignee-option:hover{
+  color:#143b6a!important;background:#e4efff!important;
+}
+body:not(.login-body) .task-modal-fix .colorful-task-actions{
+  position:sticky!important;bottom:-27px;z-index:12!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.94),#fff)!important;
+  padding:12px 0!important;border-top:1px solid rgba(109,140,200,.18)!important;
+}
+body:not(.login-body) .task-modal-fix .task-save-btn{
+  background:linear-gradient(125deg,#ed6c36,#ee4c6b 40%,#7550ef)!important;
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
+  box-shadow:0 10px 22px rgba(194,67,122,.2)!important;
+}
+body:not(.login-body) .task-modal-fix .task-cancel-btn{
+  background:#eff4ff!important;color:#183a68!important;-webkit-text-fill-color:#183a68!important;
+  border:1px solid #bed0ee!important;
+}
+body:not(.login-body) .task-modal-fix .task-quick-minute-row{
+  background:rgba(237,244,255,.88)!important;border:1px solid #d4e2fa!important;
+  border-radius:12px!important;padding:7px!important;
+}
+/* Report cards invite a click without creating a second tab when the button is used. */
+body:not(.login-body) .revenue-reminder-popup.popup-dock-right[role="button"]{
+  cursor:pointer!important;box-shadow:0 15px 32px rgba(27,74,157,.16)!important;
+}
+body:not(.login-body) .revenue-reminder-popup.popup-dock-right[role="button"]:focus-visible{
+  outline:3px solid #2f73e9!important;outline-offset:3px!important;
+}
+
+/* Task editor header: an accessible close control always visible near the heading. */
+body:not(.login-body) .task-modal-fix .cc553-task-editor-heading{display:flex;align-items:center;justify-content:space-between;gap:12px!important;}
+body:not(.login-body) .task-modal-fix .cc553-task-editor-heading .panel-title{color:#142e58!important;-webkit-text-fill-color:#142e58!important;font-size:clamp(22px,2.5vw,29px)!important;letter-spacing:-.04em!important;text-shadow:none!important;font-weight:900!important;}
+body:not(.login-body) .task-modal-fix .cc553-task-editor-close{flex:0 0 34px;display:grid;place-items:center;width:34px;height:34px;padding:0!important;border-radius:11px;background:#f2eafa!important;border:1px solid #d2c1ef!important;color:#5b387e!important;-webkit-text-fill-color:#5b387e!important;font-size:23px!important;cursor:pointer!important;box-shadow:inset 0 1px 0 #fff,0 3px 12px rgba(79,46,145,.1)!important;}
+body:not(.login-body) .task-modal-fix .cc553-task-editor-close:hover{background:#e6d9fc!important;}
+
+
+/* CC26_626: premium visibility repair for Tasks page + modal. */
+body:not(.login-body).cc622-task-clean .main-wrap .table-panel.glassy-card{
+  border:1px solid #d4e2fb!important;
+  background:linear-gradient(135deg,rgba(255,255,255,.96),rgba(243,248,255,.93) 55%,rgba(248,255,251,.93) 100%)!important;
+  box-shadow:0 16px 38px rgba(74,102,161,.12),inset 0 1px 0 rgba(255,255,255,.95)!important;
+}
+body:not(.login-body).cc622-task-clean .main-wrap .table-panel .table-toolbar .add-profile-btn,
+body:not(.login-body).cc622-task-clean .main-wrap .task-save-btn{
+  background:linear-gradient(135deg,#ff8d56 0%,#ff5f88 38%,#7158ff 100%)!important;
+  border:1px solid rgba(255,255,255,.68)!important;
+  color:#ffffff!important;
+  -webkit-text-fill-color:#ffffff!important;
+  text-shadow:0 1px 1px rgba(19,33,78,.24)!important;
+  box-shadow:0 16px 34px rgba(114,88,255,.22),inset 0 1px 0 rgba(255,255,255,.35)!important;
+}
+body:not(.login-body).cc622-task-clean .main-wrap .table-panel .table-toolbar .ghost-btn,
+body:not(.login-body).cc622-task-clean .main-wrap .task-cancel-btn{
+  background:linear-gradient(135deg,#ffffff 0%,#eef5ff 54%,#f4fff7 100%)!important;
+  border:1px solid #c8daf3!important;
+  color:#1d426c!important;
+  -webkit-text-fill-color:#1d426c!important;
+}
+body:not(.login-body).cc622-task-clean .main-wrap .table-panel .helper-text,
+body:not(.login-body).cc622-task-clean .main-wrap .table-panel .subtle{
+  color:#60738f!important;
+}
+body:not(.login-body).cc622-task-clean .main-wrap .table-panel .field > label,
+body:not(.login-body).cc622-task-clean .main-wrap .task-premium-form .field > label,
+body:not(.login-body).cc622-task-clean .main-wrap .task-premium-form label{
+  color:#26486f!important;
+  font-weight:850!important;
+}
+body:not(.login-body).cc622-task-clean .main-wrap .table-panel :is(input,select,textarea),
+body:not(.login-body).cc622-task-clean .main-wrap .task-premium-form :is(input,select,textarea),
+body:not(.login-body).cc622-task-clean .main-wrap .task-premium-form .inline-input{
+  background:#ffffff!important;
+  border:1px solid #b7cff0!important;
+  color:#173a5c!important;
+  -webkit-text-fill-color:#173a5c!important;
+  box-shadow:inset 0 1px 2px rgba(27,52,102,.05)!important;
+}
+body:not(.login-body).cc622-task-clean .main-wrap .table-panel :is(input,textarea)::placeholder,
+body:not(.login-body).cc622-task-clean .main-wrap .task-premium-form :is(input,textarea)::placeholder,
+body:not(.login-body).cc622-task-clean .main-wrap .task-premium-form .inline-input::placeholder{
+  color:#6d82a2!important;
+  opacity:1!important;
+}
+body:not(.login-body) .task-modal-fix{
+  background:rgba(15,23,45,.62)!important;
+  backdrop-filter:blur(12px) saturate(1.18)!important;
+}
+body:not(.login-body) .task-modal-fix .task-premium-modal.task-modal-no-overlap{
+  background:radial-gradient(circle at 100% 0%,rgba(255,129,184,.15),transparent 28%),
+             radial-gradient(circle at 0% 0%,rgba(116,188,255,.20),transparent 32%),
+             linear-gradient(135deg,#ffffff 0%,#f5f9ff 52%,#fbfffd 100%)!important;
+  border:1px solid rgba(255,255,255,.94)!important;
+  box-shadow:0 32px 90px rgba(8,16,40,.34),inset 0 1px 0 rgba(255,255,255,.96)!important;
+}
+body:not(.login-body) .task-modal-fix .cc553-task-editor-heading .panel-title,
+body:not(.login-body) .task-modal-fix .task-modal-no-overlap > .panel-title,
+body:not(.login-body) .task-modal-fix .task-view-head .panel-title{
+  color:#16385e!important;
+  -webkit-text-fill-color:#16385e!important;
+}
+body:not(.login-body) .task-modal-fix .task-modal-no-overlap > .helper-text,
+body:not(.login-body) .task-modal-fix .helper-text,
+body:not(.login-body) .task-modal-fix .task-view-block span,
+body:not(.login-body) .task-modal-fix .task-view-block small{
+  color:#5f7492!important;
+  -webkit-text-fill-color:#5f7492!important;
+}
+body:not(.login-body) .task-modal-fix .task-premium-form .field{
+  background:linear-gradient(135deg,rgba(255,255,255,.98),rgba(244,248,255,.92) 50%,rgba(247,255,251,.92) 100%)!important;
+  border:1px solid #d5e1f7!important;
+  box-shadow:0 10px 24px rgba(77,104,155,.10),inset 0 1px 0 rgba(255,255,255,.96)!important;
+}
+body:not(.login-body) .task-modal-fix .task-quick-minute-row{
+  background:linear-gradient(135deg,#eef5ff,#f6fffb)!important;
+  border:1px solid #d2e1fb!important;
+}
+body:not(.login-body) .task-modal-fix .task-assignee-suggest{
+  background:linear-gradient(135deg,#ffffff,#f6fbff)!important;
+  border:1px solid #c7d7f4!important;
+}
+body:not(.login-body) .task-modal-fix .task-assignee-option{
+  color:#1c456f!important;
+  background:linear-gradient(135deg,#f7fbff,#f7fffb)!important;
+}
+body:not(.login-body) .task-modal-fix .task-assignee-option span{
+  color:#607796!important;
+}
+body:not(.login-body) .task-modal-fix .task-assignee-option:hover{
+  background:linear-gradient(135deg,#eaf2ff,#ebfff6)!important;
+}
+body:not(.login-body) .task-modal-fix .task-view-block,
+body:not(.login-body) .task-modal-fix .task-view-description{
+  background:linear-gradient(135deg,#ffffff,#f5faff)!important;
+  border:1px solid #d5e2f8!important;
+  box-shadow:0 8px 20px rgba(84,108,160,.10)!important;
+}
+body:not(.login-body) .task-modal-fix .task-view-description-body,
+body:not(.login-body) .task-modal-fix .task-view-block strong{
+  color:#173a5d!important;
+  -webkit-text-fill-color:#173a5d!important;
+}
+
+
+/* CC26_627: remove old mid-header accent line and use a glossy green Task modal. */
+body:not(.login-body) .task-modal-fix .task-modal-no-overlap::before{display:none!important;content:none!important;height:0!important;margin:0!important;background:none!important;box-shadow:none!important}
+body:not(.login-body) .task-modal-fix .task-premium-modal.task-modal-no-overlap{
+  background:radial-gradient(circle at 92% 4%,rgba(90,232,173,.18),transparent 30%),
+             radial-gradient(circle at 4% 8%,rgba(178,255,218,.24),transparent 36%),
+             linear-gradient(145deg,#ffffff 0%,#f3fff8 52%,#ecfff5 100%)!important;
+  border:1px solid #c8efda!important;
+  box-shadow:0 32px 90px rgba(4,72,48,.28),inset 0 1px 0 rgba(255,255,255,.98)!important;
+}
+body:not(.login-body) .task-modal-fix .task-premium-form .field{
+  background:linear-gradient(135deg,rgba(255,255,255,.98),rgba(241,255,248,.94))!important;
+  border-color:#cdebd9!important;
+  box-shadow:0 9px 22px rgba(6,102,68,.08),inset 0 1px 0 #fff!important;
+}
+body:not(.login-body) .task-modal-fix .task-premium-form :is(input,select,textarea){border-color:#abdcc2!important;background:#fff!important;color:#173f32!important;-webkit-text-fill-color:#173f32!important}
+body:not(.login-body) .task-modal-fix .task-premium-form :is(input,select,textarea):focus{border-color:#32bf87!important;outline:2px solid rgba(50,191,135,.22)!important;box-shadow:0 0 0 4px rgba(42,207,148,.10)!important}
+body:not(.login-body) .task-modal-fix .cc553-task-editor-heading .panel-title{color:#124b38!important;-webkit-text-fill-color:#124b38!important}
+body:not(.login-body) .task-modal-fix .cc553-task-editor-close{background:linear-gradient(135deg,#effff6,#dcffeb)!important;border-color:#b8e4cb!important;color:#176247!important;-webkit-text-fill-color:#176247!important}
+body:not(.login-body) .task-modal-fix .cc553-task-editor-close:hover{background:linear-gradient(135deg,#d9ffea,#c7fbe0)!important;transform:scale(1.05)!important}
+body:not(.login-body) .task-modal-fix .task-save-btn{
+  background:linear-gradient(118deg,#057a55 0%,#08b67c 42%,#2ad29b 70%,#0b8f6a 100%)!important;background-size:220% 220%!important;
+  animation:cc627GreenShine 4.8s ease infinite!important;color:#fff!important;-webkit-text-fill-color:#fff!important;
+  border:1px solid rgba(255,255,255,.62)!important;box-shadow:0 14px 30px rgba(0,133,90,.25),inset 0 1px 0 rgba(255,255,255,.4)!important;
+}
+body:not(.login-body) .task-modal-fix .task-cancel-btn{background:linear-gradient(135deg,#fff,#ecfff5)!important;border-color:#bfe6d1!important;color:#175d45!important;-webkit-text-fill-color:#175d45!important}
+body:not(.login-body) .task-modal-fix .task-quick-minute-row{background:linear-gradient(135deg,#effff6,#e6fff1)!important;border-color:#c9ead7!important}
+
+/* CC26_628: modal scroll+contrast / line / approvals labels. */
+
+/* Strong scoped overrides applied late, after large legacy themes. */
+html body:not(.login-body) .task-modal-fix .task-modal-no-overlap::before,
+html body:not(.login-body) .task-modal-fix .task-modal-no-overlap::after,
+html body:not(.login-body) .task-modal-fix .task-premium-form .field::before,
+html body:not(.login-body) .task-modal-fix .task-premium-form .field::after{
+ content:none!important;display:none!important;border:0!important;background:none!important;box-shadow:none!important;height:0!important;
+}
+html body:not(.login-body) .task-modal-fix{align-items:center!important;justify-content:center!important;padding:12px!important;overscroll-behavior:contain!important}
+html body:not(.login-body) .task-modal-fix .task-premium-modal.task-modal-no-overlap{
+ display:flex!important;flex-direction:column!important;width:min(790px,calc(100vw - 30px))!important;
+ max-height:calc(100dvh - 38px)!important;min-height:0!important;overflow:hidden!important;
+ background:linear-gradient(145deg,#f9fffb 0%,#ecfff4 62%,#e3ffed 100%)!important;
+ border:1px solid #7bcfa7!important;border-radius:25px!important;
+ box-shadow:0 22px 76px rgba(6,68,44,.35),inset 0 1px 0 #fff!important;padding:19px 22px!important;
+}
+html body:not(.login-body) .task-modal-fix .cc553-task-editor-heading{
+ flex:0 0 auto!important;position:sticky!important;top:0!important;z-index:4!important;
+ background:linear-gradient(120deg,#f9fffb,#eafff3)!important;border:0!important;border-radius:13px!important;padding:3px 0 9px!important;
+}
+html body:not(.login-body) .task-modal-fix .cc553-task-editor-heading .panel-title{
+ font-size:clamp(21px,2.5vw,27px)!important;color:#075c3c!important;-webkit-text-fill-color:#075c3c!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-modal > .helper-text{
+ flex:0 0 auto!important;color:#376a54!important;-webkit-text-fill-color:#376a54!important;
+ font-size:13px!important;line-height:1.45!important;margin:0 0 5px!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form{
+ flex:1 1 auto!important;min-height:0!important;overflow-x:hidden!important;overflow-y:auto!important;
+ overscroll-behavior:contain!important;scrollbar-color:#46ba8c #e9fff2!important;
+ scrollbar-width:thin!important;padding:4px 5px 0 0!important;margin-top:5px!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .field{
+ background:linear-gradient(125deg,#fff,#f0fff6)!important;border:1px solid #bce6ce!important;
+ border-radius:15px!important;box-shadow:0 5px 14px rgba(7,96,65,.08),inset 0 1px 0 #fff!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form :is(input,textarea,select){
+ background:#fff!important;color:#103b2a!important;-webkit-text-fill-color:#103b2a!important;
+ border:1px solid #94d7b5!important;font-size:15px!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form :is(input,textarea)::placeholder{
+ color:#527361!important;-webkit-text-fill-color:#527361!important;opacity:1!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form label{
+ color:#124e36!important;-webkit-text-fill-color:#124e36!important;font-size:14px!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .colorful-task-actions{
+ position:sticky!important;bottom:0!important;z-index:6!important;flex:0 0 auto!important;
+ border-top:0!important;background:linear-gradient(180deg,#f7fff9,#e7fff1)!important;
+ padding:12px 3px 4px!important;margin-top:10px!important;border-radius:13px!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .task-save-btn{
+ background:linear-gradient(112deg,#066b48,#0ba575 54%,#16c68a)!important;
+ border:1px solid rgba(255,255,255,.72)!important;box-shadow:0 10px 20px rgba(5,125,78,.27)!important;
+ color:#fff!important;-webkit-text-fill-color:#fff!important;animation:none!important;font-size:15px!important;opacity:1!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .task-save-btn:disabled{
+ background:linear-gradient(112deg,#d5f3e1,#c8e6d5)!important;color:#265e45!important;-webkit-text-fill-color:#265e45!important;
+ border-color:#9dd5b7!important;cursor:not-allowed!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .task-cancel-btn{
+ background:#fff!important;color:#175a40!important;-webkit-text-fill-color:#175a40!important;border:1px solid #95d4b0!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .cc627-select-trigger{
+ background:linear-gradient(112deg,#fff,#eafff3)!important;color:#114d34!important;-webkit-text-fill-color:#114d34!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .cc627-select-menu{
+ background:#f5fff8!important;border-color:#77cfa4!important;min-width:100%!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .cc627-select-option:hover,
+html body:not(.login-body) .task-modal-fix .task-premium-form .cc627-select-option:focus-visible{
+ color:#fff!important;-webkit-text-fill-color:#fff!important;background:linear-gradient(115deg,#067b53,#10b87a,#1ace91)!important;
+ transform:translateX(3px) scale(1.025)!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .cc627-select-option.is-selected:hover{
+ color:#fff!important;-webkit-text-fill-color:#fff!important;background:linear-gradient(115deg,#067b53,#10b87a)!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .cc627-select-option.is-selected:hover::after{color:#fff!important}
+html body:not(.login-body) .main-wrap .cc604-approval-page-table td:last-child{min-width:268px!important}
+html body:not(.login-body) .main-wrap .cc604-approval-page-table .row-actions.compact-pills{
+ display:grid!important;grid-template-columns:repeat(2,minmax(115px,1fr))!important;gap:9px!important;align-items:stretch!important;
+}
+html body:not(.login-body) .main-wrap .cc604-approval-page-table .row-actions.compact-pills button{
+ min-width:0!important;width:100%!important;min-height:39px!important;padding:8px 7px!important;
+ font-size:12px!important;line-height:1.25!important;white-space:normal!important;
+ color:#103e2c!important;-webkit-text-fill-color:#103e2c!important;font-weight:850!important;
+}
+html body:not(.login-body) .main-wrap .cc604-approval-page-table .row-actions.compact-pills .cc609-full-day,
+html body:not(.login-body) .main-wrap .cc604-approval-page-table .row-actions.compact-pills .mini-btn.call{
+ background:linear-gradient(115deg,#087e55,#22c78b)!important;color:white!important;-webkit-text-fill-color:white!important;
+}
+html body:not(.login-body) .main-wrap .cc604-approval-page-table .row-actions.compact-pills .cc609-zero-day,
+html body:not(.login-body) .main-wrap .cc604-approval-page-table .row-actions.compact-pills .mini-btn.edit{
+ background:linear-gradient(115deg,#e3fff0,#aef4cf)!important;
+}
+html body:not(.login-body) .main-wrap .cc604-approval-page-table .row-actions.compact-pills .cc609-no-work,
+html body:not(.login-body) .main-wrap .cc604-approval-page-table .row-actions.compact-pills .ghost-btn{
+ background:linear-gradient(115deg,#fff6e8,#ffe3b5)!important;
+}
+html body:not(.login-body) .main-wrap .cc628-day-status-help{margin:8px 16px!important;padding:10px 13px!important;
+ background:#f1fff5!important;border:1px solid #bde4ce!important;border-radius:12px!important;color:#17553a!important;font-size:13px!important}
+#cc628-attendance-prompt{position:fixed!important;right:19px!important;bottom:20px!important;z-index:2147483515!important;
+ box-sizing:border-box!important;width:min(420px,calc(100vw - 30px))!important;background:linear-gradient(130deg,#fff,#eafff3)!important;
+ color:#134934!important;border:1px solid #91d6b0!important;border-radius:21px!important;padding:17px!important;
+ box-shadow:0 23px 66px rgba(0,69,41,.27),inset 0 1px 0 #fff!important;font:650 13px/1.5 'Plus Jakarta Sans',system-ui,sans-serif!important}
+#cc628-attendance-prompt *{box-sizing:border-box!important;color:inherit!important;opacity:1!important}
+#cc628-attendance-prompt strong{display:block!important;font-size:18px!important;line-height:1.35!important;margin-bottom:5px!important}
+#cc628-attendance-prompt p{margin:5px 0 11px!important;color:#345f49!important}
+#cc628-attendance-prompt .cc628-actions{display:flex!important;gap:8px!important;flex-wrap:wrap!important}
+#cc628-attendance-prompt button{border:1px solid #97d5b5!important;border-radius:12px!important;padding:10px 15px!important;
+ background:#fff!important;color:#176343!important;font-weight:850!important;font-size:13px!important;cursor:pointer!important}
+#cc628-attendance-prompt button:first-child{background:linear-gradient(115deg,#087e55,#18bd82)!important;color:#fff!important}
+@media(max-width:600px){html body:not(.login-body) .task-modal-fix .task-premium-modal.task-modal-no-overlap{padding:14px!important;max-height:calc(100dvh - 15px)!important}}
+
+
+/* CC26_630: remove the legacy pink/orange inner Task Name accent divider, not real input borders. */
+html body:not(.login-body) .task-modal-fix .task-premium-form > .field:first-child,
+html body:not(.login-body) .task-modal-fix .task-premium-form > .field:first-child::before,
+html body:not(.login-body) .task-modal-fix .task-premium-form > .field:first-child::after{
+  border-top-color:#bce6ce!important; background-image:none!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form > .field:first-child input{
+  border-top:1px solid #94d7b5!important; box-shadow:inset 0 1px 0 #fff!important;
+}
+html body:not(.login-body) .task-modal-fix .cc553-task-editor-heading{
+  position:relative!important;z-index:8!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .cc627-select-menu{
+  max-height:min(260px,34vh)!important;overscroll-behavior:contain!important;
+}
+
+/* CC26_633 — compact, vividly glossy KPI cards.
+   Restores short cards after CC26_632's min-height 110px; enlarges text and totals
+   without causing the summary panels to consume the whole screen.
+   ALL rules here are presentational only: no data fetching, state or calculations. */
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+){
+ position:relative!important;isolation:isolate!important;box-sizing:border-box!important;
+ min-height:76px!important;height:auto!important;
+ padding:8px 12px!important;gap:1px!important;
+ border-radius:14px!important;overflow:hidden!important;
+ box-shadow:0 6px 13px rgba(26,56,105,.14),0 2px 5px rgba(17,55,91,.08),
+   inset 0 1px 0 rgba(255,255,255,.58),inset 0 -1px 0 rgba(17,47,90,.12)!important;
+ border:1px solid rgba(255,255,255,.36)!important;
+}
+/* One crisp static light reflection rather than blurry animation / extra images. */
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+)::after{
+ content:""!important;display:block!important;position:absolute!important;
+ inset:0!important;left:0!important;right:0!important;bottom:0!important;top:0!important;
+ width:100%!important;height:100%!important;transform:none!important;
+ border-radius:inherit!important;z-index:0!important;pointer-events:none!important;
+ background:
+  linear-gradient(130deg,rgba(255,255,255,.43) 0%,rgba(255,255,255,.16) 13%,transparent 32%),
+  radial-gradient(ellipse 80% 72% at 88% -8%,rgba(255,255,255,.38),transparent 78%),
+  linear-gradient(180deg,rgba(255,255,255,.14) 0%,transparent 36%,rgba(9,22,66,.15) 100%)!important;
+ opacity:1!important;box-shadow:inset 0 1px 0 rgba(255,255,255,.34)!important;
+}
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+) > :is(span,strong,small,div,b){
+ position:relative!important;z-index:1!important;opacity:1!important;max-width:100%!important;
+}
+/* Compact layout: numbers are larger than the old 32px, but less tall than CC26_632's 46px. */
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+) :is(.metric-label,.stat-label),
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+) > span{
+ font-size:14.5px!important;line-height:1.12!important;font-weight:900!important;
+ white-space:normal!important;overflow:visible!important;text-overflow:clip!important;
+ margin:0!important;text-shadow:0 1px 1px rgba(10,39,80,.25)!important;
+}
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+) :is(.stat-value,.metric-value),
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+) > :is(strong,b){
+ display:block!important;font-size:38px!important;line-height:1!important;font-weight:950!important;
+ letter-spacing:-.045em!important;font-variant-numeric:tabular-nums!important;
+ white-space:nowrap!important;overflow:visible!important;margin:0!important;
+ text-shadow:0 2px 4px rgba(11,33,83,.20)!important;
+}
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+) > small,
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+) :is(.metric-sub,.stat-sub){
+ display:block!important;font-size:11.5px!important;line-height:1.15!important;
+ font-weight:800!important;white-space:normal!important;
+ overflow-wrap:anywhere!important;overflow:visible!important;text-overflow:clip!important;
+ margin:0!important;opacity:1!important;
+}
+/* Do not let the 10px late-order global text override make Task hints disappear. */
+html body:not(.login-body).cc622-task-clean .main-wrap .task-summary-grid .metric-card.colorful-card > small{
+ display:block!important;font-size:11.5px!important;line-height:1.15!important;
+}
+/* Saturated individual palette, with legible white text: no five identical blue cards. */
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card.tone-blue{
+ background:linear-gradient(115deg,#1058ed 0%,#3686ff 54%,#6950e8 100%)!important;
+}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card.tone-green{
+ background:linear-gradient(115deg,#008958 0%,#11ba71 55%,#2bc79b 100%)!important;
+}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card.tone-orange{
+ background:linear-gradient(115deg,#bb4c06 0%,#ed720c 48%,#f7a12b 100%)!important;
+}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card.tone-purple{
+ background:linear-gradient(115deg,#6336c2 0%,#9454ef 55%,#bd64f7 100%)!important;
+}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card.tone-red{
+ background:linear-gradient(115deg,#bc174e 0%,#f02f72 54%,#ff688f 100%)!important;
+}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card{
+ min-height:76px!important;display:flex!important;flex-direction:column!important;
+ align-items:flex-start!important;justify-content:center!important;gap:1px!important;
+ color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card :is(span,strong,small){
+ color:#fff!important;-webkit-text-fill-color:#fff!important;
+ position:relative!important;z-index:2!important;opacity:1!important;
+}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card-active{
+ outline:2px solid rgba(26,53,95,.70)!important;outline-offset:1px!important;
+}
+/* Candidate colours already correct. Keep the original per-card palette, add only specular highlight. */
+@media (max-width:720px){
+ html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+ ){min-height:76px!important;padding:8px 10px!important;}
+ html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+ ) > :is(strong,b){font-size:34px!important;}
+}
+
+/* CC26_635 | Balanced glossy cards, matched to the earlier Interviews screenshot.
+   Presentational-only: no changes to task logic, counters, permissions or networking. */
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+){
+  box-sizing:border-box!important;
+  min-height:72px!important;
+  height:auto!important;
+  padding:8px 10px!important;
+  gap:1px!important;
+  border-radius:13px!important;
+  border:1px solid rgba(255,255,255,.35)!important;
+  filter:saturate(1.06) contrast(1.015)!important;
+  backdrop-filter:none!important;
+  box-shadow:0 5px 12px rgba(26,57,99,.16),inset 0 1px 0 rgba(255,255,255,.45)!important;
+}
+/* Compact, clean original-style reflection. No exaggerated glowing overlay. */
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+)::before{
+  content:""!important;position:absolute!important;left:0!important;right:0!important;
+  top:0!important;height:42%!important;z-index:0!important;pointer-events:none!important;
+  border-radius:inherit!important;
+  background:linear-gradient(180deg,rgba(255,255,255,.19),rgba(255,255,255,.05) 50%,transparent)!important;
+  opacity:1!important;
+  filter:none!important;
+  mix-blend-mode:normal!important;
+}
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+)::after{
+ content:""!important;position:absolute!important;inset:0!important;z-index:0!important;
+ width:100%!important;height:100%!important;border-radius:inherit!important;pointer-events:none!important;
+ background:linear-gradient(125deg,rgba(255,255,255,.13),transparent 35%),
+            linear-gradient(0deg,rgba(11,38,80,.07),transparent 55%)!important;
+ opacity:1!important;filter:none!important;
+}
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+) :is(.metric-label,.stat-label),
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+) > span{
+ font-size:13px!important;line-height:1.12!important;font-weight:850!important;margin:0!important;
+ text-shadow:0 1px 1px rgba(16,36,72,.17)!important;
+}
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+) :is(.metric-value,.stat-value),
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+) > :is(strong,b){
+ font-size:32px!important;line-height:.97!important;font-weight:900!important;letter-spacing:-.035em!important;
+ margin:1px 0!important;text-shadow:0 1px 2px rgba(15,32,76,.20)!important;
+}
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+) > small,
+html body:not(.login-body) .main-wrap :is(
+ .stat-card, .metric-card.colorful-card, .metric-card.gradient-card,
+ .attendance-metric-card, .clickable-summary-card, .revenue-journey-card,
+ .pipeline-summary-card, .approval-strip-card, .duplicate-summary-card,
+ .master-stat, .bda-stat-card, .assistant-stat-card, .auto-stat-match
+) :is(.metric-sub,.stat-sub){
+ font-size:10.5px!important;line-height:1.13!important;font-weight:750!important;margin:0!important;opacity:1!important;
+}
+/* Reference palette: blue-violet, cyan, blue, emerald-lime, pink-coral, royal blue. */
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(6n+1){background:linear-gradient(110deg,#225ff1 0%,#4277f7 52%,#7547ce 100%)!important}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(6n+2){background:linear-gradient(110deg,#246cf4 0%,#319ffa 54%,#5bcdf1 100%)!important}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(6n+3){background:linear-gradient(110deg,#3267ec 0%,#498efa 55%,#75c8ee 100%)!important}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(6n+4){background:linear-gradient(110deg,#068a7c 0%,#39bc6e 55%,#aad848 100%)!important}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(6n+5){background:linear-gradient(110deg,#ed3673 0%,#fb5088 54%,#ff9b82 100%)!important}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(6n){background:linear-gradient(110deg,#214bea 0%,#3263fc 52%,#7850c5 100%)!important}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card.tone-blue{background:linear-gradient(110deg,#245fee,#3b83fa 55%,#754bcf)!important}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card.tone-green{background:linear-gradient(110deg,#078f76,#37b87c 58%,#8ad660)!important}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card.tone-orange{background:linear-gradient(110deg,#d95c25,#f78e3d 56%,#ffbc65)!important}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card.tone-purple{background:linear-gradient(110deg,#5f4eda,#8b64eb 56%,#b87aea)!important}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card.tone-red{background:linear-gradient(110deg,#d72f61,#f35383 58%,#fb9b86)!important}
+html body:not(.login-body) .main-wrap .bucket-card-grid .stat-card,
+html body:not(.login-body) .main-wrap .task-summary-grid > .metric-card{
+ min-height:70px!important;padding:7px 10px!important;justify-content:center!important;
+}
+/* Keep candidate/profile totals fully readable without tall cards. */
+html body:not(.login-body) .main-wrap .bucket-card-grid .stat-card > :is(span,strong,small),
+html body:not(.login-body) .main-wrap .task-summary-grid > .metric-card > :is(span,strong,small){
+ position:relative!important;z-index:2!important;color:#fff!important;-webkit-text-fill-color:#fff!important;
+}
+@media(max-width:720px){
+ html body:not(.login-body) .main-wrap .bucket-card-grid .stat-card,
+ html body:not(.login-body) .main-wrap .task-summary-grid > .metric-card{min-height:70px!important;padding:7px 9px!important}
+ html body:not(.login-body) .main-wrap .bucket-card-grid .stat-card > strong,
+ html body:not(.login-body) .main-wrap .task-summary-grid .metric-card > strong{font-size:30px!important}
+}
+
+
+/* CC26_638_SELECTED_8_PALETTE: 2,3,4,5,12,13,18 and the original CRM green.
+   Design-only: compact cards, distinct hues, readable labels, no extra assets or requests. */
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat){
+ isolation:isolate!important;position:relative!important;overflow:hidden!important;
+ border:1px solid rgba(255,255,255,.36)!important;
+ border-radius:13px!important;
+ filter:saturate(1.12) contrast(1.045)!important;
+ box-shadow:0 7px 16px rgba(22,34,75,.19),inset 0 1px 0 rgba(255,255,255,.28)!important;
+}
+/* Sharp glossy highlight that does not white-wash the card or add animation. */
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat)::before{
+ content:""!important;display:block!important;position:absolute!important;inset:0 0 auto 0!important;
+ height:33%!important;width:100%!important;z-index:0!important;pointer-events:none!important;
+ background:linear-gradient(180deg,rgba(255,255,255,.21),rgba(255,255,255,.055) 55%,transparent)!important;
+ border-radius:inherit!important;opacity:1!important;transform:none!important;filter:none!important;
+}
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat)::after{
+ content:""!important;display:block!important;position:absolute!important;inset:0!important;z-index:0!important;
+ width:100%!important;height:100%!important;border-radius:inherit!important;pointer-events:none!important;
+ background:linear-gradient(0deg,rgba(24,16,40,.16),transparent 46%)!important;
+ opacity:1!important;transform:none!important;filter:none!important;
+}
+
+/* Card 1: AMBER_GOLD; infographic selection 2. */
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n+1){background:linear-gradient(112deg,#A44A0A 0%,#E78A09 53%,#FFC34A 100%)!important;background-image:linear-gradient(112deg,#A44A0A 0%,#E78A09 53%,#FFC34A 100%)!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+1){background:linear-gradient(112deg,#A44A0A 0%,#E78A09 53%,#FFC34A 100%)!important;background-image:linear-gradient(112deg,#A44A0A 0%,#E78A09 53%,#FFC34A 100%)!important;}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card:nth-child(8n+1){background:linear-gradient(112deg,#A44A0A 0%,#E78A09 53%,#FFC34A 100%)!important;background-image:linear-gradient(112deg,#A44A0A 0%,#E78A09 53%,#FFC34A 100%)!important;}
+html body:not(.login-body) .main-wrap .interview-summary-grid > .metric-card.gradient-card:nth-child(8n+1){background:linear-gradient(112deg,#A44A0A 0%,#E78A09 53%,#FFC34A 100%)!important;background-image:linear-gradient(112deg,#A44A0A 0%,#E78A09 53%,#FFC34A 100%)!important;}
+html body:not(.login-body) .main-wrap .task-summary-grid > .metric-card.colorful-card:nth-child(8n+1){background:linear-gradient(112deg,#A44A0A 0%,#E78A09 53%,#FFC34A 100%)!important;background-image:linear-gradient(112deg,#A44A0A 0%,#E78A09 53%,#FFC34A 100%)!important;}
+html body:not(.login-body) .main-wrap .attendance-card-grid > .metric-card:nth-child(8n+1){background:linear-gradient(112deg,#A44A0A 0%,#E78A09 53%,#FFC34A 100%)!important;background-image:linear-gradient(112deg,#A44A0A 0%,#E78A09 53%,#FFC34A 100%)!important;}
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n+1) :is(span,strong,small,.metric-label,.metric-value,.metric-sub,.stat-label,.stat-value,.stat-sub){color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;}
+/* Card 2: CORAL_RED; infographic selection 3. */
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n+2){background:linear-gradient(112deg,#B91C32 0%,#EC3F4D 53%,#FF7255 100%)!important;background-image:linear-gradient(112deg,#B91C32 0%,#EC3F4D 53%,#FF7255 100%)!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+2){background:linear-gradient(112deg,#B91C32 0%,#EC3F4D 53%,#FF7255 100%)!important;background-image:linear-gradient(112deg,#B91C32 0%,#EC3F4D 53%,#FF7255 100%)!important;}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card:nth-child(8n+2){background:linear-gradient(112deg,#B91C32 0%,#EC3F4D 53%,#FF7255 100%)!important;background-image:linear-gradient(112deg,#B91C32 0%,#EC3F4D 53%,#FF7255 100%)!important;}
+html body:not(.login-body) .main-wrap .interview-summary-grid > .metric-card.gradient-card:nth-child(8n+2){background:linear-gradient(112deg,#B91C32 0%,#EC3F4D 53%,#FF7255 100%)!important;background-image:linear-gradient(112deg,#B91C32 0%,#EC3F4D 53%,#FF7255 100%)!important;}
+html body:not(.login-body) .main-wrap .task-summary-grid > .metric-card.colorful-card:nth-child(8n+2){background:linear-gradient(112deg,#B91C32 0%,#EC3F4D 53%,#FF7255 100%)!important;background-image:linear-gradient(112deg,#B91C32 0%,#EC3F4D 53%,#FF7255 100%)!important;}
+html body:not(.login-body) .main-wrap .attendance-card-grid > .metric-card:nth-child(8n+2){background:linear-gradient(112deg,#B91C32 0%,#EC3F4D 53%,#FF7255 100%)!important;background-image:linear-gradient(112deg,#B91C32 0%,#EC3F4D 53%,#FF7255 100%)!important;}
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n+2) :is(span,strong,small,.metric-label,.metric-value,.metric-sub,.stat-label,.stat-value,.stat-sub){color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;}
+/* Card 3: HOT_PINK; infographic selection 4. */
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n+3){background:linear-gradient(112deg,#B51264 0%,#E92B8C 53%,#FF6EB0 100%)!important;background-image:linear-gradient(112deg,#B51264 0%,#E92B8C 53%,#FF6EB0 100%)!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+3){background:linear-gradient(112deg,#B51264 0%,#E92B8C 53%,#FF6EB0 100%)!important;background-image:linear-gradient(112deg,#B51264 0%,#E92B8C 53%,#FF6EB0 100%)!important;}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card:nth-child(8n+3){background:linear-gradient(112deg,#B51264 0%,#E92B8C 53%,#FF6EB0 100%)!important;background-image:linear-gradient(112deg,#B51264 0%,#E92B8C 53%,#FF6EB0 100%)!important;}
+html body:not(.login-body) .main-wrap .interview-summary-grid > .metric-card.gradient-card:nth-child(8n+3){background:linear-gradient(112deg,#B51264 0%,#E92B8C 53%,#FF6EB0 100%)!important;background-image:linear-gradient(112deg,#B51264 0%,#E92B8C 53%,#FF6EB0 100%)!important;}
+html body:not(.login-body) .main-wrap .task-summary-grid > .metric-card.colorful-card:nth-child(8n+3){background:linear-gradient(112deg,#B51264 0%,#E92B8C 53%,#FF6EB0 100%)!important;background-image:linear-gradient(112deg,#B51264 0%,#E92B8C 53%,#FF6EB0 100%)!important;}
+html body:not(.login-body) .main-wrap .attendance-card-grid > .metric-card:nth-child(8n+3){background:linear-gradient(112deg,#B51264 0%,#E92B8C 53%,#FF6EB0 100%)!important;background-image:linear-gradient(112deg,#B51264 0%,#E92B8C 53%,#FF6EB0 100%)!important;}
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n+3) :is(span,strong,small,.metric-label,.metric-value,.metric-sub,.stat-label,.stat-value,.stat-sub){color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;}
+/* Card 4: DEEP_PURPLE; infographic selection 5. */
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n+4){background:linear-gradient(112deg,#4815A5 0%,#6D28D9 53%,#9D4DF0 100%)!important;background-image:linear-gradient(112deg,#4815A5 0%,#6D28D9 53%,#9D4DF0 100%)!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+4){background:linear-gradient(112deg,#4815A5 0%,#6D28D9 53%,#9D4DF0 100%)!important;background-image:linear-gradient(112deg,#4815A5 0%,#6D28D9 53%,#9D4DF0 100%)!important;}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card:nth-child(8n+4){background:linear-gradient(112deg,#4815A5 0%,#6D28D9 53%,#9D4DF0 100%)!important;background-image:linear-gradient(112deg,#4815A5 0%,#6D28D9 53%,#9D4DF0 100%)!important;}
+html body:not(.login-body) .main-wrap .interview-summary-grid > .metric-card.gradient-card:nth-child(8n+4){background:linear-gradient(112deg,#4815A5 0%,#6D28D9 53%,#9D4DF0 100%)!important;background-image:linear-gradient(112deg,#4815A5 0%,#6D28D9 53%,#9D4DF0 100%)!important;}
+html body:not(.login-body) .main-wrap .task-summary-grid > .metric-card.colorful-card:nth-child(8n+4){background:linear-gradient(112deg,#4815A5 0%,#6D28D9 53%,#9D4DF0 100%)!important;background-image:linear-gradient(112deg,#4815A5 0%,#6D28D9 53%,#9D4DF0 100%)!important;}
+html body:not(.login-body) .main-wrap .attendance-card-grid > .metric-card:nth-child(8n+4){background:linear-gradient(112deg,#4815A5 0%,#6D28D9 53%,#9D4DF0 100%)!important;background-image:linear-gradient(112deg,#4815A5 0%,#6D28D9 53%,#9D4DF0 100%)!important;}
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n+4) :is(span,strong,small,.metric-label,.metric-value,.metric-sub,.stat-label,.stat-value,.stat-sub){color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;}
+/* Card 5: PEACH; infographic selection 12. */
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n+5){background:linear-gradient(112deg,#FF9C80 0%,#FFB492 53%,#FFD1AD 100%)!important;background-image:linear-gradient(112deg,#FF9C80 0%,#FFB492 53%,#FFD1AD 100%)!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+5){background:linear-gradient(112deg,#FF9C80 0%,#FFB492 53%,#FFD1AD 100%)!important;background-image:linear-gradient(112deg,#FF9C80 0%,#FFB492 53%,#FFD1AD 100%)!important;}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card:nth-child(8n+5){background:linear-gradient(112deg,#FF9C80 0%,#FFB492 53%,#FFD1AD 100%)!important;background-image:linear-gradient(112deg,#FF9C80 0%,#FFB492 53%,#FFD1AD 100%)!important;}
+html body:not(.login-body) .main-wrap .interview-summary-grid > .metric-card.gradient-card:nth-child(8n+5){background:linear-gradient(112deg,#FF9C80 0%,#FFB492 53%,#FFD1AD 100%)!important;background-image:linear-gradient(112deg,#FF9C80 0%,#FFB492 53%,#FFD1AD 100%)!important;}
+html body:not(.login-body) .main-wrap .task-summary-grid > .metric-card.colorful-card:nth-child(8n+5){background:linear-gradient(112deg,#FF9C80 0%,#FFB492 53%,#FFD1AD 100%)!important;background-image:linear-gradient(112deg,#FF9C80 0%,#FFB492 53%,#FFD1AD 100%)!important;}
+html body:not(.login-body) .main-wrap .attendance-card-grid > .metric-card:nth-child(8n+5){background:linear-gradient(112deg,#FF9C80 0%,#FFB492 53%,#FFD1AD 100%)!important;background-image:linear-gradient(112deg,#FF9C80 0%,#FFB492 53%,#FFD1AD 100%)!important;}
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n+5), html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n+5) :is(span,strong,small,div,b,.metric-label,.metric-value,.metric-sub,.stat-label,.stat-value,.stat-sub){color:#542239!important;-webkit-text-fill-color:#542239!important;text-shadow:none!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+5) > :is(span,strong,small), html body:not(.login-body) .main-wrap .task-summary-grid > .metric-card:nth-child(8n+5) > :is(span,strong,small), html body:not(.login-body) .main-wrap .interview-summary-grid > .metric-card:nth-child(8n+5) > :is(.metric-label,.metric-value,.metric-sub){color:#542239!important;-webkit-text-fill-color:#542239!important;text-shadow:none!important;}
+/* Card 6: CHOCOLATE_BROWN; infographic selection 13. */
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n+6){background:linear-gradient(112deg,#6B2B13 0%,#92400E 53%,#BD6635 100%)!important;background-image:linear-gradient(112deg,#6B2B13 0%,#92400E 53%,#BD6635 100%)!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+6){background:linear-gradient(112deg,#6B2B13 0%,#92400E 53%,#BD6635 100%)!important;background-image:linear-gradient(112deg,#6B2B13 0%,#92400E 53%,#BD6635 100%)!important;}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card:nth-child(8n+6){background:linear-gradient(112deg,#6B2B13 0%,#92400E 53%,#BD6635 100%)!important;background-image:linear-gradient(112deg,#6B2B13 0%,#92400E 53%,#BD6635 100%)!important;}
+html body:not(.login-body) .main-wrap .interview-summary-grid > .metric-card.gradient-card:nth-child(8n+6){background:linear-gradient(112deg,#6B2B13 0%,#92400E 53%,#BD6635 100%)!important;background-image:linear-gradient(112deg,#6B2B13 0%,#92400E 53%,#BD6635 100%)!important;}
+html body:not(.login-body) .main-wrap .task-summary-grid > .metric-card.colorful-card:nth-child(8n+6){background:linear-gradient(112deg,#6B2B13 0%,#92400E 53%,#BD6635 100%)!important;background-image:linear-gradient(112deg,#6B2B13 0%,#92400E 53%,#BD6635 100%)!important;}
+html body:not(.login-body) .main-wrap .attendance-card-grid > .metric-card:nth-child(8n+6){background:linear-gradient(112deg,#6B2B13 0%,#92400E 53%,#BD6635 100%)!important;background-image:linear-gradient(112deg,#6B2B13 0%,#92400E 53%,#BD6635 100%)!important;}
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n+6) :is(span,strong,small,.metric-label,.metric-value,.metric-sub,.stat-label,.stat-value,.stat-sub){color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;}
+/* Card 7: MAGENTA; infographic selection 18. */
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n+7){background:linear-gradient(112deg,#9420B9 0%,#C026D3 53%,#EE4AF2 100%)!important;background-image:linear-gradient(112deg,#9420B9 0%,#C026D3 53%,#EE4AF2 100%)!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+7){background:linear-gradient(112deg,#9420B9 0%,#C026D3 53%,#EE4AF2 100%)!important;background-image:linear-gradient(112deg,#9420B9 0%,#C026D3 53%,#EE4AF2 100%)!important;}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card:nth-child(8n+7){background:linear-gradient(112deg,#9420B9 0%,#C026D3 53%,#EE4AF2 100%)!important;background-image:linear-gradient(112deg,#9420B9 0%,#C026D3 53%,#EE4AF2 100%)!important;}
+html body:not(.login-body) .main-wrap .interview-summary-grid > .metric-card.gradient-card:nth-child(8n+7){background:linear-gradient(112deg,#9420B9 0%,#C026D3 53%,#EE4AF2 100%)!important;background-image:linear-gradient(112deg,#9420B9 0%,#C026D3 53%,#EE4AF2 100%)!important;}
+html body:not(.login-body) .main-wrap .task-summary-grid > .metric-card.colorful-card:nth-child(8n+7){background:linear-gradient(112deg,#9420B9 0%,#C026D3 53%,#EE4AF2 100%)!important;background-image:linear-gradient(112deg,#9420B9 0%,#C026D3 53%,#EE4AF2 100%)!important;}
+html body:not(.login-body) .main-wrap .attendance-card-grid > .metric-card:nth-child(8n+7){background:linear-gradient(112deg,#9420B9 0%,#C026D3 53%,#EE4AF2 100%)!important;background-image:linear-gradient(112deg,#9420B9 0%,#C026D3 53%,#EE4AF2 100%)!important;}
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n+7) :is(span,strong,small,.metric-label,.metric-value,.metric-sub,.stat-label,.stat-value,.stat-sub){color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;}
+/* Card 8: ORIGINAL_GREEN; infographic selection original green. */
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n){background:linear-gradient(112deg,#0B8E74 0%,#2AC76B 53%,#9DDB46 100%)!important;background-image:linear-gradient(112deg,#0B8E74 0%,#2AC76B 53%,#9DDB46 100%)!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n){background:linear-gradient(112deg,#0B8E74 0%,#2AC76B 53%,#9DDB46 100%)!important;background-image:linear-gradient(112deg,#0B8E74 0%,#2AC76B 53%,#9DDB46 100%)!important;}
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card:nth-child(8n){background:linear-gradient(112deg,#0B8E74 0%,#2AC76B 53%,#9DDB46 100%)!important;background-image:linear-gradient(112deg,#0B8E74 0%,#2AC76B 53%,#9DDB46 100%)!important;}
+html body:not(.login-body) .main-wrap .interview-summary-grid > .metric-card.gradient-card:nth-child(8n){background:linear-gradient(112deg,#0B8E74 0%,#2AC76B 53%,#9DDB46 100%)!important;background-image:linear-gradient(112deg,#0B8E74 0%,#2AC76B 53%,#9DDB46 100%)!important;}
+html body:not(.login-body) .main-wrap .task-summary-grid > .metric-card.colorful-card:nth-child(8n){background:linear-gradient(112deg,#0B8E74 0%,#2AC76B 53%,#9DDB46 100%)!important;background-image:linear-gradient(112deg,#0B8E74 0%,#2AC76B 53%,#9DDB46 100%)!important;}
+html body:not(.login-body) .main-wrap .attendance-card-grid > .metric-card:nth-child(8n){background:linear-gradient(112deg,#0B8E74 0%,#2AC76B 53%,#9DDB46 100%)!important;background-image:linear-gradient(112deg,#0B8E74 0%,#2AC76B 53%,#9DDB46 100%)!important;}
+html body:not(.login-body) .main-wrap :is(.bucket-card-grid,.task-summary-grid,.interview-summary-grid,.attendance-card-grid,.notification-summary-grid,.workflow-summary-grid,.pipeline-summary-grid,.performance-card-grid,.activity-card-grid,.revenue-card-grid,.bda-summary-grid,.master-stat-grid) > :is(.stat-card,.metric-card,.pipeline-summary-card,.clickable-summary-card,.attendance-metric-card,.approval-strip-card,.revenue-journey-card,.bda-stat-card,.master-stat):nth-child(8n) :is(span,strong,small,.metric-label,.metric-value,.metric-sub,.stat-label,.stat-value,.stat-sub){color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;}
+
+/* CC26_638 Peach contrast: override old Task tone white-text !important specificity. */
+html body:not(.login-body) .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card:nth-child(5) :is(span,strong,small),
+html body:not(.login-body).cc622-task-clean .main-wrap .task-summary-grid > button.task-summary-button.metric-card.colorful-card:nth-child(5) :is(span,strong,small),
+html body:not(.login-body) .main-wrap .interview-summary-grid > .metric-card.compact.gradient-card.clickable-summary-card:nth-child(5) :is(.metric-label,.metric-value,.metric-sub){
+ color:#542239!important;-webkit-text-fill-color:#542239!important;text-shadow:none!important;
+}
+
+/* CC26_639_CANDIDATE_SELECTED_COLOURS | User screenshot 1 marked cards remain; screenshot 2 red fills Fresh.
+   Only Candidate / Hot Leads bucket-summary card gradients are changed; no cross-page overrides added. */
+/* 1 TOTAL_PROFILES__FIRST_SCREENSHOT_BLUE */
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+1){background:linear-gradient(112deg,#2858f5 0%,#486fff 53%,#a83ecc 100%)!important;background-image:linear-gradient(112deg,#2858f5 0%,#486fff 53%,#a83ecc 100%)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+1) :is(span,strong,small,div,b){color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;text-shadow:0 1px 1px rgba(0,0,0,.15)!important;}
+/* 2 FRESH_PROFILE__SECOND_SCREENSHOT_RED */
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+2){background:linear-gradient(112deg,#B91C32 0%,#EC3F4D 53%,#FF7255 100%)!important;background-image:linear-gradient(112deg,#B91C32 0%,#EC3F4D 53%,#FF7255 100%)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+2) :is(span,strong,small,div,b){color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;text-shadow:0 1px 1px rgba(0,0,0,.15)!important;}
+/* 3 ALLOCATED__FIRST_SCREENSHOT_CYAN */
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+3){background:linear-gradient(112deg,#2f6cf3 0%,#34a4ff 53%,#40d0e4 100%)!important;background-image:linear-gradient(112deg,#2f6cf3 0%,#34a4ff 53%,#40d0e4 100%)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+3) :is(span,strong,small,div,b){color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;text-shadow:0 1px 1px rgba(0,0,0,.15)!important;}
+/* 4 MY_FRESH__FIRST_SCREENSHOT_GREEN */
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+4){background:linear-gradient(112deg,#11a762 0%,#45c95a 53%,#b6df33 100%)!important;background-image:linear-gradient(112deg,#11a762 0%,#45c95a 53%,#b6df33 100%)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+4) :is(span,strong,small,div,b){color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;text-shadow:0 1px 1px rgba(0,0,0,.15)!important;}
+/* 5 MY_WORKING__FIRST_SCREENSHOT_PINK */
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+5){background:linear-gradient(112deg,#ff4677 0%,#ff6394 53%,#ff9a74 100%)!important;background-image:linear-gradient(112deg,#ff4677 0%,#ff6394 53%,#ff9a74 100%)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+5) :is(span,strong,small,div,b){color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;text-shadow:0 1px 1px rgba(0,0,0,.15)!important;}
+/* 6 FOLLOW_UP__SECOND_SCREENSHOT_BROWN */
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+6){background:linear-gradient(112deg,#6B2B13 0%,#92400E 53%,#BD6635 100%)!important;background-image:linear-gradient(112deg,#6B2B13 0%,#92400E 53%,#BD6635 100%)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+6) :is(span,strong,small,div,b){color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;text-shadow:0 1px 1px rgba(0,0,0,.15)!important;}
+/* 7 WARNING__FIRST_SCREENSHOT_ORANGE */
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+7){background:linear-gradient(112deg,#ff6d21 0%,#ff9342 53%,#ffc247 100%)!important;background-image:linear-gradient(112deg,#ff6d21 0%,#ff9342 53%,#ffc247 100%)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n+7) :is(span,strong,small,div,b){color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;text-shadow:0 1px 1px rgba(0,0,0,.15)!important;}
+/* 8 LAST_DAY__SECOND_SCREENSHOT_MAGENTA */
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n){background:linear-gradient(112deg,#9420B9 0%,#C026D3 53%,#EE4AF2 100%)!important;background-image:linear-gradient(112deg,#9420B9 0%,#C026D3 53%,#EE4AF2 100%)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;}
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card:nth-child(8n) :is(span,strong,small,div,b){color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;text-shadow:0 1px 1px rgba(0,0,0,.15)!important;}
+
+/* CC26_639: original screenshot #5 is pink (not former peach); beat the legacy peach ink override. */
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card.stat-card:nth-child(8n+5),
+html body:not(.login-body) .main-wrap .bucket-card-grid > .bucket-click-card.stat-card:nth-child(8n+5) :is(span,strong,small,div,b,.stat-label,.stat-value,.stat-sub){
+ color:#fff!important;-webkit-text-fill-color:#fff!important;text-shadow:0 1px 1px rgba(0,0,0,.15)!important;
+}
