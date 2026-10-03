@@ -63,6 +63,7 @@
     return raw;
   }
   function managerReminderMode(){ return ['manager','admin'].includes(currentRole()); }
+  function tlReminderMode(){ return currentRole()==='tl'; }
   function navigatePath(path){
     const target=safe(path || '/');
     try {
@@ -195,9 +196,20 @@
     const countText = safe(config.countText || '1 due');
     const timeLabel = type === 'interview' ? 'Interview' : 'Due';
     const timeText = safe(String(config.timeText || '').replace(/^Reminder time:\s*/i,'').replace(/^Due:\s*/i,'').replace(/^Interview:\s*/i,''));
-    deck.innerHTML = `<div class="cc388-card ${type}" data-key="${safe(config.key)}" title="Open profile"><div class="cc388-head"><span class="cc388-label">${label}</span><span class="cc388-head-actions"><span class="cc388-count">${countText}</span><button class="cc388-x" type="button" aria-label="Close">×</button></span></div><div class="cc388-title"></div><div class="cc388-note"><b>NOTE</b><span></span></div><div class="cc388-time">${timeLabel}: ${timeText}</div><div class="cc388-preset-label">Snooze</div><div class="cc388-presets"></div></div>`;
+    const tlOwner = tlReminderMode() && !config.ownerIsSelf ? safe(config.ownerLabel || config.subtitle || '') : '';
+    deck.innerHTML = `<div class="cc388-card ${type}" data-key="${safe(config.key)}" title="Open profile"><div class="cc388-head"><span class="cc388-label">${label}</span><span class="cc388-head-actions"><span class="cc388-count">${countText}</span><button class="cc388-x" type="button" aria-label="Close">×</button></span></div><div class="cc388-title"></div>${tlOwner?'<div class="cc770-tl-reminder-owner"></div>':''}<div class="cc388-note"><b>NOTE</b><span></span></div><div class="cc388-time">${timeLabel}: ${timeText}</div><div class="cc388-preset-label">Snooze</div><div class="cc388-presets"></div></div>`;
+    if(managerReminderMode() && config.ownerIsSelf){
+      deck.classList.add('cc771-manager-personal-reminder');
+      deck.style.setProperty('left','16px','important');
+      deck.style.setProperty('right','auto','important');
+      deck.style.setProperty('bottom','16px','important');
+    } else {
+      deck.classList.remove('cc771-manager-personal-reminder');
+      deck.style.removeProperty('left'); deck.style.removeProperty('right'); deck.style.removeProperty('bottom');
+    }
     const card = deck.querySelector('.cc388-card');
     card.querySelector('.cc388-title').textContent = title;
+    const ownerEl=card.querySelector('.cc770-tl-reminder-owner'); if(ownerEl) ownerEl.textContent='TEAM • '+tlOwner;
     card.querySelector('.cc388-note span').textContent = note;
     const openReminder = reminderOpenTarget(config);
     card.addEventListener('click', function(event){
@@ -243,6 +255,7 @@
     return reminderVisualLabel(t).replace(' REMINDER','').replace('CRM ','').trim() || 'REMINDER';
   }
   function ensureManagerReminderCenter(){
+    if(!managerReminderMode()){ removeManagerReminderCenter(); return null; }
     let center=document.getElementById('cc763-manager-reminder-center');
     if(center){ managerCenterEl=center; return center; }
     center=document.createElement('section');
@@ -274,10 +287,10 @@
   }
   function renderManagerReminderCenter(dueRows){
     if(!managerReminderMode()){ removeManagerReminderCenter(); return; }
-    closePopup();
     const rows=(Array.isArray(dueRows)?dueRows:[]).filter(function(item){return item && !isSnoozed(item.type,item.localKey);});
     if(!rows.length){ removeManagerReminderCenter(); return; }
     const center=ensureManagerReminderCenter();
+    if(!center) return;
     const count=center.querySelector('.cc763-manager-center-count');
     const status=center.querySelector('.cc763-manager-center-status');
     const list=center.querySelector('.cc763-manager-center-list');
@@ -529,6 +542,7 @@
       note: safe(row.message) || 'Reminder needs action.',
       timeText: `${type === 'interview' && row.scheduled_at ? 'Interview' : 'Due'}: ${formatDateTime(type === 'interview' && row.scheduled_at ? row.scheduled_at : (row.due_at || dueAt))}`,
       ownerLabel: safe(row.owner_label || row.recruiter_name || row.assigned_to_name || row.owner_name || ''),
+      ownerIsSelf: row.owner_is_self === true || String(row.owner_is_self || '').toLowerCase() === 'true',
       openPath: safe(row.open_path) || '/reports',
       actions: [{ label:'Open', onClick:function(){ openFullPath(safe(row.open_path) || '/reports'); } }]
     };
@@ -578,11 +592,24 @@
       // Exact local wake for a snoozed reminder; no API/Supabase read.
       if(snoozeWake) scheduleDueReload(snoozeWake);
       if(managerReminderMode()){
-        renderManagerReminderCenter(dueNow);
+        // CC26_771: Managers can also work as recruiters. Their OWN candidate/task
+        // reminders use the exact recruiter popup, while everybody else's queue stays
+        // in the Manager Reminder Center. This prevents personal work from being buried.
+        const personal=dueNow.filter(function(item){return item && item.ownerIsSelf;});
+        const team=dueNow.filter(function(item){return item && !item.ownerIsSelf;});
+        if(team.length) renderManagerReminderCenter(team); else removeManagerReminderCenter();
+        if(personal.length){
+          const chosen=personal[0];
+          chosen.countText = personal.length > 1 ? `1 of ${personal.length} • ${personal.length} pending` : '1 due';
+          showReminderPopup(chosen);
+        } else closePopup();
         return;
       }
       removeManagerReminderCenter();
-      const chosen=dueNow[0];
+      // CC26_771: TL sees team reminders, but personal recruiter work gets priority and
+      // looks exactly like a recruiter popup (no TEAM owner badge on own candidates).
+      const personal=tlReminderMode()?dueNow.filter(function(item){return item && item.ownerIsSelf;}):[];
+      const chosen=personal.length?personal[0]:dueNow[0];
       chosen.countText = dueNow.length > 1 ? `1 of ${dueNow.length} • ${dueNow.length} pending` : '1 due';
       showReminderPopup(chosen);
       return;
