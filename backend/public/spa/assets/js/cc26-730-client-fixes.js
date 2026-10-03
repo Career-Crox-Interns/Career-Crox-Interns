@@ -53,6 +53,13 @@
   function uniqueParts(parts){ return Array.from(new Set((Array.isArray(parts) ? parts : []).map(safe).filter(Boolean))); }
   function onLoginRoute(){ return /^\/login(?:\/|$)/.test(location.pathname || ''); }
   function hasUser(){ try { return !!localStorage.getItem('careerCroxCachedUser'); } catch(_e){ return false; } }
+  // CC26_772: WA template dropdowns must feel instant. Open/reuse the named blank tab
+  // during the real user event; existing React code then replaces its URL after phone resolution.
+  document.addEventListener('change', function(event){
+    const select=event && event.target && event.target.closest ? event.target.closest('.genz-wa-select,.wa-template-select') : null;
+    if(!select || !safe(select.value)) return;
+    try { const win=window.open('about:blank','career_crox_whatsapp'); if(win){ try{win.opener=null;}catch(_e){} try{win.focus();}catch(_e){} } } catch(_e){}
+  }, true);
   function currentUser(){ try { return JSON.parse(localStorage.getItem('careerCroxCachedUser') || 'null') || {}; } catch(_e){ return {}; } }
   function currentRole(){
     const raw=lower(currentUser().role || currentUser().designation || '');
@@ -75,8 +82,11 @@
   function openFullPath(path, fallbackAction){
     const target=safe(path);
     if(target){
-      try { const win=window.open(target,'_blank','noopener,noreferrer'); if(win){ try{win.focus();}catch(_e){} return; } } catch(_e){}
-      navigatePath(target); return;
+      // CC26_772: reminder/profile actions are NEW-TAB ONLY. With noopener some browsers
+      // intentionally return null even when the new tab opened, so never use that return
+      // value as a reason to navigate the current CRM tab.
+      try { window.open(target,'_blank','noopener,noreferrer'); } catch(_e){}
+      return;
     }
     try { if(typeof fallbackAction === 'function') fallbackAction(); } catch(_e){}
   }

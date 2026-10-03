@@ -995,7 +995,7 @@ async function updateLockSettings(req, res) {
 async function importCandidates(req, res) {
   const users = await table('users');
   const rows = (Array.isArray(req.body?.rows) ? req.body.rows : []).map((row) => ({ ...(row || {}), candidate_id: '' }));
-  const basicSafeNewOnly = Boolean(req.body?.basic_safe_new_only);
+  const basicSafeNewOnly = Boolean(req.body?.basic_safe_new_only) || String(process.env.BASIC_CRM_MODE || '').toLowerCase() === 'true';
   // CC26_769 Basic Admin upload: read only matching phones + one max-id seed.
   // This avoids downloading the full candidate table and never edits old profiles.
   let allRows = [];
@@ -1041,6 +1041,7 @@ async function importCandidates(req, res) {
   const replaced = [];
   const updated = [];
   const skipped = [];
+  const pendingNewInserts = [];
   let dataNotesApplied = 0;
   for (const row of rows) {
     const effectiveAssignedUser = replaceRecruiterFromSheet ? assignedUser : null;
@@ -1159,7 +1160,30 @@ async function importCandidates(req, res) {
     }
 
     allRows.push(nextItem);
-    inserted.push(await insertCandidateSafe(nextItem));
+    if (basicSafeNewOnly) {
+      pendingNewInserts.push(nextItem);
+    } else {
+      inserted.push(await insertCandidateSafe(nextItem));
+    }
+  }
+
+  // CC26_772: Intern bulk uploads are additive-only, so independent NEW rows can be
+  // inserted in small parallel batches. This avoids a long spinner without increasing
+  // egress or touching any existing profile. Failed rows are reported as skipped.
+  if (basicSafeNewOnly && pendingNewInserts.length) {
+    const batchSize = 6;
+    for (let offset = 0; offset < pendingNewInserts.length; offset += batchSize) {
+      const batch = pendingNewInserts.slice(offset, offset + batchSize);
+      const results = await Promise.allSettled(batch.map((item) => insertCandidateSafe(item)));
+      results.forEach((result, index) => {
+        if (result.status === 'fulfilled') inserted.push(result.value || batch[index]);
+        else skipped.push({
+          name: batch[index]?.full_name || '',
+          phone: batch[index]?.phone || '',
+          reason: result.reason?.message || 'Database insert failed',
+        });
+      });
+    }
   }
 
   clearAllCaches();
