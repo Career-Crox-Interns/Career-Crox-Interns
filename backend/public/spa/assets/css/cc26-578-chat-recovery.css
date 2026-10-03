@@ -1,0 +1,65 @@
+/* CC26_578 chat: status is actionable, not a tiny red text line. */
+body:not(.login-body) .cc578-chat-status {
+ display:flex!important; align-items:center; justify-content:space-between;
+ gap:12px; flex-wrap:wrap; margin:8px 16px 4px; padding:11px 13px;
+ color:#234568!important; -webkit-text-fill-color:#234568!important;
+ background:linear-gradient(130deg,#f1f8ff,#fff9e9)!important;
+ border:1px solid #bad2f1!important; border-radius:14px;
+ font-size:13px!important; font-weight:800!important; line-height:1.35;
+ box-shadow:0 8px 18px rgba(29,79,143,.07);
+}
+body:not(.login-body) .cc578-chat-status span {color:#234568!important;-webkit-text-fill-color:#234568!important;}
+body:not(.login-body) .cc578-chat-retry {
+ border:1px solid rgba(255,255,255,.8)!important; border-radius:11px!important;
+ color:#fff!important;-webkit-text-fill-color:#fff!important;
+ background:linear-gradient(140deg,#358bff,#2055ca)!important;
+ font-size:13px!important;font-weight:900!important; min-height:36px!important;
+ padding:7px 15px!important; cursor:pointer!important;
+ box-shadow:0 7px 17px rgba(37,99,235,.17),inset 0 1px 0 rgba(255,255,255,.34)!important;
+}
+body:not(.login-body) .cc578-chat-retry:hover{filter:brightness(1.08)}
+body:not(.login-body) .cc578-chat-retry:focus-visible{outline:3px solid #f1ad29;outline-offset:2px}
+
+
+/* CC26_579: break-expiry required-reason request, readable and clickable across light/dark themes. */
+html[data-theme] body:not(.login-body) .crm-lock-backdrop .premium-crm-lock-request-modal {
+  pointer-events:auto!important; max-height:min(92vh,790px)!important; overflow-y:auto!important;
+  background:linear-gradient(145deg,#19294e 0%,#244278 53%,#1a315c 100%)!important;
+  color:#fff!important; border:1px solid rgba(210,229,255,.62)!important;
+  box-shadow:0 25px 70px rgba(8,20,49,.42),inset 0 1px 0 rgba(255,255,255,.19)!important;
+}
+html[data-theme] body:not(.login-body) .crm-lock-backdrop .premium-crm-lock-request-modal :is(.panel-title,.lock-premium-chip,.helper-text,label) {
+  color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;
+}
+html[data-theme] body:not(.login-body) .crm-lock-backdrop .premium-crm-lock-request-modal textarea {
+  pointer-events:auto!important; width:100%!important; min-height:106px!important;
+  background:linear-gradient(180deg,#fff,#f0f6ff)!important;color:#163359!important;
+  -webkit-text-fill-color:#163359!important; border:2px solid #b5d1ff!important;
+  padding:13px 15px!important;border-radius:15px!important;font-size:16px!important;
+  font-weight:750!important;line-height:1.45!important;
+}
+html[data-theme] body:not(.login-body) .crm-lock-backdrop .premium-crm-lock-request-modal textarea::placeholder {
+  color:#537095!important;-webkit-text-fill-color:#537095!important;opacity:1!important;
+}
+html[data-theme] body:not(.login-body) .crm-lock-backdrop .premium-crm-lock-request-modal .cc556-negative-clock {
+  color:#fff!important;-webkit-text-fill-color:#fff!important;letter-spacing:.035em!important;
+}
+html[data-theme] body:not(.login-body) .crm-lock-backdrop .premium-crm-lock-request-modal .cc579-error{
+  color:#fff5cd!important;-webkit-text-fill-color:#fff5cd!important;font-weight:900!important;
+}
+html[data-theme] body:not(.login-body) .crm-lock-backdrop .premium-crm-lock-request-modal .cc579-success{
+  color:#b7ffd9!important;-webkit-text-fill-color:#b7ffd9!important;font-weight:900!important;
+}
+html[data-theme] body:not(.login-body) .crm-lock-backdrop .premium-crm-lock-request-modal button.add-profile-btn {
+  pointer-events:auto!important;min-height:49px!important;border-radius:14px!important;
+  background:linear-gradient(130deg,#35d8ec,#13a7c3)!important;color:#073c55!important;
+  -webkit-text-fill-color:#073c55!important;font-size:16px!important;font-weight:950!important;
+  box-shadow:0 14px 30px rgba(5,178,213,.19),inset 0 1px 0 rgba(255,255,255,.7)!important;
+}
+html[data-theme] body:not(.login-body) .crm-lock-backdrop .premium-crm-lock-request-modal button.add-profile-btn:disabled{
+  opacity:.68!important;cursor:not-allowed!important;
+}
+html[data-theme] body:not(.login-body) .crm-lock-backdrop .premium-crm-lock-request-modal button.add-profile-btn:focus-visible,
+html[data-theme] body:not(.login-body) .crm-lock-backdrop .premium-crm-lock-request-modal textarea:focus-visible{
+  outline:3px solid #ffcd53!important;outline-offset:2px!important;
+}
