@@ -1233,6 +1233,15 @@ function reminderOpenSubmissionPath(row = {}) {
 }
 
 
+function reminderTaskBelongsToSelf(row = {}, user = {}) {
+  const ownId = String(user.user_id || '').trim();
+  const ownCode = reminderLower(user.recruiter_code || user.employee_code || '');
+  const ownNames = new Set([user.full_name, user.username, user.name].map(reminderLower).filter(Boolean));
+  return [row.assigned_to_user_id,row.user_id,row.owner_user_id].some((v) => ownId && String(v || '').trim() === ownId)
+    || [row.assigned_to_code,row.recruiter_code,row.employee_code].some((v) => ownCode && reminderLower(v) === ownCode)
+    || [row.assigned_to_name,row.recruiter_name,row.employee_name,row.assigned_to_username,row.username].some((v) => ownNames.has(reminderLower(v)) && reminderLower(v));
+}
+
 function reminderTaskVisible(row = {}, user = {}) {
   const role = reminderRole(user);
   if (['admin','manager'].includes(role)) return true;
@@ -1550,6 +1559,7 @@ async function reminderSummary(req, res) {
         candidate_id: row.candidate_id || '',
         submission_id: row.submission_id || '',
         owner_label: [row.recruiter_name, row.recruiter_code].filter(Boolean).join(' • '),
+        owner_is_self: candidateBelongsToUser(row, user),
       })),
       ...todayInterviews.map((row, index) => ({
         key: `interview:${row.interview_id || row.candidate_id || index}`,
@@ -1565,6 +1575,7 @@ async function reminderSummary(req, res) {
         candidate_id: row.candidate_id || '',
         interview_id: row.interview_id || '',
         owner_label: [row.recruiter_name, row.recruiter_code].filter(Boolean).join(' • '),
+        owner_is_self: candidateBelongsToUser(row, user),
       })),
       ...todayFollowupSchedule.map((row, index) => ({
         key: `followup:${row.candidate_id || row.phone || index}`,
@@ -1575,6 +1586,7 @@ async function reminderSummary(req, res) {
         due_at: reminderSafeDueAt(row.next_follow_up_at || row.follow_up_at || row.followup_date || row.follow_up_date || row.callback_at, now),
         candidate_id: row.candidate_id || '',
         owner_label: [row.recruiter_name, row.recruiter_code].filter(Boolean).join(' • '),
+        owner_is_self: candidateBelongsToUser(row, user),
       })),
       ...todayTaskSchedule.map((row, index) => ({
         key: `task:${row.task_id || index}`,
@@ -1585,6 +1597,7 @@ async function reminderSummary(req, res) {
         due_at: reminderSafeDueAt(reminderTaskStamp(row), now),
         task_id: row.task_id || '',
         owner_label: [row.assigned_to_name, row.assigned_to_code].filter(Boolean).join(' • '),
+        owner_is_self: reminderTaskBelongsToSelf(row, user),
       })),
       ...dueNotifications.map((row, index) => ({
         key: `notification:${row.notification_id || index}`,
