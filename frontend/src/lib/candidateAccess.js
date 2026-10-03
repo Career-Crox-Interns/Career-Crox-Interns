@@ -108,8 +108,14 @@ export async function dialCandidateWithLog(candidateId, phone, meta = {}) {
 }
 
 export async function openWhatsAppWithLog(candidateId, phone, text = '', options = {}) {
-  const preparedWindow = options?.preparedWindow || null;
+  let preparedWindow = options?.preparedWindow || null;
   const targetName = String(options?.targetName || 'career_crox_whatsapp').trim() || 'career_crox_whatsapp';
+  // CC26_772: open the reusable WhatsApp tab synchronously on the user's click.
+  // Phone resolution/logging can finish in the background, so templates feel instant
+  // and the browser does not block a late popup.
+  if (!preparedWindow && typeof window !== 'undefined') {
+    try { preparedWindow = window.open('about:blank', targetName); } catch {}
+  }
   const clean = await resolveContactPhone(candidateId, phone, 'whatsapp');
   if (!clean) {
     try { if (preparedWindow && !preparedWindow.closed) preparedWindow.close(); } catch {}

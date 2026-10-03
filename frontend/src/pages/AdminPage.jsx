@@ -699,7 +699,9 @@ export default function AdminPage() {
         data_notes: importDataNotes,
         file_name: importFileName || '',
         sheet_name: importFileName ? 'Uploaded Sheet' : '',
-      }, { cacheTtlMs: 0, timeoutMs: 120000 });
+        // CC26_772 Intern Basic CRM upload is additive-only: existing phone profiles stay untouched.
+        basic_safe_new_only: true,
+      }, { cacheTtlMs: 0, timeoutMs: 120000, retries: 0 });
 
       const summary = data?.summary || {};
       const processed = Number(data?.inserted_count || 0);
