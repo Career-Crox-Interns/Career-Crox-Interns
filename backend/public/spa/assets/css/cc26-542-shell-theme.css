@@ -1,0 +1,135 @@
+/* CC26_542 — ONLY theme surface paint. All existing CRM layout, typography, KPI cards,
+   tables, forms, spacing, widths and heights are intentionally untouched. No network calls. */
+:root{--cc542-side-a:#ffb14f;--cc542-side-b:#f37321;--cc542-top-a:#fff9f5;--cc542-top-b:#ffe5d3;--cc542-page-a:#fff8f2;--cc542-page-b:#fee9da;--cc542-side-text:#fffdfb;--cc542-selected-text:#9a3a10;--cc542-selection:#fff9f4;--cc542-shadow:rgba(243,115,33,.11);--cc542-line:rgba(243,115,33,.27)}
+html[data-theme="orange"]{--cc542-side-a:#ffb14f;--cc542-side-b:#f37321;--cc542-top-a:#fff9f5;--cc542-top-b:#ffe5d3;--cc542-page-a:#fff8f2;--cc542-page-b:#fee9da;--cc542-side-text:#fffdfb;--cc542-selected-text:#9a3a10;--cc542-selection:#fff9fb;--cc542-shadow:rgba(243,115,33,.13);--cc542-line:rgba(243,115,33,.25)}
+html[data-theme="blue"]{--cc542-side-a:#55b0ff;--cc542-side-b:#1f73ff;--cc542-top-a:#f8fbff;--cc542-top-b:#dbeaff;--cc542-page-a:#f4f9ff;--cc542-page-b:#e5f0ff;--cc542-side-text:#f9fcff;--cc542-selected-text:#0a3b9f;--cc542-selection:#fff9fb;--cc542-shadow:rgba(30,120,255,.13);--cc542-line:rgba(30,120,255,.25)}
+html[data-theme="green"]{--cc542-side-a:#45d987;--cc542-side-b:#0fa95b;--cc542-top-a:#f8fdf9;--cc542-top-b:#ddf7ea;--cc542-page-a:#f4fdf8;--cc542-page-b:#e2f8ec;--cc542-side-text:#fbfffd;--cc542-selected-text:#09653c;--cc542-selection:#fff9fb;--cc542-shadow:rgba(18,183,101,.13);--cc542-line:rgba(18,183,101,.25)}
+html[data-theme="pink"]{--cc542-side-a:#f58aa7;--cc542-side-b:#da4e75;--cc542-top-a:#fffcfd;--cc542-top-b:#ffe8ee;--cc542-page-a:#fff8f9;--cc542-page-b:#ffe4ec;--cc542-side-text:#fffafe;--cc542-selected-text:#962744;--cc542-selection:#fff9fb;--cc542-shadow:rgba(228,91,128,.13);--cc542-line:rgba(228,91,128,.25)}
+html[data-theme="purple"]{--cc542-side-a:#b07bff;--cc542-side-b:#7440e6;--cc542-top-a:#fdfbff;--cc542-top-b:#ebe2ff;--cc542-page-a:#faf8ff;--cc542-page-b:#f0eaff;--cc542-side-text:#fcfbff;--cc542-selected-text:#482da0;--cc542-selection:#fff9fb;--cc542-shadow:rgba(138,79,255,.13);--cc542-line:rgba(138,79,255,.25)}
+html[data-theme="gold"]{--cc542-side-a:#f7ca53;--cc542-side-b:#d39a1d;--cc542-top-a:#fffdf8;--cc542-top-b:#fff1cf;--cc542-page-a:#fffcf6;--cc542-page-b:#fff2d8;--cc542-side-text:#fffdfa;--cc542-selected-text:#835204;--cc542-selection:#fff9fb;--cc542-shadow:rgba(210,154,23,.13);--cc542-line:rgba(210,154,23,.25)}
+html[data-theme="rose"]{--cc542-side-a:#fff3f9;--cc542-side-b:#ffbedb;--cc542-top-a:#fffafd;--cc542-top-b:#ffe6f1;--cc542-page-a:#fff9fc;--cc542-page-b:#ffe8f4;--cc542-side-text:#72224d;--cc542-selected-text:#9b1c60;--cc542-selection:#fff9fb;--cc542-shadow:rgba(231,49,138,.13);--cc542-line:rgba(231,49,138,.25)}
+html[data-theme="burgundy"]{--cc542-side-a:#9a4b66;--cc542-side-b:#67203c;--cc542-top-a:#fffafd;--cc542-top-b:#f0dce5;--cc542-page-a:#fff8fb;--cc542-page-b:#f3e7ec;--cc542-side-text:#fff9fb;--cc542-selected-text:#4a1027;--cc542-selection:#fff9fb;--cc542-shadow:rgba(125,34,70,.13);--cc542-line:rgba(125,34,70,.25)}
+html[data-theme="dark-navy"]{--cc542-side-a:#184685;--cc542-side-b:#0f2853;--cc542-top-a:#edf5ff;--cc542-top-b:#d8e6fb;--cc542-page-a:#eef4fb;--cc542-page-b:#dceafa;--cc542-side-text:#f6faff;--cc542-selected-text:#163d78;--cc542-selection:#fff9fb;--cc542-shadow:rgba(78,149,255,.13);--cc542-line:rgba(78,149,255,.25)}
+html[data-theme="midnight"]{--cc542-side-a:#1b2b45;--cc542-side-b:#0e1727;--cc542-top-a:#223854;--cc542-top-b:#17273e;--cc542-page-a:#101d31;--cc542-page-b:#22344b;--cc542-side-text:#f5f8ff;--cc542-selected-text:#e0ecff;--cc542-selection:#243c60;--cc542-shadow:rgba(32,49,75,.13);--cc542-line:rgba(32,49,75,.25)}
+
+/* Scoped to the CRM chrome, not data panels or login. Intentionally only backgrounds,
+   foreground colours, shadows, and borders (paint-only). */
+html[data-theme]:not([data-theme="peach-sky"]) body:not(.login-body):not(.cc-style15-login-body) .sidebar{
+  background:linear-gradient(131deg,rgba(255,255,255,.32),transparent 40%),linear-gradient(154deg,var(--cc542-side-a),var(--cc542-side-b))!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.65),0 7px 22px var(--cc542-shadow)!important;
+  border-right-color:rgba(255,255,255,.42)!important;
+  color:var(--cc542-side-text)!important;
+}
+html[data-theme]:not([data-theme="peach-sky"]) body:not(.login-body):not(.cc-style15-login-body) .topbar{
+  background:linear-gradient(155deg,rgba(255,255,255,.85),transparent 46%),linear-gradient(112deg,var(--cc542-top-a),var(--cc542-top-b))!important;
+  border-bottom-color:var(--cc542-line)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 7px 22px var(--cc542-shadow)!important;
+}
+html[data-theme]:not([data-theme="peach-sky"]) body:not(.login-body):not(.cc-style15-login-body) .page-scroll{
+  background:radial-gradient(ellipse at 82% 2%,var(--cc542-page-b),transparent 46%),linear-gradient(150deg,var(--cc542-page-a),#f8fbff 70%)!important;
+  background-attachment:fixed!important;
+}
+html[data-theme]:not([data-theme="peach-sky"]) body:not(.login-body):not(.cc-style15-login-body) .sidebar .sidebar-nav .nav-item:not(.active),
+html[data-theme]:not([data-theme="peach-sky"]) body:not(.login-body):not(.cc-style15-login-body) .sidebar .sidebar-nav .nav-item:not(.active) span{
+ color:var(--cc542-side-text)!important;-webkit-text-fill-color:var(--cc542-side-text)!important;
+}
+html[data-theme]:not([data-theme="peach-sky"]) body:not(.login-body):not(.cc-style15-login-body) .sidebar .sidebar-nav .nav-item.active{
+ background:var(--cc542-selection)!important;color:var(--cc542-selected-text)!important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.93),0 5px 15px var(--cc542-shadow)!important;
+}
+html[data-theme]:not([data-theme="peach-sky"]) body:not(.login-body):not(.cc-style15-login-body) .sidebar .sidebar-nav .nav-item.active span{
+ color:var(--cc542-selected-text)!important;-webkit-text-fill-color:var(--cc542-selected-text)!important;
+}
+html[data-theme="rose"] body:not(.login-body):not(.cc-style15-login-body) .sidebar .sidebar-nav .nav-item:not(.active),
+html[data-theme="rose"] body:not(.login-body):not(.cc-style15-login-body) .sidebar .sidebar-nav .nav-item:not(.active) span{color:#72224d!important;-webkit-text-fill-color:#72224d!important}
+/* Manager-only Burgundy is visible but locked for all non-manager users. */
+/* Burgundy is visible to all roles; managers alone may apply it. */
+html[data-cc-burgundy-allowed="0"] .theme-burgundy[aria-disabled="true"]{cursor:not-allowed!important;opacity:.73;position:relative}
+html[data-cc-burgundy-allowed="0"] .theme-burgundy[aria-disabled="true"]:is(:hover,:focus-visible)::after{content:"Managers Only";position:absolute;z-index:40;top:calc(100% + 3px);left:0;background:#4b1830;color:#fff;border:1px solid rgba(255,255,255,.8);border-radius:8px;padding:6px 9px;font:700 11px/1.3 "Plus Jakarta Sans",Arial,sans-serif;white-space:nowrap;pointer-events:none;box-shadow:0 6px 15px rgba(54,20,40,.2)}
+html[data-theme="burgundy"] .theme-burgundy .theme-look-number,
+html[data-theme="burgundy"] .theme-burgundy .theme-choice-number{background:linear-gradient(145deg,#9a4b66,#67203c)!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
+html[data-theme="burgundy"] .sidebar .prominent-theme-box,
+html[data-theme="burgundy"] .sidebar .prominent-theme-box :is(.theme-look-copy,.theme-look-action,.theme-heading,.theme-choice-copy,.theme-choice-status){color:#431d30!important;-webkit-text-fill-color:#431d30!important}
+html[data-theme="midnight"] body:not(.login-body):not(.cc-style15-login-body) .page-scroll{
+ background:linear-gradient(153deg,#101d31,#13243c 74%)!important;
+}
+/* No selector touches the login screen, KPI cards, .panel, form, label or table geometry. */
+
+/* CC26_543: Manager-only option is visually the FIRST theme; no size/font/card changes. */
+html .theme-choice-grid .theme-burgundy,html .theme-look-list .theme-burgundy{order:-1!important}
+
+/* CC26_544: hover tooltip stays within the scrollable theme list, above the next option. */
+html[data-cc-burgundy-allowed="0"] .theme-burgundy[aria-disabled="true"]:is(:hover,:focus-visible){z-index:30}
+
+
+/* CC26_545: laminated-glass SHELL ONLY + safe legible slice hover.
+   Paint-only: NO fonts, padding, margins, transforms, sizes, layout, content or KPI colours.
+   Keep the original peach-sky/reset appearance unchanged. */
+html[data-theme]:not([data-theme="peach-sky"]) body:not(.login-body):not(.cc-style15-login-body) .sidebar{
+ background:
+  linear-gradient(126deg,rgba(255,255,255,.52) 0%,rgba(255,255,255,.13) 18%,transparent 36%),
+  radial-gradient(ellipse at 4% 6%,rgba(255,255,255,.36),transparent 46%),
+  linear-gradient(154deg,var(--cc542-side-a),var(--cc542-side-b))!important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.92),inset -1px 0 0 rgba(255,255,255,.45),
+  inset 0 -13px 30px rgba(255,255,255,.055),0 7px 21px var(--cc542-shadow)!important;
+ border-right-color:rgba(255,255,255,.63)!important;
+}
+html[data-theme]:not([data-theme="peach-sky"]) body:not(.login-body):not(.cc-style15-login-body) .topbar{
+ background:
+  linear-gradient(164deg,rgba(255,255,255,.90) 0%,rgba(255,255,255,.41) 27%,transparent 44%),
+  linear-gradient(112deg,var(--cc542-top-a),var(--cc542-top-b))!important;
+ box-shadow:inset 0 1px 0 rgba(255,255,255,.96),inset 0 -1px 0 rgba(255,255,255,.52),
+  0 8px 19px var(--cc542-shadow)!important;
+ border-bottom-color:rgba(255,255,255,.73)!important;
+}
+html[data-theme]:not([data-theme="peach-sky"]) body:not(.login-body):not(.cc-style15-login-body) .page-scroll{
+ background:
+  radial-gradient(ellipse at 88% 0%,rgba(255,255,255,.85),transparent 26%),
+  radial-gradient(ellipse at 82% 6%,var(--cc542-page-b),transparent 43%),
+  linear-gradient(150deg,var(--cc542-page-a),#f8fbff 73%)!important;
+ /* A fixed painting layer repaints the viewport on every scroll; avoid that expense. */
+ background-attachment:scroll!important;
+}
+html[data-theme]:not([data-theme="peach-sky"]):not([data-theme="midnight"]) body:not(.login-body):not(.cc-style15-login-body) .sidebar .prominent-theme-box{
+ background:linear-gradient(155deg,rgba(255,255,255,.97),rgba(255,255,255,.87))!important;
+ border-color:rgba(255,255,255,.9)!important;
+ box-shadow:inset 0 1px 0 #fff,inset 0 -1px 0 rgba(255,255,255,.68),
+  0 7px 19px var(--cc542-shadow)!important;
+}
+html[data-theme="midnight"]{--cc545-hover-ink:#182940}
+/* The legacy hover paint is near-white, so previous white nav text disappeared.
+   On any non-active slice, switch both the hovered GLASS surface and its nested
+   label/serial to matching dark text. Disabled slices must remain legible too. */
+html[data-theme]:not([data-theme="peach-sky"]) body:not(.login-body):not(.cc-style15-login-body) .sidebar .sidebar-nav .nav-item:not(.active):is(:hover,:focus-visible){
+ background:linear-gradient(157deg,rgba(255,255,255,.99),rgba(255,255,255,.89))!important;
+ color:var(--cc545-hover-ink,var(--cc542-selected-text))!important;
+ -webkit-text-fill-color:var(--cc545-hover-ink,var(--cc542-selected-text))!important;
+ border-color:rgba(255,255,255,.96)!important;
+ box-shadow:inset 0 1px 0 #fff,0 4px 11px var(--cc542-shadow)!important;
+ opacity:1!important;
+}
+html[data-theme]:not([data-theme="peach-sky"]) body:not(.login-body):not(.cc-style15-login-body) .sidebar .sidebar-nav .nav-item:not(.active):is(:hover,:focus-visible) :is(span,.nav-serial){
+ color:var(--cc545-hover-ink,var(--cc542-selected-text))!important;
+ -webkit-text-fill-color:var(--cc545-hover-ink,var(--cc542-selected-text))!important;
+ text-shadow:none!important;
+}
+/* Midnight retains its dark working canvas; the brighter glass highlight is subtle. */
+html[data-theme="midnight"] body:not(.login-body):not(.cc-style15-login-body) .page-scroll{
+ background:radial-gradient(ellipse at 89% 0%,rgba(160,194,243,.08),transparent 32%),
+  linear-gradient(153deg,#101d31,#13243c 74%)!important;
+ background-attachment:scroll!important;
+}
+/* A white glass hover needs dark text also in Midnight (whose active text is white). */
+html[data-theme="midnight"] body:not(.login-body):not(.cc-style15-login-body) .sidebar .sidebar-nav .nav-item:not(.active):is(:hover,:focus-visible),
+html[data-theme="midnight"] body:not(.login-body):not(.cc-style15-login-body) .sidebar .sidebar-nav .nav-item:not(.active):is(:hover,:focus-visible) :is(span,.nav-serial){
+ color:#182940!important;-webkit-text-fill-color:#182940!important;text-shadow:none!important;
+}
+/* Keep active text legible in case a generic nav:hover rule is evaluated later. */
+html[data-theme]:not([data-theme="peach-sky"]) body:not(.login-body):not(.cc-style15-login-body) .sidebar .sidebar-nav .nav-item.active:is(:hover,:focus-visible){
+ background:var(--cc542-selection)!important;
+ color:var(--cc542-selected-text)!important;
+ -webkit-text-fill-color:var(--cc542-selected-text)!important;
+}
+html[data-theme]:not([data-theme="peach-sky"]) body:not(.login-body):not(.cc-style15-login-body) .sidebar .sidebar-nav .nav-item.active:is(:hover,:focus-visible) span{
+ color:var(--cc542-selected-text)!important;-webkit-text-fill-color:var(--cc542-selected-text)!important;
+}
