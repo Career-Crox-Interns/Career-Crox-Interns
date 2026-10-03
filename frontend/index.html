@@ -1,0 +1,762 @@
+<!doctype html>
+<html lang="en" data-theme="orange">
+  <head>
+<script id="cc750-submit-profile-reload-recovery">
+(function(){
+  'use strict';
+  try {
+    if (String(location.pathname||'').replace(/\/+$/,'') !== '/candidate/new') return;
+    var nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+    if (!nav || nav.type !== 'reload') return;
+    var id = String(sessionStorage.getItem('cc750_adopted_candidate_id') || '').trim();
+    if (!/^C[0-9A-Za-z_-]+$/.test(id)) return;
+    location.replace('/candidate/' + encodeURIComponent(id) + (location.search||'') + (location.hash||''));
+  } catch(_e) {}
+})();
+</script>
+
+<script id="cc26-697-reset-local-operational-caches">
+(function(){
+  try {
+    var marker='careerCroxOperationalResetApplied:CC26_697';
+    if(window.localStorage && localStorage.getItem(marker)==='1') return;
+    var prefixes=[
+      'careerCroxFastCache:', 'careerCroxCandidatesFastCache:',
+      'careerCroxInterviewsCache:', 'careerCroxSubmissionsCache:',
+      'careerCroxFollowUpsRows', 'careerCroxCandidateNav:',
+      'careerCroxPageCache:', 'cc_page_cache:',
+      'careerCroxCandidateDurableDraft_v6_finaldraft:',
+      'careerCroxPendingDuplicateUploadPreview_v519',
+      'careerCroxInstantCandidateProfile:', 'careerCroxRealtimeCandidatePatch:',
+      'careerCroxTasksUsers:', 'careerCroxAutoDialerQueue:',
+      'cc_chat_cache:', 'semi_hourly_opened_', 'task_snooze_',
+      'followup_snooze_', 'approval_snooze_', 'revenue_snooze_',
+      'cc_global_submission_reminder_snooze_', 'cc376_work_timer',
+      'cc399_session_work_timer', 'cc406_session_work_timer',
+      'cc406_work_timer_state', 'cc408_shared_login_work_timer',
+      'cc434_work_activity_at', 'cc456_session_activity_state'
+    ];
+    var exact=[
+      'careerCroxCachedUser', 'careerCroxSessionLoginAt',
+      'careerCroxLastActivityAt', 'careerCroxOfficeJoinedSession',
+      'careerCroxLastSubmissionCheckAt', 'careerCroxSubmissionsCachePurgeVersion',
+      'cc391_snoozed_reminder_map', 'career_crox_candidate_edit_lock',
+      'careerCroxQualityAnalystBatch', 'careerCroxLoginTransition'
+    ];
+    [window.sessionStorage,window.localStorage].forEach(function(storage){
+      if(!storage)return;
+      for(var i=storage.length-1;i>=0;i--){
+        var key=storage.key(i);
+        if(key && (exact.indexOf(key)!==-1 || prefixes.some(function(p){return key.indexOf(p)===0;})))
+          storage.removeItem(key);
+      }
+    });
+    localStorage.setItem(marker,'1');
+  } catch(e) { /* Storage may be disabled: CRM login must still open. */ }
+})();
+</script>
+
+<script>try{var p=location.pathname||'';if(/^\/login(?:\/|$)/.test(p))document.documentElement.classList.add('cc-login-route');if(/^\/chat(?:\/|$)/.test(p))document.documentElement.classList.add('cc-chat-route')}catch(e){}</script>
+
+<script id="cc26-532-theme-runtime">/* CC26_544: legacy theme engine retired. React and the single theme controller own the UI. */</script>
+
+<meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Career Crox CRM</title>
+    <link rel="icon" type="image/png" href="/assets/img/career-crox-brand-icon.png" />
+    <link rel="apple-touch-icon" href="/assets/img/career-crox-brand-icon.png" />
+    <meta name="theme-color" content="#ff7a1a" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Roboto:wght@400;500;600;700;800&display=swap" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="/assets/css/style.css?v=CC26_712_COLORFUL_ROBOTO_TABLE" />
+    <link rel="stylesheet" href="/assets/css/cc26-553-task-contrast-modal.css?v=CC26_639_MIXED_SELECTED_PALETTE" />
+    <style>
+      html,body,#root{min-height:100%;margin:0}
+      .cc459-source-shell{min-height:100vh;background:linear-gradient(135deg,#eef6ff,#fff 58%,#fff8f1)}
+      html.cc-login-route .cc459-source-shell{background:linear-gradient(135deg,#fff6ef 0%,#fff 55%,#fff0f6 100%)}
+      html.cc-chat-route .cc459-source-shell{background:linear-gradient(135deg,#f5f9ff 0%,#fbfdff 50%,#f8f3ff 100%)}
+      .cc754-login-firstpaint{min-height:100vh;display:grid;grid-template-columns:minmax(430px,44vw) 1fr;background:linear-gradient(135deg,#fff6ef 0%,#fff 55%,#fff0f6 100%);font-family:Roboto,Arial,sans-serif}
+      .cc754-login-firstpaint-left{padding:9vh 7vw;display:flex;flex-direction:column;justify-content:center;gap:16px}.cc754-login-firstpaint-right{background:linear-gradient(145deg,#fff0e6,#f6efff 52%,#eaf7ff)}
+      .cc754-login-logo-skeleton{width:260px;height:76px;border-radius:18px;background:rgba(255,255,255,.72)}.cc754-login-line{width:72%;height:24px;border-radius:12px;background:#e9edf4}.cc754-login-line.lg{width:86%;height:46px}.cc754-login-field{width:100%;height:58px;border:1px solid #ddd6cf;border-radius:16px;background:#fff}.cc754-login-button{width:100%;height:54px;border-radius:16px;background:linear-gradient(135deg,#ff8a38,#ff6d52)}
+      .cc754-chat-firstpaint{min-height:calc(100vh - 88px);padding:18px;display:grid;grid-template-columns:276px minmax(0,1fr) 316px;gap:14px;background:linear-gradient(135deg,#f5f9ff,#fbfdff 50%,#f8f3ff);font-family:Roboto,Arial,sans-serif}.cc754-chat-firstpaint>div{border:1px solid #d5e1f0;border-radius:22px;background:rgba(255,255,255,.92);box-shadow:0 18px 50px rgba(35,67,110,.08)}.cc754-chat-side,.cc754-chat-info{padding:14px;display:grid;align-content:start;gap:10px}.cc754-chat-side div,.cc754-chat-info div{height:48px;border-radius:14px;background:linear-gradient(145deg,#eef5ff,#f8faff)}.cc754-chat-centre{display:grid;grid-template-rows:74px 1fr 82px;overflow:hidden}.cc754-chat-head{background:linear-gradient(120deg,#fff,#eff6ff,#f6efff)}.cc754-chat-feed{padding:22px;display:flex;flex-direction:column;gap:12px;background:#f8fbff}.cc754-chat-feed i{display:block;width:56%;height:58px;border-radius:18px;background:#fff;box-shadow:0 8px 20px rgba(45,70,105,.06)}.cc754-chat-feed i:nth-child(2){margin-left:auto;width:46%;background:#f1efff}.cc754-chat-compose{margin:12px;border:1px solid #cfdbec;border-radius:16px;background:#fff}
+      @media(max-width:900px){.cc754-login-firstpaint{grid-template-columns:1fr}.cc754-login-firstpaint-right{display:none}.cc754-chat-firstpaint{grid-template-columns:1fr}.cc754-chat-side,.cc754-chat-info{display:none}}
+    </style>
+      <script>
+      // CC26_453: stale reminder backlog is disposable cache, never source-of-truth.
+      (function(){try{['cc377_due_reminder_backlog','cc379_due_reminder_backlog','cc388_due_reminder_backlog','cc389_due_reminder_backlog','cc390_due_reminder_backlog','cc391_due_reminder_backlog'].forEach(function(k){localStorage.removeItem(k);});}catch(e){}})();
+    </script>
+      <script id="cc26-501-quick-action-bridge">
+      (function(){
+        function sync(){
+          var wrap=document.querySelector('.top-action-wrap');if(!wrap)return;
+          var trigger=wrap.querySelector('button.add-profile-btn');
+          if(trigger&&String(trigger.textContent||'').trim()!=='Quick Action'){trigger.textContent='Quick Action';trigger.title='Quick Action';trigger.setAttribute('aria-label','Quick Action');}
+          document.querySelectorAll('.cc-distance-top-btn').forEach(function(x){x.remove()});
+          var menu=wrap.querySelector('.professional-add-menu,.add-menu');
+          if(menu&&!menu.querySelector('.cc-distance-menu-item')){
+            var b=document.createElement('button');b.type='button';b.className='cc-distance-menu-item';b.textContent='Distance Tracker';
+            b.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();if(typeof window.__CC_OPEN_DISTANCE_TRACKER==='function')window.__CC_OPEN_DISTANCE_TRACKER();else window.__CC_DISTANCE_PENDING=true;if(trigger&&menu.isConnected)setTimeout(function(){try{trigger.click()}catch(_e){}},0)});
+            var first=menu.querySelector('a,button');if(first&&first.nextSibling)menu.insertBefore(b,first.nextSibling);else menu.appendChild(b);
+          }
+        }
+        if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',sync,{once:true});else sync();
+        // CC26_604: Quick Action is the only mutation target. CRM-wide DOM changes must not re-run global scans.
+        try{
+          var scheduled=false;
+          function queueSync(){if(scheduled)return;scheduled=true;requestAnimationFrame(function(){scheduled=false;sync()})}
+          new MutationObserver(function(records){
+            for(var i=0;i<records.length;i++){
+              var rec=records[i],target=rec.target;
+              if(target&&target.nodeType===1&&target.closest&&target.closest('.top-action-wrap')){queueSync();return}
+              for(var j=0;j<rec.addedNodes.length;j++){
+                var node=rec.addedNodes[j];
+                if(node.nodeType===1&&((node.matches&&node.matches('.top-action-wrap'))||(node.querySelector&&node.querySelector('.top-action-wrap')))){queueSync();return}
+              }
+            }
+          }).observe(document.documentElement,{childList:true,subtree:true});
+        }catch(_e){}
+      })();
+    </script>
+  <!-- CC26_554 theme styles merged into style.css to avoid one extra request. -->
+<style id="cc589-securelink-slice-colour">
+/* A dedicated teal-to-indigo SecureLink slice: no other nav card or CRM element is changed. */
+html body .sidebar .sidebar-nav a.nav-item[href="/securelink"],
+html[data-theme] body:not(.login-body):not(.cc-style15-login-body) .sidebar .sidebar-nav a.nav-item[href="/securelink"]{
+  background:linear-gradient(114deg,#114d86 0%,#155c8c 42%,#087e85 100%)!important;
+  border:1px solid rgba(166,246,245,.55)!important;
+  color:#fff!important;-webkit-text-fill-color:#fff!important;
+  box-shadow:0 7px 17px rgba(6,67,111,.24),inset 0 1px 0 rgba(255,255,255,.27)!important;
+  position:relative!important;isolation:isolate!important;
+  min-height:52px!important;gap:9px!important;
+  text-decoration:none!important;
+}
+html body .sidebar .sidebar-nav a.nav-item[href="/securelink"] span,
+html[data-theme] body:not(.login-body):not(.cc-style15-login-body) .sidebar .sidebar-nav a.nav-item[href="/securelink"] span{
+  color:#fff!important;-webkit-text-fill-color:#fff!important;opacity:1!important;
+  text-shadow:none!important;font-weight:800!important;
+}
+html body .sidebar .sidebar-nav a.nav-item[href="/securelink"] .nav-serial,
+html[data-theme] body:not(.login-body):not(.cc-style15-login-body) .sidebar .sidebar-nav a.nav-item[href="/securelink"] .nav-serial{
+  display:inline-grid!important;place-items:center!important;min-width:29px!important;height:29px!important;
+  padding:0 5px!important;border-radius:10px!important;background:rgba(255,255,255,.2)!important;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.25)!important;
+  font-variant-numeric:tabular-nums!important;
+}
+html body .sidebar .sidebar-nav a.nav-item[href="/securelink"]::after,
+html[data-theme] body:not(.login-body):not(.cc-style15-login-body) .sidebar .sidebar-nav a.nav-item[href="/securelink"]::after{
+  content:"↗"!important;display:grid!important;place-items:center!important;margin-left:auto!important;
+  flex:none!important;width:23px!important;height:23px!important;border-radius:8px!important;
+  background:rgba(255,255,255,.18)!important;color:#fff!important;font-size:16px!important;
+}
+html body .sidebar .sidebar-nav a.nav-item[href="/securelink"]:is(:hover,:focus-visible){
+  background:linear-gradient(114deg,#0a3f72 0%,#076c89 55%,#047d70 100%)!important;
+  transform:translateX(2px)!important;filter:brightness(1.07)!important;
+}
+html body .sidebar .sidebar-nav a.nav-item[href="/securelink"]:focus-visible{
+  outline:3px solid #83e5ff!important;outline-offset:2px!important;
+}
+</style>
+<style id="cc701-readability">
+/* CC26_701 – readable candidate data, compact row spacing. Pure CSS: zero API requests. */
+body:not(.login-body) :is(.crm-shell,.app-shell) .interview-readable-table,
+body:not(.login-body) :is(.crm-shell,.app-shell) .submissions-table,
+body:not(.login-body) :is(.crm-shell,.app-shell) .followups-readable-table,
+body:not(.login-body) :is(.crm-shell,.app-shell) .candidates-overview-table{
+  font-family:"Plus Jakarta Sans","Inter","Segoe UI",Arial,sans-serif!important;
+  font-variant-numeric:tabular-nums;
+  letter-spacing:0!important;
+}
+body:not(.login-body) :is(.crm-shell,.app-shell) .interview-readable-table tbody td,
+body:not(.login-body) :is(.crm-shell,.app-shell) .submissions-table tbody td,
+body:not(.login-body) :is(.crm-shell,.app-shell) .followups-readable-table tbody td,
+body:not(.login-body) :is(.crm-shell,.app-shell) .candidates-overview-table tbody td{
+  font-size:17.5px!important;
+  font-weight:700!important;
+  line-height:1.32!important;
+  padding:9px 7px!important;
+  vertical-align:middle!important;
+  overflow-wrap:break-word;
+}
+body:not(.login-body) :is(.crm-shell,.app-shell) .interview-readable-table thead th,
+body:not(.login-body) :is(.crm-shell,.app-shell) .submissions-table thead th,
+body:not(.login-body) :is(.crm-shell,.app-shell) .followups-readable-table thead th,
+body:not(.login-body) :is(.crm-shell,.app-shell) .candidates-overview-table thead th{
+  font-size:14.5px!important;
+  line-height:1.28!important;
+  font-weight:850!important;
+  padding:7px 6px!important;
+}
+body:not(.login-body) :is(.crm-shell,.app-shell) .interview-readable-table tbody td strong,
+body:not(.login-body) :is(.crm-shell,.app-shell) .submissions-table tbody td strong,
+body:not(.login-body) :is(.crm-shell,.app-shell) .followups-readable-table tbody td strong,
+body:not(.login-body) :is(.crm-shell,.app-shell) .candidates-overview-table tbody td strong,
+body:not(.login-body) :is(.crm-shell,.app-shell) .candidates-overview-table .candidate-name-cell strong{
+  font-size:19.5px!important;
+  font-weight:850!important;
+  line-height:1.28!important;
+}
+body:not(.login-body) :is(.crm-shell,.app-shell) .interview-readable-table .helper-text,
+body:not(.login-body) :is(.crm-shell,.app-shell) .interview-readable-table .subtle,
+body:not(.login-body) :is(.crm-shell,.app-shell) .submissions-table .helper-text,
+body:not(.login-body) :is(.crm-shell,.app-shell) .submissions-table .subtle,
+body:not(.login-body) :is(.crm-shell,.app-shell) .followups-readable-table .helper-text,
+body:not(.login-body) :is(.crm-shell,.app-shell) .followups-readable-table .subtle,
+body:not(.login-body) :is(.crm-shell,.app-shell) .candidates-overview-table .helper-text,
+body:not(.login-body) :is(.crm-shell,.app-shell) .candidates-overview-table .subtle{
+  font-size:15px!important;
+  line-height:1.36!important;
+  font-weight:700!important;
+}
+body:not(.login-body) :is(.crm-shell,.app-shell) .interview-readable-table .status-chip,
+body:not(.login-body) :is(.crm-shell,.app-shell) .submissions-table .status-chip,
+body:not(.login-body) :is(.crm-shell,.app-shell) .followups-readable-table .status-chip,
+body:not(.login-body) :is(.crm-shell,.app-shell) .candidates-overview-table .status-chip{
+  font-size:16px!important;
+  font-weight:850!important;
+  line-height:1.28!important;
+  padding:5px 9px!important;
+  white-space:normal!important;
+}
+body:not(.login-body) :is(.crm-shell,.app-shell) .interview-quick-filter-strip .compact-inline-input,
+body:not(.login-body) :is(.crm-shell,.app-shell) .interview-sort-strip .compact-inline-input,
+body:not(.login-body) :is(.crm-shell,.app-shell) .submission-quick-filter-strip .compact-inline-input,
+body:not(.login-body) :is(.crm-shell,.app-shell) .interview-quick-filter-strip select,
+body:not(.login-body) :is(.crm-shell,.app-shell) .submission-quick-filter-strip select{
+  font-size:16.5px!important;
+  font-weight:750!important;
+  min-height:37px!important;
+}
+body:not(.login-body) :is(.crm-shell,.app-shell) .interview-quick-filter-strip .compact-shell-label,
+body:not(.login-body) :is(.crm-shell,.app-shell) .interview-sort-strip .compact-shell-label,
+body:not(.login-body) :is(.crm-shell,.app-shell) .submission-quick-filter-strip .compact-shell-label{
+  font-size:14px!important;
+  font-weight:800!important;
+}
+body:not(.login-body) :is(.crm-shell,.app-shell) .interview-recruiter-title,
+body:not(.login-body) :is(.crm-shell,.app-shell) .interview-date-heading{
+  font-size:18px!important;
+  line-height:1.3!important;
+  font-weight:850!important;
+}
+body:not(.login-body) .candidate-detail-full-panel .cc701-status-shell .native-select-field select{
+  display:block!important;
+  width:100%!important;
+  min-height:43px!important;
+  font-size:17px!important;
+  font-weight:800!important;
+  line-height:1.3!important;
+  border-radius:10px!important;
+}
+body:not(.login-body) .candidate-detail-full-panel .cc701-status-shell label{
+  font-size:15px!important;
+  font-weight:800!important;
+}
+body:not(.login-body) .candidate-detail-full-panel .candidate-form-grid input,
+body:not(.login-body) .candidate-detail-full-panel .candidate-form-grid select,
+body:not(.login-body) .candidate-detail-full-panel .candidate-form-grid textarea{
+  font-size:16px!important;
+  line-height:1.35!important;
+}
+@media(max-width:1100px){
+  body:not(.login-body) :is(.crm-shell,.app-shell) .interview-readable-table tbody td,
+  body:not(.login-body) :is(.crm-shell,.app-shell) .submissions-table tbody td,
+  body:not(.login-body) :is(.crm-shell,.app-shell) .followups-readable-table tbody td{
+    font-size:16.5px!important;
+  }
+}
+body:not(.login-body) :is(.crm-shell,.app-shell) .interview-readable-table thead th,
+body:not(.login-body) :is(.crm-shell,.app-shell) .submissions-table thead th,
+body:not(.login-body) :is(.crm-shell,.app-shell) .followups-readable-table thead th{
+  white-space:normal!important;
+  overflow-wrap:anywhere!important;
+}
+body:not(.login-body) :is(.crm-shell,.app-shell) .crm-table-wrap{
+  max-width:100%;
+  overflow-x:auto;
+  overscroll-behavior-x:contain;
+}
+
+</style>
+    <link rel="stylesheet" href="/assets/css/cc26-730-client-fixes.css?v=CC26_757_TRUSTED_PHONE_REMINDER" />
+</head>
+  <body>
+    <script>/* CC26_474: apply Team Chat scope immediately; outer CRM chrome remains untouched. */try{if(/\/chat(?:\/|$)/.test(location.pathname||''))document.body.classList.add('cc474-chat')}catch(e){}</script>
+    <div id="root"><div class="cc459-source-shell" aria-hidden="true"></div></div>
+    <script src="/assets/js/cc26-602-idle-egress-guard.js?v=CC26_631_INSTANT_DIRECTORY_TIMER"></script>
+    <script>
+      // CC26_474: safe scoped compatibility layer; no global DOM loop or 5-second reprocessor.
+      (function(){var once=false;function add(src){var e=document.createElement('script');e.src=src;e.async=true;document.body.appendChild(e);}function load(){if(once)return;once=true;add('/assets/js/cc26-448-live-sync.js?v=CC26_556');add('/assets/js/cc26-451-workflow.js?v=CC26_757_TRUSTED_PHONE_REMINDER');add('/assets/js/cc26-463-quick-add-full.js?v=CC26_757_TRUSTED_PHONE_REMINDER');add('/assets/js/cc26-474-runtime-safe.js?v=CC26_582_REAL_PICKER');add('/assets/js/cc26-486-distance-tracker.js?v=CC26_556');}window.addEventListener('career-crox-react-ready',function(){if('requestIdleCallback' in window)requestIdleCallback(load,{timeout:1200});else setTimeout(load,250);},{once:true});})();
+    </script>
+    <script src="/assets/runtime-cc26-558-3cffd1808545.js" defer></script>
+    <!-- CC26_688_PROFILE_DATA_COMPAT_BEGIN -->
+<script id="cc26-688-profile-data-compat">
+(function(){'use strict';if(window.__CC688_PROFILE_DATA_COMPAT__)return;window.__CC688_PROFILE_DATA_COMPAT__=true;
+var nativeFetch=window.fetch.bind(window);
+function txt(v){return v===null||v===undefined?'':String(v)}function obj(v){return v&&typeof v==='object'&&!Array.isArray(v)?v:{}}function arr(v){return Array.isArray(v)?v:[]}
+function flat(raw,id){var src=obj(raw),out={};Object.keys(src).forEach(function(k){var v=src[k];if(v===null||v===undefined){out[k]='';return}if(Array.isArray(v)){out[k]=v;return}if(typeof v==='object'){try{out[k]=JSON.stringify(v)}catch(_){out[k]=''};return}out[k]=v});out.candidate_id=txt(out.candidate_id||out.id||id);out.full_name=txt(out.full_name||out.name||out.candidate_name||out.candidate_id);out.location=txt(out.location||out.current_location);out.current_location=txt(out.current_location||out.location);out.in_hand_salary=txt(out.in_hand_salary||out.inhand_salary);out.inhand_salary=txt(out.inhand_salary||out.in_hand_salary);out.course_name=txt(out.course_name||out.qualification);out.qualification=txt(out.qualification||out.course_name);out.approval_status=txt(out.approval_status||'Draft');out.status=txt(out.status||'Draft');out.all_details_sent=txt(out.all_details_sent||'Pending');return out}
+function norm(data,id){var d=obj(data),src=d.item||d.candidate||d.profile||((d.candidate_id||d.full_name)?d:null);if(!src)return d;var n={};Object.keys(d).forEach(function(k){n[k]=d[k]});n.item=flat(src,id);n.notes=arr(d.notes);n.timeline=arr(d.timeline||d.activity);n.files=arr(d.files);n.nav_items=arr(d.nav_items||d.navigation);n.process_options=arr(d.process_options);n.recruiter_options=arr(d.recruiter_options||d.users);return n}
+function detailId(input,init){try{var method=txt(init&&init.method||((input&&typeof input==='object')?input.method:'GET')||'GET').toUpperCase();if(method!=='GET')return'';var url=typeof input==='string'?input:(input&&input.url)||'';var u=new URL(url,location.origin),m=u.pathname.match(/^\/api\/candidates\/([^/]+)$/i);return m?decodeURIComponent(m[1]||''):''}catch(_){return''}}
+window.fetch=function(input,init){var id=detailId(input,init);if(!id)return nativeFetch(input,init);return nativeFetch(input,init).then(function(resp){if(!resp||!resp.ok)return resp;var ct=txt(resp.headers&&resp.headers.get&&resp.headers.get('content-type')).toLowerCase();if(ct.indexOf('application/json')<0)return resp;return resp.clone().json().then(function(data){var fixed=norm(data,id),headers=new Headers(resp.headers||{});headers.set('content-type','application/json; charset=utf-8');return new Response(JSON.stringify(fixed),{status:resp.status,statusText:resp.statusText,headers:headers})}).catch(function(){return resp})})};
+})();
+</script>
+<!-- CC26_688_PROFILE_DATA_COMPAT_END -->
+<script type="module" src="/src/main.jsx"></script>
+      <script src="/assets/js/cc26-584-chat-ui-polish.js?v=CC26_584_CHAT_POLISH" defer></script>
+      <script src="/assets/js/cc26-585-popup-chat-premium.js?v=CC26_757_TRUSTED_PHONE_REMINDER" defer></script>
+    <script defer src="/securelink/sidebar.js?v=CC26_622"></script>
+  <!-- CC26_625_TASK_ALERT_BEGIN -->
+<style id="cc625-task-style">
+/* Scoped task alerts; existing CRM cards, profiles and legacy popups untouched. */
+html body .cc625-task-popup{position:fixed!important;left:20px!important;bottom:20px!important;z-index:2147483601!important;width:min(480px,calc(100vw - 24px))!important;max-height:min(80vh,660px)!important;overflow-y:auto!important;box-sizing:border-box!important;padding:18px 20px!important;background:linear-gradient(135deg,#ffffff 5%,#f1f7ff 56%,#ebfff6 100%)!important;border:1px solid #b7d9f7!important;border-radius:24px!important;box-shadow:0 24px 70px #1e3a8a38,inset 0 2px #ffffff!important;font:600 14px/1.5 "Plus Jakarta Sans","Segoe UI",system-ui,sans-serif!important;color:#17243f!important;animation:cc625-appear .26s ease both!important}
+html body .cc625-task-popup *{box-sizing:border-box!important;letter-spacing:normal!important;text-transform:none!important}
+html body .cc625-task-popup .cc625-head{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important;color:#146b89!important;font-size:12px!important;font-weight:900!important;letter-spacing:.07em!important}
+html body .cc625-task-popup .cc625-head button{font-size:26px!important;line-height:1!important;background:#e5efff!important;color:#21436d!important;border:0!important;border-radius:10px!important;width:33px!important;height:33px!important;cursor:pointer!important}
+html body .cc625-task-popup h3{font-size:23px!important;line-height:1.25!important;color:#14284b!important;font-weight:900!important;overflow-wrap:anywhere!important;margin:11px 0 4px!important}
+html body .cc625-task-popup p{margin:7px 0!important;font-size:14px!important;line-height:1.5!important;color:#344762!important;overflow-wrap:anywhere!important}
+html body .cc625-task-popup .cc625-hint{font-size:15px!important;color:#197e77!important;font-weight:850!important}
+html body .cc625-task-popup .cc625-meta{font-size:12px!important;font-weight:800!important}
+html body .cc625-task-popup .cc625-desc{max-height:100px!important;overflow-y:auto!important;background:#ffffffbf!important;padding:11px!important;border:1px solid #dae6f6!important;border-radius:12px!important}
+html body .cc625-task-popup .cc625-actions{display:grid!important;grid-template-columns:1fr 1fr!important;gap:8px!important;margin-top:13px!important}
+html body .cc625-task-popup .cc625-actions button,html body .cc625-task-popup .cc625-presets button{border:0!important;border-radius:12px!important;min-height:40px!important;padding:9px!important;font:900 13px "Plus Jakarta Sans",system-ui,sans-serif!important;cursor:pointer!important;white-space:normal!important}
+html body .cc625-task-popup .cc625-complete{background:linear-gradient(110deg,#059669,#10b981)!important;color:white!important}
+html body .cc625-task-popup .cc625-open{background:linear-gradient(110deg,#2563eb,#6366f1)!important;color:white!important}
+html body .cc625-task-popup .cc625-later{grid-column:span 2!important;color:#214266!important;background:#d9eafd!important}
+html body .cc625-task-popup button:disabled{opacity:.55!important;cursor:wait!important}
+html body .cc625-task-popup .cc625-presets:not([hidden]){display:flex!important;flex-wrap:wrap!important;gap:6px!important;padding:9px!important;border-radius:12px!important;background:#ecf6ff!important;margin-top:8px!important}
+html body .cc625-task-popup .cc625-presets[hidden]{display:none!important}
+html body .cc625-task-popup .cc625-presets button{min-height:34px!important;background:white!important;border:1px solid #b9d5f0!important;color:#21527b!important;padding:7px 9px!important}
+html body .cc625-task-popup .cc625-presets input{min-width:115px!important;flex:1!important;border:1px solid #bad1ec!important;border-radius:9px!important;padding:7px!important;background:white!important;color:#1f3455!important}
+html body .cc625-task-popup .cc625-feedback{font-weight:800!important;color:#b45309!important}
+html body .cc625-task-popup .cc625-footer button{background:transparent!important;border:0!important;color:#3262b0!important;font-size:11px!important;cursor:pointer!important;font-weight:800!important;padding:7px 0 0!important}
+@keyframes cc625-appear{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:600px){html body .cc625-task-popup{left:8px!important;bottom:8px!important;padding:13px!important}html body .cc625-task-popup h3{font-size:20px!important}}
+</style>
+<script id="cc625-task-runtime">
+/* CC26_625: Employee-only Task desktop alerts. No recurring task table reads.
+   Cookie-authenticated SSE + one narrow bootstrap + local, per-user timers. */
+(function careerCroxTaskAlerts625() {
+  'use strict';
+  if (window.__CC625_TASK_ALERTS__) return;
+  window.__CC625_TASK_ALERTS__ = true;
+  const PREFIX = 'cc625:alert:';
+  const USER_KEY = 'careerCroxCachedUser';
+  const ACTIVITY_KEY = 'careerCroxLastActivityAt';
+  const IDLE_MS = 10 * 60 * 1000;
+  const presets = [5, 15, 30, 60, 180];
+  const tasks = new Map();
+  let userId = '', controller = null, reconnect = null, dueTimer = null, idleCheck = null;
+  let popup = null, active = false, connecting = false, reconnectDelay = 10000;
+  let eventQueue = [], pending = new Set(), openedOnce = false, failedFetch = false;
+
+  function userFromStorage() {
+    try {
+      const user = JSON.parse(localStorage.getItem(USER_KEY) || 'null');
+      const lastActivity = Number(localStorage.getItem(ACTIVITY_KEY) || 0);
+      if (!user || !user.user_id || !lastActivity || Date.now() - lastActivity >= IDLE_MS) return null;
+      return user;
+    } catch { return null; }
+  }
+  function isSignedIn() { return Boolean(userId && userFromStorage()?.user_id === userId && !/^\/login(?:\/|$)/.test(location.pathname)); }
+  function dueMs(raw) {
+    let s = String(raw || '').trim();
+    if (/^\d{4}-\d\d-\d\d$/.test(s)) s += 'T00:00:00+05:30';
+    else if (/^\d{4}-\d\d-\d\d[ T]\d\d:\d\d(?::\d\d(?:\.\d+)?)?$/.test(s)) s = s.replace(' ', 'T') + '+05:30';
+    const n = Date.parse(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+  function formatIST(raw) {
+    const ms = dueMs(raw);
+    return ms ? new Intl.DateTimeFormat('en-IN', {timeZone:'Asia/Kolkata',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:true}).format(ms) + ' IST' : 'No due time';
+  }
+  function unique(task, kind) { return [PREFIX,userId,String(task.task_id),String(task.due_date),kind].join(':'); }
+  function saved(key) { try { return Number(localStorage.getItem(key) || 0); } catch { return 0; } }
+  function save(key, at) { try { localStorage.setItem(key,String(at)); } catch {} }
+  function forget(key) { try { localStorage.removeItem(key); } catch {} }
+  function valid(task) {
+    return task && task.task_id && ['open','in progress'].includes(String(task.status || '').toLowerCase()) ;
+  }
+  function releasePopup() { popup?.remove(); popup = null; }
+  function stop() {
+    active = false; userId = ''; connecting = false; openedOnce = false; failedFetch = false;
+    try { controller?.abort(); } catch {} controller = null;
+    clearTimeout(reconnect); reconnect = null;
+    clearTimeout(dueTimer); dueTimer = null;
+    clearInterval(idleCheck); idleCheck = null;
+    tasks.clear(); pending.clear(); eventQueue = []; releasePopup();
+  }
+  function markDone(task) {
+    const taskId = String(task.task_id || '');
+    tasks.delete(taskId);
+    for (const kind of ['assigned','due']) pending.delete(unique(task,kind));
+    eventQueue = eventQueue.filter(item => String(item.task.task_id) !== taskId);
+    if (popup && popup.dataset.taskId === taskId) releasePopup();
+    scheduleNext(); showNext();
+    window.dispatchEvent(new CustomEvent('career-crox-task-updated', {detail:{task_id:taskId,status:'Completed'}}));
+  }
+  function addTask(task, assignedEvent) {
+    if (!task || !task.task_id) return;
+    const id = String(task.task_id);
+    if (!valid(task)) { tasks.delete(id); scheduleNext(); return; }
+    tasks.set(id, task);
+    if (assignedEvent) enqueue(task,'assigned');
+    scheduleNext();
+  }
+  function enqueue(task, kind) {
+    if (!isSignedIn() || !valid(task)) return;
+    const key = unique(task,kind);
+    const now = Date.now();
+    if (saved(key) || (saved(key+':snooze') > now) || pending.has(key)) return;
+    pending.add(key);
+    eventQueue.push({task,kind,key});
+    showNext();
+  }
+  function scheduleNext() {
+    clearTimeout(dueTimer); dueTimer = null;
+    if (!isSignedIn()) return;
+    const now = Date.now();
+    let next = Infinity;
+    for (const [id, task] of tasks) {
+      if (!valid(task)) { tasks.delete(id); continue; }
+      if (!dueMs(task.due_date) || dueMs(task.due_date) <= now-60*60000) continue;
+      const key = unique(task,'due');
+      if (saved(key) || pending.has(key)) continue;
+      const snooze = saved(key+':snooze');
+      const at = Math.max(dueMs(task.due_date) - 15*60000, snooze || 0);
+      if (at <= now) enqueue(task,'due');
+      else next = Math.min(next,at);
+      // Remind Later on the NEW assignment must reappear after the chosen
+      // minutes, even when the actual task is due tomorrow or next week.
+      const assignedKey = unique(task,'assigned');
+      const assignedSnooze = saved(assignedKey+':snooze');
+      if (assignedSnooze && !saved(assignedKey) && !pending.has(assignedKey)) {
+        if (assignedSnooze <= now) enqueue(task,'assigned');
+        else next = Math.min(next, assignedSnooze);
+      }
+    }
+    if (Number.isFinite(next)) dueTimer = setTimeout(scheduleNext,Math.max(100,Math.min(next-Date.now()+40,2147483647)));
+  }
+  function desktopNotification(item) {
+    if (document.visibilityState !== 'hidden' || !('Notification' in window) || Notification.permission !== 'granted') return;
+    try {
+      const notification = new Notification(item.kind === 'assigned' ? 'New Task · Career Crox' : 'Task due in 15 minutes', {
+        body: String(item.task.title || 'Task') + ' • ' + formatIST(item.task.due_date), tag:item.key,
+      });
+      notification.onclick = function () { window.focus(); location.assign('/tasks?task_id='+encodeURIComponent(item.task.task_id)); notification.close(); };
+    } catch {}
+  }
+  function showNext() {
+    if (popup || !isSignedIn()) return;
+    while (eventQueue.length) {
+      const item = eventQueue.shift();
+      pending.delete(item.key);
+      if (!valid(tasks.get(String(item.task.task_id))) || saved(item.key) || saved(item.key+':snooze') > Date.now()) continue;
+      // Claim before rendering so a second tab does not show the same alert.
+      save(item.key,Date.now());
+      renderPopup(item);
+      desktopNotification(item);
+      break;
+    }
+  }
+  function renderPopup(item) {
+    const task = item.task, isNew = item.kind === 'assigned';
+    popup = document.createElement('section');
+    popup.className='cc625-task-popup'; popup.dataset.taskId=String(task.task_id);
+    popup.setAttribute('role','dialog'); popup.setAttribute('aria-label',isNew?'New Task Assigned':'Task Reminder');
+    const header = document.createElement('div'); header.className='cc625-head';
+    const label = document.createElement('span'); label.textContent=isNew?'✦ NEW TASK ASSIGNED':'⏰ DUE IN 15 MINUTES';
+    const close = document.createElement('button'); close.type='button'; close.textContent='×'; close.title='Dismiss this alert'; close.setAttribute('aria-label','Dismiss alert');
+    close.onclick = () => { releasePopup(); scheduleNext(); showNext(); };
+    header.append(label,close);
+    const title=document.createElement('h3'); title.textContent=String(task.title||'Task').slice(0,160);
+    const hint=document.createElement('p'); hint.className='cc625-hint'; hint.textContent=isNew?'Your task is ready. Open it or plan your reminder.':'Ye kaam karna hai, bhai kar lo!';
+    const meta=document.createElement('p'); meta.className='cc625-meta'; meta.textContent='👤 '+String(task.assigned_to_name || 'Your task')+'  •  '+String(task.priority||'Normal')+' priority  •  '+formatIST(task.due_date);
+    const desc=document.createElement('p');desc.className='cc625-desc';desc.textContent=String(task.description||'Open the task to see more details.').slice(0,400);
+    const feedback=document.createElement('p');feedback.className='cc625-feedback'; feedback.setAttribute('role','status');
+    const actions=document.createElement('div'); actions.className='cc625-actions';
+    const complete=document.createElement('button'); complete.type='button'; complete.className='cc625-complete'; complete.textContent='✓ Mark Completed';
+    const open=document.createElement('button');open.type='button';open.className='cc625-open';open.textContent='Open Task ↗';
+    const later=document.createElement('button');later.type='button';later.className='cc625-later';later.textContent='Remind Later ▾';
+    const presetsBox=document.createElement('div');presetsBox.className='cc625-presets';presetsBox.hidden=true;
+    function snooze(minutes) {
+      const min=Number(minutes);
+      if (!Number.isFinite(min) || min < 1 || min > 10080) { feedback.textContent='Choose 1 to 10080 minutes.'; return; }
+      const key=unique(task,item.kind);
+      forget(key);
+      save(key+':snooze',Date.now()+min*60000);
+      // For newly assigned tasks, keep the due reminder independent of the new alert.
+      if (item.kind === 'assigned') {
+        const dueKey=unique(task,'due');
+        save(dueKey+':snooze',Date.now()+min*60000);
+      }
+      releasePopup(); scheduleNext(); showNext();
+    }
+    for(const min of presets) {
+      const b=document.createElement('button');b.type='button';b.textContent=min<60?min+'m':min/60+'h';b.onclick=()=>snooze(min);presetsBox.append(b);
+    }
+    const custom=document.createElement('input'); custom.type='number';custom.min='1';custom.max='10080';custom.placeholder='Custom minutes'; custom.setAttribute('aria-label','Custom reminder minutes');
+    const customGo=document.createElement('button');customGo.type='button';customGo.textContent='Set reminder';customGo.onclick=()=>snooze(custom.value);
+    presetsBox.append(custom,customGo);
+    later.onclick=()=>{presetsBox.hidden=!presetsBox.hidden;};
+    open.onclick=()=>{releasePopup();location.assign('/tasks?task_id='+encodeURIComponent(task.task_id));};
+    complete.onclick=async()=>{
+      complete.disabled=true; later.disabled=true; feedback.textContent='Saving completion…';
+      try {
+        if (!isSignedIn()) throw new Error('Your CRM session ended. Please sign in again.');
+        const res=await fetch('/api/tasks/'+encodeURIComponent(task.task_id),{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json','X-Career-Crox-Last-Activity-At':String(Number(localStorage.getItem(ACTIVITY_KEY)||0))},body:JSON.stringify({status:'Completed'})});
+        const data=await res.json().catch(()=>({}));
+        if (!res.ok || String(data?.item?.task_id||'') !== String(task.task_id)) throw new Error(data?.message||'Server did not confirm completion. Retry.');
+        markDone(task);
+      } catch (err) {
+        feedback.textContent=String(err.message||'Could not save. Retry.'); complete.disabled=false; later.disabled=false;
+      }
+    };
+    actions.append(complete,open,later);
+    popup.append(header,title,hint,meta,desc,actions,presetsBox,feedback);
+    const footer=document.createElement('div');footer.className='cc625-footer';
+    const enable=document.createElement('button');enable.type='button';enable.textContent='Enable Windows alerts';
+    enable.onclick=async()=>{
+      if (!('Notification' in window)) { feedback.textContent='Browser desktop notifications are unavailable. In-CRM popups still work.';return; }
+      try { const result=await Notification.requestPermission();feedback.textContent=result==='granted'?'Desktop notifications enabled.':'Browser notification permission not granted.'; } catch {feedback.textContent='Please allow notifications in your browser settings.';}
+    };
+    footer.append(enable);popup.append(footer);
+    document.body.append(popup);
+  }
+  function applyServerEvent(payload) {
+    if (!isSignedIn() || !payload?.task) return;
+    const task = payload.task;
+    if (payload.kind === 'updated') {
+      if (!valid(task)) { markDone(task); return; }
+      addTask(task,false);
+      return;
+    }
+    if (payload.kind === 'assigned') addTask(task,true);
+  }
+  async function loadUpcoming() {
+    if (!isSignedIn()) return;
+    try {
+      const res=await fetch('/api/tasks/alerts/upcoming',{credentials:'include',cache:'no-store',headers:{'X-Career-Crox-Background':'1'}});
+      if (!res.ok) throw new Error('Task reminders could not be loaded.');
+      const data=await res.json(); if (!isSignedIn()) return;
+      for(const task of (Array.isArray(data.items)?data.items:[])) addTask(task,false);
+      failedFetch=false;
+      scheduleNext();
+    } catch { failedFetch=true; /* no infinite DB retry / no unverified saved claim */ }
+  }
+  async function streamAlerts(signal) {
+    const response=await fetch('/api/tasks/alerts/events',{credentials:'include',cache:'no-store',signal,headers:{'Accept':'text/event-stream','X-Career-Crox-Background':'1'}});
+    if (!response.ok || !response.body) throw new Error('Task event stream unavailable.');
+    const reader=response.body.getReader(), decoder=new TextDecoder(); let buffer='';
+    try {
+      while (!signal.aborted && isSignedIn()) {
+        const {done,value}=await reader.read(); if (done) break;
+        buffer+=decoder.decode(value,{stream:true});
+        if(buffer.length>12000)buffer=buffer.slice(-12000);
+        let cut;while((cut=buffer.indexOf('\n\n'))>=0){
+          const record=buffer.slice(0,cut);buffer=buffer.slice(cut+2);
+          for(const line of record.split('\n')) if(line.startsWith('data: ')) {
+            try {applyServerEvent(JSON.parse(line.slice(6)));} catch {}
+          }
+        }
+      }
+    } finally { try { reader.cancel(); } catch {} }
+  }
+  function openStream() {
+    if (connecting || !isSignedIn()) return;
+    connecting=true; controller=new AbortController();const current=controller;
+    streamAlerts(current.signal).then(()=>{
+      if (!current.signal.aborted && isSignedIn()) reconnectDelay=10000;
+    }).catch(()=>{}).finally(()=>{
+      connecting=false;
+      if (controller===current) controller=null;
+      if (!current.signal.aborted && isSignedIn()) {
+        // One targeted recovery query after a dropped stream, never a polling loop.
+        reconnect=setTimeout(async()=>{
+          reconnect=null;if(!isSignedIn())return;
+          if (failedFetch || openedOnce) await loadUpcoming();
+          if (isSignedIn()) openStream();
+        },reconnectDelay);
+        reconnectDelay=Math.min(reconnectDelay*2,120000);
+      }
+    });
+  }
+  function checkSession() {
+    const user=userFromStorage();
+    if (!user || /^\/login(?:\/|$)/.test(location.pathname)) {if(active)stop();return;}
+    const id=String(user.user_id);
+    if (active && id===userId) return;
+    stop(); userId=id;active=true;
+    idleCheck=setInterval(()=>{
+      if(!isSignedIn()){stop();return;}
+      // Browser sleep/resume does not require a fresh server read to show due tasks.
+      if (!document.hidden) scheduleNext();
+    },60000); // Local clock only: zero network requests.
+    openStream(); openedOnce=true;loadUpcoming();
+  }
+  window.addEventListener('career-crox-idle-lock-begin',stop);
+  window.addEventListener('career-crox-session-expired',stop);
+  window.addEventListener('storage',(e)=>{if(e.key===USER_KEY||e.key===ACTIVITY_KEY)checkSession();});
+  window.addEventListener('pageshow',checkSession);
+  window.addEventListener('popstate',checkSession);
+  window.addEventListener('focus',()=>{checkSession();scheduleNext();});
+  window.addEventListener('career-crox-react-ready',checkSession);
+  // React Router changes routes without popstate. This hook performs NO requests
+  // for same-user navigation and avoids DOM mutation observers / table reloads.
+  for(const type of ['pushState','replaceState']) {
+    const original=history[type];
+    history[type]=function(){const answer=original.apply(this,arguments);queueMicrotask(checkSession);return answer;};
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',checkSession,{once:true});else checkSession();
+})();
+</script>
+<style id="cc628-task-attendance-style">
+/* Strong scoped overrides applied late, after large legacy themes. */
+html body:not(.login-body) .task-modal-fix .task-modal-no-overlap::before,
+html body:not(.login-body) .task-modal-fix .task-modal-no-overlap::after,
+html body:not(.login-body) .task-modal-fix .task-premium-form .field::before,
+html body:not(.login-body) .task-modal-fix .task-premium-form .field::after{
+ content:none!important;display:none!important;border:0!important;background:none!important;box-shadow:none!important;height:0!important;
+}
+html body:not(.login-body) .task-modal-fix{align-items:center!important;justify-content:center!important;padding:12px!important;overscroll-behavior:contain!important}
+html body:not(.login-body) .task-modal-fix .task-premium-modal.task-modal-no-overlap{
+ display:flex!important;flex-direction:column!important;width:min(790px,calc(100vw - 30px))!important;
+ max-height:calc(100dvh - 38px)!important;min-height:0!important;overflow:hidden!important;
+ background:linear-gradient(145deg,#f9fffb 0%,#ecfff4 62%,#e3ffed 100%)!important;
+ border:1px solid #7bcfa7!important;border-radius:25px!important;
+ box-shadow:0 22px 76px rgba(6,68,44,.35),inset 0 1px 0 #fff!important;padding:19px 22px!important;
+}
+html body:not(.login-body) .task-modal-fix .cc553-task-editor-heading{
+ flex:0 0 auto!important;position:sticky!important;top:0!important;z-index:4!important;
+ background:linear-gradient(120deg,#f9fffb,#eafff3)!important;border:0!important;border-radius:13px!important;padding:3px 0 9px!important;
+}
+html body:not(.login-body) .task-modal-fix .cc553-task-editor-heading .panel-title{
+ font-size:clamp(21px,2.5vw,27px)!important;color:#075c3c!important;-webkit-text-fill-color:#075c3c!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-modal > .helper-text{
+ flex:0 0 auto!important;color:#376a54!important;-webkit-text-fill-color:#376a54!important;
+ font-size:13px!important;line-height:1.45!important;margin:0 0 5px!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form{
+ flex:1 1 auto!important;min-height:0!important;overflow-x:hidden!important;overflow-y:auto!important;
+ overscroll-behavior:contain!important;scrollbar-color:#46ba8c #e9fff2!important;
+ scrollbar-width:thin!important;padding:4px 5px 0 0!important;margin-top:5px!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .field{
+ background:linear-gradient(125deg,#fff,#f0fff6)!important;border:1px solid #bce6ce!important;
+ border-radius:15px!important;box-shadow:0 5px 14px rgba(7,96,65,.08),inset 0 1px 0 #fff!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form :is(input,textarea,select){
+ background:#fff!important;color:#103b2a!important;-webkit-text-fill-color:#103b2a!important;
+ border:1px solid #94d7b5!important;font-size:15px!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form :is(input,textarea)::placeholder{
+ color:#527361!important;-webkit-text-fill-color:#527361!important;opacity:1!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form label{
+ color:#124e36!important;-webkit-text-fill-color:#124e36!important;font-size:14px!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .colorful-task-actions{
+ position:sticky!important;bottom:0!important;z-index:6!important;flex:0 0 auto!important;
+ border-top:0!important;background:linear-gradient(180deg,#f7fff9,#e7fff1)!important;
+ padding:12px 3px 4px!important;margin-top:10px!important;border-radius:13px!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .task-save-btn{
+ background:linear-gradient(112deg,#066b48,#0ba575 54%,#16c68a)!important;
+ border:1px solid rgba(255,255,255,.72)!important;box-shadow:0 10px 20px rgba(5,125,78,.27)!important;
+ color:#fff!important;-webkit-text-fill-color:#fff!important;animation:none!important;font-size:15px!important;opacity:1!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .task-save-btn:disabled{
+ background:linear-gradient(112deg,#d5f3e1,#c8e6d5)!important;color:#265e45!important;-webkit-text-fill-color:#265e45!important;
+ border-color:#9dd5b7!important;cursor:not-allowed!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .task-cancel-btn{
+ background:#fff!important;color:#175a40!important;-webkit-text-fill-color:#175a40!important;border:1px solid #95d4b0!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .cc627-select-trigger{
+ background:linear-gradient(112deg,#fff,#eafff3)!important;color:#114d34!important;-webkit-text-fill-color:#114d34!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .cc627-select-menu{
+ background:#f5fff8!important;border-color:#77cfa4!important;min-width:100%!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .cc627-select-option:hover,
+html body:not(.login-body) .task-modal-fix .task-premium-form .cc627-select-option:focus-visible{
+ color:#fff!important;-webkit-text-fill-color:#fff!important;background:linear-gradient(115deg,#067b53,#10b87a,#1ace91)!important;
+ transform:translateX(3px) scale(1.025)!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .cc627-select-option.is-selected:hover{
+ color:#fff!important;-webkit-text-fill-color:#fff!important;background:linear-gradient(115deg,#067b53,#10b87a)!important;
+}
+html body:not(.login-body) .task-modal-fix .task-premium-form .cc627-select-option.is-selected:hover::after{color:#fff!important}
+html body:not(.login-body) .main-wrap .cc604-approval-page-table td:last-child{min-width:268px!important}
+html body:not(.login-body) .main-wrap .cc604-approval-page-table .row-actions.compact-pills{
+ display:grid!important;grid-template-columns:repeat(2,minmax(115px,1fr))!important;gap:9px!important;align-items:stretch!important;
+}
+html body:not(.login-body) .main-wrap .cc604-approval-page-table .row-actions.compact-pills button{
+ min-width:0!important;width:100%!important;min-height:39px!important;padding:8px 7px!important;
+ font-size:12px!important;line-height:1.25!important;white-space:normal!important;
+ color:#103e2c!important;-webkit-text-fill-color:#103e2c!important;font-weight:850!important;
+}
+html body:not(.login-body) .main-wrap .cc604-approval-page-table .row-actions.compact-pills .cc609-full-day,
+html body:not(.login-body) .main-wrap .cc604-approval-page-table .row-actions.compact-pills .mini-btn.call{
+ background:linear-gradient(115deg,#087e55,#22c78b)!important;color:white!important;-webkit-text-fill-color:white!important;
+}
+html body:not(.login-body) .main-wrap .cc604-approval-page-table .row-actions.compact-pills .cc609-zero-day,
+html body:not(.login-body) .main-wrap .cc604-approval-page-table .row-actions.compact-pills .mini-btn.edit{
+ background:linear-gradient(115deg,#e3fff0,#aef4cf)!important;
+}
+html body:not(.login-body) .main-wrap .cc604-approval-page-table .row-actions.compact-pills .cc609-no-work,
+html body:not(.login-body) .main-wrap .cc604-approval-page-table .row-actions.compact-pills .ghost-btn{
+ background:linear-gradient(115deg,#fff6e8,#ffe3b5)!important;
+}
+html body:not(.login-body) .main-wrap .cc628-day-status-help{margin:8px 16px!important;padding:10px 13px!important;
+ background:#f1fff5!important;border:1px solid #bde4ce!important;border-radius:12px!important;color:#17553a!important;font-size:13px!important}
+#cc628-attendance-prompt{position:fixed!important;right:19px!important;bottom:20px!important;z-index:2147483515!important;
+ box-sizing:border-box!important;width:min(420px,calc(100vw - 30px))!important;background:linear-gradient(130deg,#fff,#eafff3)!important;
+ color:#134934!important;border:1px solid #91d6b0!important;border-radius:21px!important;padding:17px!important;
+ box-shadow:0 23px 66px rgba(0,69,41,.27),inset 0 1px 0 #fff!important;font:650 13px/1.5 'Plus Jakarta Sans',system-ui,sans-serif!important}
+#cc628-attendance-prompt *{box-sizing:border-box!important;color:inherit!important;opacity:1!important}
+#cc628-attendance-prompt strong{display:block!important;font-size:18px!important;line-height:1.35!important;margin-bottom:5px!important}
+#cc628-attendance-prompt p{margin:5px 0 11px!important;color:#345f49!important}
+#cc628-attendance-prompt .cc628-actions{display:flex!important;gap:8px!important;flex-wrap:wrap!important}
+#cc628-attendance-prompt button{border:1px solid #97d5b5!important;border-radius:12px!important;padding:10px 15px!important;
+ background:#fff!important;color:#176343!important;font-weight:850!important;font-size:13px!important;cursor:pointer!important}
+#cc628-attendance-prompt button:first-child{background:linear-gradient(115deg,#087e55,#18bd82)!important;color:#fff!important}
+@media(max-width:600px){html body:not(.login-body) .task-modal-fix .task-premium-modal.task-modal-no-overlap{padding:14px!important;max-height:calc(100dvh - 15px)!important}}
+</style>
+<script id="cc628-attendance-session">
+/* One narrow manager fetch per authenticated login; zero periodic GET. */
+(function(){'use strict';if(window.__CC628_ATTENDANCE__)return;window.__CC628_ATTENDANCE__=true;
+var running=false,closed=false,el=null,attempts=0;
+function user(){try{return JSON.parse(localStorage.getItem('careerCroxCachedUser')||'null')}catch(_){return null}}
+function dismiss(){if(el)el.remove();el=null}
+function boot(){if(running||closed||window.__CC602_NETWORK_PAUSED__||location.pathname==='/login'||document.hidden)return;
+ var u=user(),role=String(u&&(u.role||u.designation)||'').toLowerCase();
+ if(!u||!u.user_id){if(++attempts<6)setTimeout(boot,1500);return;}
+ if(!['manager','admin'].includes(role)){closed=true;return;}
+ var login=String(localStorage.getItem('careerCroxSessionLoginAt')||'');
+ var sessionKey='cc628.attendance.once:'+String(u.user_id)+':'+login;
+ try{if(sessionStorage.getItem(sessionKey)){closed=true;return;}sessionStorage.setItem(sessionKey,'checked');}catch(_){}
+ running=true;fetch('/api/approvals/attendance-pending',{credentials:'include',cache:'no-store'})
+ .then(function(r){if(!r.ok)throw Error('Attendance check unavailable');return r.json()})
+ .then(function(d){if(!d||!d.count||window.__CC602_NETWORK_PAUSED__||location.pathname==='/login')return;
+ dismiss();var card=document.createElement('aside');card.id='cc628-attendance-prompt';card.setAttribute('role','dialog');card.setAttribute('aria-label','Pending attendance decisions');
+ var h=document.createElement('strong');h.textContent=(d.count>=50?'50+':String(d.count))+' attendance decision'+(d.count===1?'':'s')+' pending';
+ var p=document.createElement('p');p.textContent='These reports remain saved until you review them. You can choose a day status now or next time you sign in.';
+ var actions=document.createElement('div');actions.className='cc628-actions';
+ var open=document.createElement('button');open.type='button';open.textContent='Review reports';open.onclick=function(){dismiss();location.assign('/approvals')};
+ var later=document.createElement('button');later.type='button';later.textContent='Remind next login';later.onclick=dismiss;
+ actions.append(open,later);card.append(h,p,actions);document.body.append(card);el=card;
+ }).catch(function(){/* no repeated failed network reads */}).finally(function(){running=false;closed=true});
+}
+window.addEventListener('career-crox-idle-lock-begin',function(){closed=true;dismiss()});
+window.addEventListener('pageshow',boot,{once:true});
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot,{once:true});else setTimeout(boot,500);
+document.addEventListener('visibilitychange',function(){if(!document.hidden)boot()});
+})();
+</script>
+
+<!-- CC26_625_TASK_ALERT_END -->
+    <script src="/assets/js/cc26-730-client-fixes.js?v=CC26_771_MANAGER_TL_PERSONAL_RECRUITER_REMINDER_FIX" defer></script>
+    <script src="/assets/js/basic-crm-runtime.js?v=CC26_767_INTERN_ACCESS_QUICKADD_TEAMCHAT_FIX"></script>
+</body>
+</html>
