@@ -1,0 +1,42 @@
+import React,{useEffect,useState} from 'react';
+import {api} from '../lib/api';
+const BASE='/api/data-backup/full-excel';
+const XLSX='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const hash=async file=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',await file.arrayBuffer()))].map(n=>n.toString(16).padStart(2,'0')).join('');
+export default function FullExcelBackupPanel(){
+ const [password,setPassword]=useState(''),[busy,setBusy]=useState(''),[message,setMessage]=useState(''),[reminder,setReminder]=useState(null);
+ const [file,setFile]=useState(null),[preview,setPreview]=useState(null),[downloadHash,setDownloadHash]=useState(''),[confirm,setConfirm]=useState(false);
+ const readReminder=async()=>{try{const r=await api.get(BASE+'/reminder',{cacheTtlMs:0,allowStale:false,retries:0});setReminder(r.reminder);}catch{}};
+ useEffect(()=>{readReminder();},[]);
+ async function grant(type){if(!password.trim())throw Error('Enter your current Manager login password.');const key=type==='download'?'data-backup/download':'data-backup/restore';return (await api.post('/api/auth/export-access',{password,route_key:key},{retries:0})).export_token;}
+ async function sendBinary(route,token,body,headers={}){const response=await fetch(BASE+route,{method:'POST',credentials:'include',headers:{'X-Export-Token':token,...headers},body,cache:'no-store'});if(!response.ok){let details;try{details=await response.json();}catch{}throw Error(details?.message||details?.error||`CRM server returned ${response.status}`);}return response;}
+ async function operation(key,fn){if(busy)return;setBusy(key);setMessage('');try{await fn();}catch(e){setMessage(e.message||'Operation failed. No restore changes were committed.');}finally{setBusy('');}}
+ async function download(){
+  const stamp=new Date().toISOString().slice(0,10),filename=`Career_Crox_FULL_CRM_${stamp}.xlsx`;
+  let handle=null;
+  if(window.showSaveFilePicker)handle=await window.showSaveFilePicker({suggestedName:filename,types:[{description:'Career Crox Excel workbook',accept:{[XLSX]:['.xlsx']}}]});
+  const token=await grant('download');setMessage('Capturing the full CRM records. Keep this page open.');
+  const response=await sendBinary('/download',token,'{}',{'Content-Type':'application/json'});const bytes=await response.blob();
+  const actual=await hash(bytes),server=response.headers.get('X-CRM-Backup-SHA256');if(server!==actual)throw Error('Workbook checksum mismatch; download aborted.');
+  if(handle){const writable=await handle.createWritable();await writable.write(bytes);await writable.close();const disk=await handle.getFile();if(await hash(disk)!==actual)throw Error('The saved workbook could not be verified.');
+   const next=await api.post(BASE+'/saved',{sha256:actual},{headers:{'X-Export-Token':token},retries:0});setReminder(next.reminder);setDownloadHash('');setMessage('Excel saved and verified. Next reminder after 3 days.');window.dispatchEvent(new Event('cc876-backup-state'));
+  }else{const url=URL.createObjectURL(bytes),link=document.createElement('a');link.href=url;link.download=filename;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);setDownloadHash(actual);setMessage('Full Excel backup downloaded. Click “I saved the Excel safely” after you confirm the file is on your computer. No resumes or recordings are inside.');}
+ }
+
+ async function acknowledge(){const token=await grant('download');const reply=await api.post(BASE+'/saved',{sha256:downloadHash},{headers:{'X-Export-Token':token},retries:0});setReminder(reply.reminder);setDownloadHash('');setMessage('Backup saved confirmation recorded. Next reminder is after 3 days.');window.dispatchEvent(new Event('cc876-backup-state'));
+ }
+ async function inspect(){if(!file)throw Error('Choose the original Career Crox Full CRM .xlsx file.');if(file.size>48*1024*1024)throw Error('File exceeds the 48 MB Excel upload limit.');const token=await grant('restore');const response=await sendBinary('/preview',token,file,{'Content-Type':XLSX});const result=await response.json();setPreview({...result,fileName:file.name});setConfirm(false);setMessage('Preview complete. Verify counts and employee mapping before Restore.');}
+ async function restore(){if(!file||!preview||!confirm)throw Error('Preview the workbook and confirm the restore first.');const current=await hash(file);if(current!==preview.sha256)throw Error('File changed after preview. Preview again.');const token=await grant('restore');const result=await (await sendBinary('/restore',token,file,{'Content-Type':XLSX,'X-CRM-Workbook-Hash':preview.sha256,'X-CRM-Confirm-Restore':'RESTORE'})).json();setPreview(null);setConfirm(false);setMessage(`Restore committed and verified: ${result.verified_candidates} candidates, ${result.total} linked records. Ask staff to sign in again to refresh their profiles and reminders.`);window.dispatchEvent(new Event('cc837-read-invalidated'));}
+ const tag={padding:'12px',border:'1px solid #f3a6b1',borderRadius:'14px',background:'rgba(255,255,255,.8)',marginTop:'12px'};
+ return <div style={tag} data-cc876-full-excel="true"><div className="table-title">Full CRM Excel — Download & Restore</div><p className="helper-text">Manager only · Real .xlsx · Candidates, notes, submissions, interviews, tasks, follow-ups, reminders and allocations. <b>No resumes, files or call recordings</b>. No new Render key or recovery PIN required.</p>
+ <div className="field" style={{maxWidth:440,marginBottom:12}}><label>Current Manager login password</label><input type="password" autoComplete="current-password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Required for each export or restore"/></div>
+ {reminder?<p className="helper-text">Last confirmed backup: <b>{reminder.last_saved_at?new Date(reminder.last_saved_at).toLocaleString('en-IN'):'None yet'}</b> · Next 3-day reminder: {new Date(reminder.next_due_at).toLocaleString('en-IN')}{reminder.overdue?' · Overdue (you can still postpone)':null}</p>:null}
+ <div className="row-actions" style={{flexWrap:'wrap'}}><button type="button" className="add-profile-btn" disabled={!!busy||!password} onClick={()=>operation('download',download)}>{busy==='download'?'Preparing Excel…':'Download Full CRM Excel'}</button>{downloadHash?<button type="button" className="ghost-btn" disabled={!!busy} onClick={()=>operation('save',acknowledge)}>I saved the Excel safely</button>:null}</div>
+ <hr style={{border:0,borderTop:'1px solid #f5d5d8',margin:'16px 0'}}/>
+ <b>Upload Excel & Restore in another Career Crox CRM</b><p className="helper-text">Employees must already have matching usernames on the new CRM. Original passwords are not exported. Preview checks schema, candidate collisions and ownership before any change.</p>
+ <div className="row-actions" style={{flexWrap:'wrap',alignItems:'center'}}><input aria-label="Select Career Crox Full Excel" type="file" accept=".xlsx" onChange={e=>{setFile(e.target.files?.[0]||null);setPreview(null);setConfirm(false);}}/><button type="button" className="ghost-btn" disabled={!file||!password||!!busy} onClick={()=>operation('preview',inspect)}>{busy==='preview'?'Checking workbook…':'Preview & Verify'}</button></div>
+ {preview?<div style={{...tag,background:'#fff7ee'}}><b>Restore preview — {preview.fileName}</b><p>{Object.entries(preview.summary||{}).map(([key,v])=>`${key.replaceAll('_',' ')}: ${v}`).join(' · ')}</p><p className="helper-text">Existing destination records with the same IDs may be updated. Take a backup of the destination first. This operation is transactional and cannot restore excluded files.</p><label style={{display:'block',marginBottom:10}}><input type="checkbox" checked={confirm} onChange={e=>setConfirm(e.target.checked)}/> I checked the preview, saved the destination backup and authorize merging these CRM records.</label><button className="add-profile-btn" disabled={!confirm||!!busy} onClick={()=>operation('restore',restore)}>{busy==='restore'?'Restoring and verifying…':'Restore & Verify Full CRM'}</button></div>:null}
+ {message?<p className="helper-text" role="status" aria-live="polite" style={{marginTop:10,whiteSpace:'pre-wrap'}}>{message}</p>:null}
+ <p className="helper-text" style={{marginTop:10}}>Private Excel contains personal candidate data. Keep it securely offline. Restored reminders depend on the target CRM scheduler being healthy; this does not transfer app hosting or login passwords.</p>
+ </div>;
+}
