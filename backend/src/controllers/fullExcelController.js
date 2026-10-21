@@ -186,7 +186,14 @@ async function prepare(req,payload){
  // Team links are already rewritten by the same identity map as profiles/tasks.
  const teamRows=[];
  const ids=new Set(mapped.payload.tables.candidates.map(r=>String(r.candidate_id)));
- for(const [t,rows]of Object.entries(mapped.payload.tables))for(const row of rows)if(t!=='candidates'&&row.candidate_id&&!ids.has(String(row.candidate_id))&&t!=='candidate_reset_archive'&&t!=='crm_candidate_id_registry'&&!/audit|log|history/.test(t))throw fail('Related '+t+' record has no candidate: '+row.candidate_id);
+ for(const [t,rows]of Object.entries(mapped.payload.tables))for(const row of rows){
+  if(t==='candidates'||!row.candidate_id||ids.has(String(row.candidate_id))||t==='candidate_reset_archive'||t==='crm_candidate_id_registry'||/audit|log|history/.test(t))continue;
+  // CC892: manual dialer contacts are deliberately not saved candidates.
+  // Keep their native IDs/records. This matches syntheticManualCandidateId in
+  // mobileDialerController; only the two manual-call business tables qualify.
+  if((t==='call_quality_events'||t==='manual_dialer_calls')&&/^(manual-|mob-man-|manual$|mob-man$)/i.test(String(row.candidate_id).trim()))continue;
+  throw fail('Related '+t+' record has no candidate: '+row.candidate_id);
+ }
  const destination=await fingerprint(q,schemaBefore);
  return {mapped,target,schemaBefore,additions:compatible.additions,teamRows,destination,summary:{schema_compatibility:'CC890 - Activity Log excluded',activity_log_included:false,destination_activity_log_cleared:true,defaulted_columns:compatible.defaultedColumns,column_type_bridges:compatible.bridges,empty_legacy_tables:compatible.emptyTables,columns_added_on_restore:compatible.additions.map(c=>c.table+'.'+c.name),tables:Object.keys(clean.tables).length,candidates:ids.size,tasks:clean.tables.tasks.length,followups:clean.tables.candidates.filter(r=>r.follow_up_at&&!/done|complete|cancel/i.test(r.follow_up_status||'')).length,reminders:clean.tables.notifications.length,interviews:clean.tables.interviews.length,submissions:clean.tables.submissions.length,notes:clean.tables.notes.length,staff_mapped:clean.tables.users.length,staff_created:sourceUsers.filter(u=>!byLogin.has(norm(u.username))).length,staff_replaced:roster.filter(u=>!sourceUsers.some(s=>norm(s.username)===norm(u.username))).length,credentials_included:true,existing_candidates:destination.counts.candidates||0,records:Object.entries(clean.tables).filter(([t])=>t!=='users').reduce((n,[,rows])=>n+rows.length,0),source_date:payload.created_at,files:0,employee_mapping:payload.tables.users.map(u=>({username:u.username,from_id:u.user_id,to_id:mapped.identities.get(String(u.user_id)),action:byLogin.has(norm(u.username))?'Update account & login':'Create account & login',profiles:clean.tables.candidates.filter(r=>String(r.recruiter_user_id)===String(u.user_id)||!r.recruiter_user_id&&norm(r.recruiter_code)===norm(u.recruiter_code)).length}))}};
 }
