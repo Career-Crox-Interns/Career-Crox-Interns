@@ -207,17 +207,72 @@ async function dependencyOrder(names){
  names.forEach(visit);return order;
 }
 function portable(t,row){return t==='presence'?require('../lib/multipleCrm').portableRow(t,row,{settings:{}}):row;}
+async function lockRestoreTables(){
+ const publicNames=[...TABLES].sort().map(t=>"'"+t.replace(/'/g,"''")+"'").join(',');
+ // CC893: get the complete maintenance lock set BEFORE reading CRM tables.
+ // SHARE ROW EXCLUSIVE previously waited while holding earlier table locks,
+ // then needed stronger DDL locks; runtime/session/control tables came later.
+ // NOWAIT + an exception subtransaction releases every partial attempt. Take
+ // the final DDL lock mode up front so no later lock upgrade can form a cycle.
+ await store.query(`do $cc893_restore_locks$
+ declare target record; attempt integer; acquired boolean := false; busy text := 'CRM import';
+ begin
+  for attempt in 1..60 loop
+   begin
+    busy := 'another import';
+    if not pg_catalog.pg_try_advisory_xact_lock(pg_catalog.hashtext('career-crox-full-excel-restore')) then
+     raise exception using errcode='55P03',message='Another import holds the restore lock';
+    end if;
+    busy := 'candidate ID allocation';
+    if not pg_catalog.pg_try_advisory_xact_lock(2644001::bigint) then
+     raise exception using errcode='55P03',message='Candidate ID allocation is busy';
+    end if;
+    for target in
+     with recursive affected(oid) as (
+      select c.oid from pg_catalog.pg_class c join pg_catalog.pg_namespace n on n.oid=c.relnamespace
+       where ((n.nspname='public' and c.relname in (${publicNames})) or n.nspname='crm_control') and c.relkind in ('r','p')
+      union
+      select i.inhrelid from pg_catalog.pg_inherits i join affected a on a.oid=i.inhparent
+     )
+     select n.nspname,c.relname from affected a join pg_catalog.pg_class c on c.oid=a.oid
+      join pg_catalog.pg_namespace n on n.oid=c.relnamespace order by n.nspname,c.relname
+    loop
+     busy := target.nspname||'.'||target.relname;
+     execute format('lock table only %I.%I in access exclusive mode nowait',target.nspname,target.relname);
+    end loop;
+    acquired := true;
+   exception when lock_not_available or deadlock_detected then
+    acquired := false;
+   end;
+   exit when acquired;
+   if attempt<60 then perform pg_catalog.pg_sleep(0.1); end if;
+  end loop;
+  if not acquired then
+   raise exception using errcode='55P03',message='CRM is busy ('||busy||'). No records were changed. Try Preview & Verify again after the active work finishes.';
+  end if;
+ end;
+ $cc893_restore_locks$;`);
+}
+async function restoreTransaction(work){
+ for(let attempt=0;attempt<3;attempt++)try{return await withTransaction(work);}catch(error){
+  // PostgreSQL definitively aborts these transactions. Never retry ambiguous
+  // disconnects/timeouts, including a lost COMMIT response.
+  if(!['40P01','40001'].includes(error.code))throw error;
+  if(attempt===2)throw fail('Import could not get a stable database transaction. All import changes were rolled back. Repeat Preview & Verify.');
+  await new Promise(resolve=>setTimeout(resolve,100*(attempt+1)));
+ }
+}
 async function restore(req,res){
  const payload=parse(req),digest=book.sha(req.body),auth=verifyTicket(req,'restore',req.get('x-crm-preview-token'));
  if(req.get('x-crm-confirm-restore')!=='RESTORE'||auth.sha256!==digest||req.get('x-crm-workbook-hash')!==digest)throw fail('Preview this exact workbook and confirm Restore first.',400);
  if(restoring)throw fail('Another restore is already running.');restoring=true;
  try{
-  const result=await withTransaction(async()=>{
-   await store.query("set local lock_timeout='5s'");
+  const result=await restoreTransaction(async()=>{
+   await store.query("set local lock_timeout='500ms'");
+   await lockRestoreTables();
    const schema=await metadata((s,p=[])=>store.query(s,p)),names=Object.keys(schema);
    const hasActivity=!!(await store.query("select to_regclass('public.activity_log')::text name"))[0]?.name;
    const lockedNames=[...names,...(hasActivity?['activity_log']:[])].sort();
-   await store.query('lock table '+lockedNames.map(t=>'public.'+quote(t)).join(',')+' in share row exclusive mode');
    const p=await prepare(req,payload);
    if(auth.destination!==p.destination.digest||auth.schema!==sha(JSON.stringify(p.schemaBefore)))throw fail('Destination records or employee accounts changed after preview. Preview again.');
    for(const c of p.additions)await store.query('alter table public.'+quote(c.table)+' add column '+quote(c.name)+' '+columnSql(c.type));
