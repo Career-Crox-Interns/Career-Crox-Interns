@@ -1,10 +1,10 @@
 'use strict';
-// CC879 - receiver compatibility for legacy activity identities; CC878 transfer safeguards retained.
+// CC880 - lossless legacy column-type compatibility and CC879 activity-key repair.
 const crypto=require('crypto');
 const {store,TABLES,withTransaction}=require('../lib/store');
 const book=require('../lib/crmExcelWorkbook');
 const {reconcileBackup}=require('../lib/backupRestoreCompat');
-const {adaptActivitySchema,integerId,sameKey}=require('../lib/fullExcelSchemaCompat');
+const {adaptTransferSchema,preflightTypes,integerId,sameKey}=require('../lib/fullExcelSchemaCompat');
 const {clearAllCaches}=require('../lib/cache');
 const {JWT_SECRET}=require('../config/env');
 const {canonicalRole}=require('../lib/accessRules');
@@ -148,7 +148,7 @@ async function prepare(req,payload){
  // Validate the original identities before adapting anything. Validate the
  // destination identities again after mapping, before any destructive write.
  validateShape(payload,payload.schema);
- const compatible=adaptActivitySchema(payload,schemaBefore),target=compatible.target;
+ const compatible=adaptTransferSchema(payload,schemaBefore),target=compatible.target;
  payload=compatible.payload;
  validateShape(payload,target);
  const roster=await store.all('users'),byLogin=new Map();
@@ -162,12 +162,13 @@ async function prepare(req,payload){
  const clean={...payload,tables:Object.fromEntries(Object.entries(payload.tables).map(([t,rows])=>[t,rows.filter(r=>safeSetting(t,r)).map(r=>transferableRow(t,r))]))};
  const mapped=reconcileBackup(clean,roster,target,{transfer:true});
  validateShape(mapped.payload,target);
+ await preflightTypes(mapped.payload,target,schemaBefore,q);
  // Team links are already rewritten by the same identity map as profiles/tasks.
  const teamRows=[];
  const ids=new Set(mapped.payload.tables.candidates.map(r=>String(r.candidate_id)));
  for(const [t,rows]of Object.entries(mapped.payload.tables))for(const row of rows)if(t!=='candidates'&&row.candidate_id&&!ids.has(String(row.candidate_id))&&t!=='candidate_reset_archive'&&t!=='crm_candidate_id_registry'&&!/audit|log|history/.test(t))throw fail('Related '+t+' record has no candidate: '+row.candidate_id);
  const destination=await fingerprint(q,schemaBefore);
- return {mapped,target,schemaBefore,additions:compatible.additions,teamRows,destination,summary:{schema_compatibility:'CC879 activity-log ID compatibility',columns_added_on_restore:compatible.additions.map(c=>c.table+'.'+c.name),tables:Object.keys(clean.tables).length,candidates:ids.size,tasks:clean.tables.tasks.length,followups:clean.tables.candidates.filter(r=>r.follow_up_at&&!/done|complete|cancel/i.test(r.follow_up_status||'')).length,reminders:clean.tables.notifications.length,interviews:clean.tables.interviews.length,submissions:clean.tables.submissions.length,notes:clean.tables.notes.length,staff_mapped:clean.tables.users.length,staff_created:sourceUsers.filter(u=>!byLogin.has(norm(u.username))).length,staff_replaced:roster.filter(u=>!sourceUsers.some(s=>norm(s.username)===norm(u.username))).length,credentials_included:true,existing_candidates:destination.counts.candidates||0,records:Object.entries(clean.tables).filter(([t])=>t!=='users').reduce((n,[,rows])=>n+rows.length,0),source_date:payload.created_at,files:0,employee_mapping:payload.tables.users.map(u=>({username:u.username,from_id:u.user_id,to_id:mapped.identities.get(String(u.user_id)),action:byLogin.has(norm(u.username))?'Update account & login':'Create account & login',profiles:clean.tables.candidates.filter(r=>String(r.recruiter_user_id)===String(u.user_id)||!r.recruiter_user_id&&norm(r.recruiter_code)===norm(u.recruiter_code)).length}))}};
+ return {mapped,target,schemaBefore,additions:compatible.additions,teamRows,destination,summary:{schema_compatibility:'CC880 legacy column and activity-key compatibility',column_type_bridges:compatible.bridges,empty_legacy_tables:compatible.emptyTables,columns_added_on_restore:compatible.additions.map(c=>c.table+'.'+c.name),tables:Object.keys(clean.tables).length,candidates:ids.size,tasks:clean.tables.tasks.length,followups:clean.tables.candidates.filter(r=>r.follow_up_at&&!/done|complete|cancel/i.test(r.follow_up_status||'')).length,reminders:clean.tables.notifications.length,interviews:clean.tables.interviews.length,submissions:clean.tables.submissions.length,notes:clean.tables.notes.length,staff_mapped:clean.tables.users.length,staff_created:sourceUsers.filter(u=>!byLogin.has(norm(u.username))).length,staff_replaced:roster.filter(u=>!sourceUsers.some(s=>norm(s.username)===norm(u.username))).length,credentials_included:true,existing_candidates:destination.counts.candidates||0,records:Object.entries(clean.tables).filter(([t])=>t!=='users').reduce((n,[,rows])=>n+rows.length,0),source_date:payload.created_at,files:0,employee_mapping:payload.tables.users.map(u=>({username:u.username,from_id:u.user_id,to_id:mapped.identities.get(String(u.user_id)),action:byLogin.has(norm(u.username))?'Update account & login':'Create account & login',profiles:clean.tables.candidates.filter(r=>String(r.recruiter_user_id)===String(u.user_id)||!r.recruiter_user_id&&norm(r.recruiter_code)===norm(u.recruiter_code)).length}))}};
 }
 async function preview(req,res){
  const payload=parse(req),p=await prepare(req,payload),digest=book.sha(req.body);res.setHeader('Cache-Control','private, no-store');
