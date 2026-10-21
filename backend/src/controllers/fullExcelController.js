@@ -10,7 +10,8 @@ const {JWT_SECRET}=require('../config/env');
 const {canonicalRole}=require('../lib/accessRules');
 const mediaTables=new Set(['candidate_files','candidate_file_contents','recording_files','jd_documents','user_onboarding_documents','hr_document_templates','hr_document_runs','mobile_app_releases','important_resources']);
 const runtimeTables=new Set(['active_sessions','mobile_devices','live_call_state','generated_downloads','chat_notification_jobs','crm_command_receipts','password_reset_requests','egress_budget_daily','dialer_sessions','dialer_queue_items','user_onboarding_requests']);
-const omitted=new Set([...mediaTables,...runtimeTables]);
+// CC890: activity history stays local and is never scanned/exported in Excel.
+const omitted=new Set([...mediaTables,...runtimeTables,'activity_log']);
 const userColumns=new Set(['password','password_hash','email','employee_id','created_at','updated_at','theme_name','theme_config','user_id','username','full_name','role','designation','recruiter_code','tl_user_id','tl_code','tl_name','manager_user_id','manager_code','manager_name','team_id','reporting_to','is_active']);
 const teamColumns=['tl_user_id','tl_code','tl_name','manager_user_id','manager_code','manager_name','team_id','reporting_to'];
 const mediaKey=/^(?:(?:file|files|resume|resumes|recording|recordings|audio|attachment|attachments|blob|binary|photo|image)(?:$|_)|video_(?:data|base64|bytes|content|blob|binary)$|document_binary|document_data|signature_)/i;
@@ -40,6 +41,15 @@ function transferableRow(table,record){
  if(table==='users')for(const field of ['password','password_hash'])if(Object.hasOwn(record,field)){
   const raw=String(record[field]||'');
   clean[field]=raw ? (require('../lib/security').passwordNeedsUpgrade(raw)?require('../lib/security').hashPassword(raw):raw) : record[field];
+ }
+ return clean;
+}
+function withoutActivityHistory(payload){
+ const schema={...payload.schema},tables={...payload.tables};
+ delete schema.activity_log;delete tables.activity_log;
+ const clean={...payload,schema,tables};
+ for(const field of ['table_counts','defaulted_columns'])if(payload[field]){
+  clean[field]={...payload[field]};delete clean[field].activity_log;
  }
  return clean;
 }
@@ -149,6 +159,9 @@ async function fingerprint(q,schema){
  return {digest:sha(JSON.stringify(parts)),counts:Object.fromEntries(parts.map(([t,n])=>[t,n]))};
 }
 async function prepare(req,payload){
+ // readWorkbook already verifies the ORIGINAL file before any table is omitted.
+ // This also accepts intact older workbooks without importing their old logs.
+ payload=withoutActivityHistory(payload);
  const q=(s,p=[])=>store.query(s,p),schemaBefore=await metadata(q);
  if(!payload.schema?.users?.columns?.some(c=>['password','password_hash'].includes(c.name)))throw fail('This older Excel does not include staff login hashes. Update the source to CC878 and download a new Full CRM Excel.');
  // Validate the original identities before adapting anything. Validate the
@@ -175,11 +188,11 @@ async function prepare(req,payload){
  const ids=new Set(mapped.payload.tables.candidates.map(r=>String(r.candidate_id)));
  for(const [t,rows]of Object.entries(mapped.payload.tables))for(const row of rows)if(t!=='candidates'&&row.candidate_id&&!ids.has(String(row.candidate_id))&&t!=='candidate_reset_archive'&&t!=='crm_candidate_id_registry'&&!/audit|log|history/.test(t))throw fail('Related '+t+' record has no candidate: '+row.candidate_id);
  const destination=await fingerprint(q,schemaBefore);
- return {mapped,target,schemaBefore,additions:compatible.additions,teamRows,destination,summary:{schema_compatibility:'CC881 CRM2 matched schema',defaulted_columns:compatible.defaultedColumns,column_type_bridges:compatible.bridges,empty_legacy_tables:compatible.emptyTables,columns_added_on_restore:compatible.additions.map(c=>c.table+'.'+c.name),tables:Object.keys(clean.tables).length,candidates:ids.size,tasks:clean.tables.tasks.length,followups:clean.tables.candidates.filter(r=>r.follow_up_at&&!/done|complete|cancel/i.test(r.follow_up_status||'')).length,reminders:clean.tables.notifications.length,interviews:clean.tables.interviews.length,submissions:clean.tables.submissions.length,notes:clean.tables.notes.length,staff_mapped:clean.tables.users.length,staff_created:sourceUsers.filter(u=>!byLogin.has(norm(u.username))).length,staff_replaced:roster.filter(u=>!sourceUsers.some(s=>norm(s.username)===norm(u.username))).length,credentials_included:true,existing_candidates:destination.counts.candidates||0,records:Object.entries(clean.tables).filter(([t])=>t!=='users').reduce((n,[,rows])=>n+rows.length,0),source_date:payload.created_at,files:0,employee_mapping:payload.tables.users.map(u=>({username:u.username,from_id:u.user_id,to_id:mapped.identities.get(String(u.user_id)),action:byLogin.has(norm(u.username))?'Update account & login':'Create account & login',profiles:clean.tables.candidates.filter(r=>String(r.recruiter_user_id)===String(u.user_id)||!r.recruiter_user_id&&norm(r.recruiter_code)===norm(u.recruiter_code)).length}))}};
+ return {mapped,target,schemaBefore,additions:compatible.additions,teamRows,destination,summary:{schema_compatibility:'CC890 - Activity Log excluded',activity_log_included:false,destination_activity_log_cleared:true,defaulted_columns:compatible.defaultedColumns,column_type_bridges:compatible.bridges,empty_legacy_tables:compatible.emptyTables,columns_added_on_restore:compatible.additions.map(c=>c.table+'.'+c.name),tables:Object.keys(clean.tables).length,candidates:ids.size,tasks:clean.tables.tasks.length,followups:clean.tables.candidates.filter(r=>r.follow_up_at&&!/done|complete|cancel/i.test(r.follow_up_status||'')).length,reminders:clean.tables.notifications.length,interviews:clean.tables.interviews.length,submissions:clean.tables.submissions.length,notes:clean.tables.notes.length,staff_mapped:clean.tables.users.length,staff_created:sourceUsers.filter(u=>!byLogin.has(norm(u.username))).length,staff_replaced:roster.filter(u=>!sourceUsers.some(s=>norm(s.username)===norm(u.username))).length,credentials_included:true,existing_candidates:destination.counts.candidates||0,records:Object.entries(clean.tables).filter(([t])=>t!=='users').reduce((n,[,rows])=>n+rows.length,0),source_date:payload.created_at,files:0,employee_mapping:payload.tables.users.map(u=>({username:u.username,from_id:u.user_id,to_id:mapped.identities.get(String(u.user_id)),action:byLogin.has(norm(u.username))?'Update account & login':'Create account & login',profiles:clean.tables.candidates.filter(r=>String(r.recruiter_user_id)===String(u.user_id)||!r.recruiter_user_id&&norm(r.recruiter_code)===norm(u.recruiter_code)).length}))}};
 }
 async function preview(req,res){
  const payload=parse(req),p=await prepare(req,payload),digest=book.sha(req.body);res.setHeader('Cache-Control','private, no-store');
- return res.json({ok:true,sha256:digest,preview_token:ticket(req,'restore',{sha256:digest,destination:p.destination.digest,schema:sha(JSON.stringify(p.schemaBefore))}),summary:p.summary,warning:'Transfer replaces CRM records and staff accounts, including login passwords. Provider settings and this CRM transfer passcode stay local. Compatible legacy activity IDs are preserved; a missing activity_log.id column is added only during confirmed restore. All destination sessions are signed out; log in with a transferred account. No media is copied.'});
+ return res.json({ok:true,sha256:digest,preview_token:ticket(req,'restore',{sha256:digest,destination:p.destination.digest,schema:sha(JSON.stringify(p.schemaBefore))}),summary:p.summary,warning:'Transfer replaces CRM records and staff accounts, including login passwords. Old Activity Log history is NOT transferred. Confirmed import clears this CRM\'s existing Activity Logs so they cannot mix with incoming profiles; the source CRM history stays unchanged. New actions are recorded normally. Previous action-history and activity-based performance counts will not carry over. Provider settings and this CRM transfer passcode stay local. All destination sessions are signed out; log in with a transferred account. No media is copied.'});
 }
 async function dependencyOrder(names){
  const edges=await store.query("select a.relname child,b.relname parent from pg_constraint c join pg_class a on a.oid=c.conrelid join pg_class b on b.oid=c.confrelid join pg_namespace n on n.oid=a.relnamespace where c.contype='f' and n.nspname='public'"),order=[],done=new Set(),visiting=new Set();
@@ -195,7 +208,9 @@ async function restore(req,res){
   const result=await withTransaction(async()=>{
    await store.query("set local lock_timeout='5s'");
    const schema=await metadata((s,p=[])=>store.query(s,p)),names=Object.keys(schema);
-   await store.query('lock table '+names.map(t=>'public.'+quote(t)).join(',')+' in share row exclusive mode');
+   const hasActivity=!!(await store.query("select to_regclass('public.activity_log')::text name"))[0]?.name;
+   const lockedNames=[...names,...(hasActivity?['activity_log']:[])].sort();
+   await store.query('lock table '+lockedNames.map(t=>'public.'+quote(t)).join(',')+' in share row exclusive mode');
    const p=await prepare(req,payload);
    if(auth.destination!==p.destination.digest||auth.schema!==sha(JSON.stringify(p.schemaBefore)))throw fail('Destination records or employee accounts changed after preview. Preview again.');
    for(const c of p.additions)await store.query('alter table public.'+quote(c.table)+' add column '+quote(c.name)+' '+columnSql(c.type));
@@ -203,8 +218,11 @@ async function restore(req,res){
    await store.query("select set_config('career_crox.multiple_restore','on',true)");
    // This Manager-confirmed snapshot must not run live edit/identity/audit side effects.
    // DDL is transactional; a failed import restores trigger states with the data.
-   const triggers=await store.query("select t.tgname,c.relname,t.tgenabled from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where not t.tgisinternal and n.nspname='public' and c.relname=any($1::text[])",[names]);
-   for(const t of names)await store.query('alter table public.'+quote(t)+' disable trigger user');
+   const triggers=await store.query("select t.tgname,c.relname,t.tgenabled from pg_trigger t join pg_class c on c.oid=t.tgrelid join pg_namespace n on n.oid=c.relnamespace where not t.tgisinternal and n.nspname='public' and c.relname=any($1::text[])",[lockedNames]);
+   for(const t of lockedNames)await store.query('alter table public.'+quote(t)+' disable trigger user');
+   // This is inside the existing Manager-confirmed replacement transaction.
+   // Do not keep an old candidate's activity under an incoming reused ID.
+   if(hasActivity)await store.query('delete from public.activity_log');
    for(const t of [...order].reverse()){
     if(t==='crm_candidate_id_registry')continue; // Never reuse an ID previously issued by either CRM.
     if(t==='settings'||t==='app_settings'){const k=t==='settings'?'setting_key':'key',keys=tables[t].map(r=>r[k]);if(keys.length)await store.query('delete from public.'+quote(t)+' where '+quote(k)+'=any($1::text[])',[keys]);}
@@ -233,7 +251,7 @@ async function restore(req,res){
    for(const tr of triggers)await store.query('alter table public.'+quote(tr.relname)+' '+({D:'disable',R:'enable replica',A:'enable always'}[tr.tgenabled]||'enable')+' trigger '+quote(tr.tgname));
    const control=await store.query("select to_regclass('crm_control.instance')::text name");
    if(control[0]?.name)await store.query("update crm_control.instance set mode='ACTIVE',updated_at=now() where id");
-   return {ok:true,counts,total:Object.values(counts).reduce((n,v)=>n+v,0),verified_candidates:counts.candidates||0,files:0,requires_login:true,restored_at:new Date().toISOString()};
+   return {ok:true,counts,total:Object.values(counts).reduce((n,v)=>n+v,0),verified_candidates:counts.candidates||0,activity_log_included:false,destination_activity_log_cleared:hasActivity,files:0,requires_login:true,restored_at:new Date().toISOString()};
   });
   clearAllCaches();
   try{const live=require('../lib/approvalLive'),users=await store.all('users');live.refreshStaffScopes(users);live.publishToUsers(users.map(u=>u.user_id),'access-changed',{source:'/data-backup/full-excel/restore',at:Date.now(),reload:true});live.publishReminderDirty({},{source:'/data-backup/full-excel/restore',at:Date.now()});require('../lib/multipleCrm').invalidateMode();}catch(e){console.warn('Restore committed; reconnect staff to refresh live views:',e.message);}
