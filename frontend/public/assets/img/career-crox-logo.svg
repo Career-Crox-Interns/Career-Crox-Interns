@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="116" viewBox="0 0 400 116" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Career Crox">
+<path fill="#00B4F1" d="M47,3 L3,28 L20,38 L47,22 Z"/>
+<path fill="#0099E2" d="M3,28 L20,38 L20,75 L3,84 Z"/>
+<path fill="#075CA8" d="M3,84 L20,75 L47,91 L47,109 Z"/>
+<path fill="#FFCF00" d="M47,3 L95,30 L78,40 L47,22 Z"/>
+<path fill="#FA5A00" d="M47,91 L78,73 L95,83 L47,109 Z"/>
+<path fill="#00AFE9" d="M26,44 L47,32 L47,57 Z"/>
+<path fill="#FFD400" d="M47,32 L69,44 L47,57 Z"/>
+<path fill="#FFA000" d="M69,44 L69,70 L47,57 Z"/>
+<path fill="#F25400" d="M47,57 L69,70 L47,82 Z"/>
+<path fill="#005BAA" d="M26,70 L47,57 L47,82 Z"/>
+<path fill="#008CD5" d="M26,44 L47,57 L26,70 Z"/>
+<path fill="#F56500" fill-rule="evenodd" transform="translate(108 4) scale(0.9 0.87)" d="M45,3 H15 Q3,3 3,15 V40 Q3,52 15,52 H45 V42 H16 Q13,42 13,39 V16 Q13,13 16,13 H45 Z"/>
+<path fill="#F56500" fill-rule="evenodd" transform="translate(156 4) scale(0.9 0.87)" d="M3,52 V18 Q3,3 18,3 H45 V52 H35 V33 H13 V52 Z M13,23 H35 V13 H21 Q13,13 13,21 Z"/>
+<path fill="#F56500" fill-rule="evenodd" transform="translate(204 4) scale(0.9 0.87)" d="M3,3 H31 Q45,3 45,15 V20 Q45,31 32,31 H28 L47,52 H33 L17,32 H13 V52 H3 Z M13,13 V22 H30 Q35,22 35,17 Q35,13 30,13 Z"/>
+<path fill="#F56500" fill-rule="evenodd" transform="translate(252 4) scale(0.9 0.87)" d="M45,3 H15 Q3,3 3,15 V40 Q3,52 15,52 H45 V42 H16 Q13,42 13,39 V32 H39 V22 H13 V16 Q13,13 16,13 H45 Z"/>
+<path fill="#F56500" fill-rule="evenodd" transform="translate(300 4) scale(0.9 0.87)" d="M45,3 H15 Q3,3 3,15 V40 Q3,52 15,52 H45 V42 H16 Q13,42 13,39 V32 H39 V22 H13 V16 Q13,13 16,13 H45 Z"/>
+<path fill="#F56500" fill-rule="evenodd" transform="translate(348 4) scale(0.9 0.87)" d="M3,3 H31 Q45,3 45,15 V20 Q45,31 32,31 H28 L47,52 H33 L17,32 H13 V52 H3 Z M13,13 V22 H30 Q35,22 35,17 Q35,13 30,13 Z"/>
+<path fill="#F56500" fill-rule="evenodd" transform="translate(108 57) scale(1.39 1.0)" d="M45,3 H15 Q3,3 3,15 V40 Q3,52 15,52 H45 V42 H16 Q13,42 13,39 V16 Q13,13 16,13 H45 Z"/>
+<path fill="#F56500" fill-rule="evenodd" transform="translate(180 57) scale(1.39 1.0)" d="M3,3 H31 Q45,3 45,15 V20 Q45,31 32,31 H28 L47,52 H33 L17,32 H13 V52 H3 Z M13,13 V22 H30 Q35,22 35,17 Q35,13 30,13 Z"/>
+<path fill="#F56500" fill-rule="evenodd" transform="translate(252 57) scale(1.39 1.0)" d="M15,3 H33 Q46,3 46,16 V39 Q46,52 33,52 H15 Q2,52 2,39 V16 Q2,3 15,3 Z M17,13 Q12,13 12,18 V37 Q12,42 17,42 H31 Q36,42 36,37 V18 Q36,13 31,13 Z"/>
+<path fill="#F56500" fill-rule="evenodd" transform="translate(324 57) scale(1.39 1.0)" d="M2,3 H15 L24,18 L34,3 H47 L31,27 L48,52 H35 L24,36 L13,52 H0 L17,27 Z"/>
+</svg>
