@@ -14,6 +14,29 @@ const STATUS=['Draft','In - Progress','Not Interested','All set for Interview','
 const NOTES=['Interview rescheduled by candidate','Interview details shared on WhatsApp','Candidate confirmed attendance','Candidate asked for a callback','Candidate not responding','Candidate not interested'];
 const EMPTY={status:'',interview:'',followup:'',note:'',details:'',followupSet:false};
 const sections=[['status','Status','status'],['interview','Interview','calendar'],['note','Notes','note'],['followup','Follow-up','clock'],['details','All details','save']];
+// CC917: bounded, memory-only recent search suggestions; no extra Supabase reads.
+// A prefix cache makes subsequent keystrokes paint immediately, but never claims
+// that 30 server results represent the entire database.
+const ARIA_SEARCH_CACHE_MS=45000;
+const ARIA_SEARCH_CACHE_LIMIT=24;
+const ariaFold=value=>String(value??'').normalize('NFKC').toLocaleLowerCase().trim();
+function ariaMatch(row,query){
+ const q=ariaFold(query),digits=q.replace(/\D/g,'');
+ if(!q)return false;
+ return ariaFold(row.full_name).startsWith(q)||ariaFold(row.candidate_id).includes(q)||
+  (digits.length>=2&&String(row.phone||'').replace(/\D/g,'').includes(digits));
+}
+function ariaCachedSuggestions(cache,query){
+ const q=ariaFold(query),now=Date.now();if(!q)return {items:[],exact:false};
+ const exact=cache.get(q);
+ if(exact&&now-exact.at<ARIA_SEARCH_CACHE_MS)return {items:exact.items,exact:true};
+ // Only previously fetched, correctly scoped results. Incomplete lists are
+ // displayed as quick suggestions, not treated as proof of no other matches.
+ let best=null;for(const [key,item] of cache){
+  if(q.startsWith(key)&&item.items?.length&&now-item.at<ARIA_SEARCH_CACHE_MS&&(!best||key.length>best.key.length))best={key,...item};
+ }
+ return {items:best?best.items.filter(row=>ariaMatch(row,q)).slice(0,30):[],exact:false};
+}
 const two=n=>String(n).padStart(2,'0');
 function wall(value) {
   if(!value)return '';
@@ -43,7 +66,7 @@ export default function QuickUpdate(){
  const [searching,setSearching]=useState(false),[loading,setLoading]=useState(''),[error,setError]=useState(''),[toast,setToast]=useState('');
  const [outcomes,setOutcomes]=useState({}),[waMenu,setWaMenu]=useState(false),[templates,setTemplates]=useState(getWhatsAppTemplates);
  const [contactBusy,setContactBusy]=useState(false);
- const searchSeq=useRef(0),epoch=useRef(0),openTimer=useRef(),closeTimer=useRef(),toastTimer=useRef(),hoverTimer=useRef(),panelRef=useRef(),inputRef=useRef();
+ const searchSeq=useRef(0),epoch=useRef(0),openTimer=useRef(),closeTimer=useRef(),toastTimer=useRef(),hoverTimer=useRef(),panelRef=useRef(),inputRef=useRef(),searchCache=useRef(new Map());
  const pendingRef=useRef(null);
  const receiptRef=useRef(new Map()),confirmedRef=useRef(new Set()),unknownRef=useRef(new Set()),savingRef=useRef(false),hoverSuppressedUntil=useRef(0),currentRef=useRef({}),lastScope=useRef('');
  const identity=String(user?.user_id||'')+'|'+scope,pendingKey='cc913:aria-pending:'+identity,visible=!!user&&booted&&!['/login','/data-backup'].includes(location.pathname);
@@ -52,33 +75,64 @@ export default function QuickUpdate(){
  const single=selected.length===1?selected[0]:null;
  currentRef.current={singleId:String(single?.candidate_id||''),identity};
  function say(message){setToast(message);clearTimeout(toastTimer.current);toastTimer.current=setTimeout(()=>setToast(''),4000);}
- function reset(){pendingRef.current=null;searchSeq.current++;savingRef.current=false;unknownRef.current.clear();setLoading('');setSearching(false);setQuery('');setResults([]);setSelected([]);setInterviews({});setInterviewPick({});setDraft(EMPTY);setError('');setOutcomes({});setBusy(false);setWaMenu(false);receiptRef.current.clear();confirmedRef.current.clear();}
+ function reset(){searchCache.current.clear();pendingRef.current=null;searchSeq.current++;savingRef.current=false;unknownRef.current.clear();setLoading('');setSearching(false);setQuery('');setResults([]);setSelected([]);setInterviews({});setInterviewPick({});setDraft(EMPTY);setError('');setOutcomes({});setBusy(false);setWaMenu(false);receiptRef.current.clear();confirmedRef.current.clear();}
  useEffect(()=>{if(lastScope.current===identity)return;lastScope.current=identity;epoch.current++;reset();setOpen(false);
   try{const job=JSON.parse(sessionStorage.getItem(pendingKey)||'null');if(job?.identity===identity&&Array.isArray(job.entries)&&job.entries.length&&Array.isArray(job.people)&&job.draft){pendingRef.current=job;setSelected(job.people);setDraft(job.draft);unknownRef.current=new Set(job.entries.map(x=>String(x.candidate_id)));setError('Previous save awaits confirmation. Retry Save to verify it safely.');}}catch{}
  },[identity]);
  useEffect(()=>{if(!visible){epoch.current++;setOpen(false);}},[visible]);
  useEffect(()=>()=>{[openTimer,closeTimer,toastTimer,hoverTimer].forEach(r=>clearTimeout(r.current));},[]);
- function openPanel(){clearTimeout(closeTimer.current);clearTimeout(openTimer.current);openTimer.current=setTimeout(()=>setOpen(true),120);}
+ function openPanel(){if(!visible)return;clearTimeout(closeTimer.current);clearTimeout(openTimer.current);openTimer.current=setTimeout(()=>setOpen(true),85);}
  function keepOpen(){clearTimeout(closeTimer.current);clearTimeout(openTimer.current);}
  function hide(){clearTimeout(closeTimer.current);clearTimeout(openTimer.current);setOpen(false);setWaMenu(false);if(panelRef.current?.contains(surface?.activeElement))surface.activeElement.blur();}
  function leave(){clearTimeout(openTimer.current);closeTimer.current=setTimeout(()=>{const focused=panelRef.current?.contains(document.activeElement)&&/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName||'');if(!busy&&!dirty&&!focused)hide();},470);}
  useEffect(()=>{const fn=e=>{if(e.key==='Escape'&&e.composedPath().some(x=>x instanceof Element&&x.classList?.contains('ccqu')))hide();};document.addEventListener('keydown',fn);return()=>document.removeEventListener('keydown',fn);},[busy]);
  useEffect(()=>{if(!open)return;const outside=e=>{const path=e.composedPath();if(path.some(x=>x instanceof Element&&(x.classList?.contains('ccqu')||x.classList?.contains('cc911-copy-button'))))return;setOpen(false);setWaMenu(false);};document.addEventListener('pointerdown',outside,true);return()=>document.removeEventListener('pointerdown',outside,true);},[open]);
- useEffect(()=>{if(!visible||!open||!query.trim())return;const q=query.trim(),token=epoch.current,seq=++searchSeq.current;
-  const timer=setTimeout(async()=>{setSearching(true);try{const data=await api.get('/api/aria/search?q='+encodeURIComponent(q),{cacheTtlMs:0,allowStale:false,retries:0});if(token===epoch.current&&seq===searchSeq.current)setResults((data.items||[]).filter(x=>!selected.some(s=>s.candidate_id===x.candidate_id)));}
-  catch(e){if(token===epoch.current&&seq===searchSeq.current)setError(e.message||'Search unavailable');}
-  finally{if(token===epoch.current&&seq===searchSeq.current)setSearching(false);}},240);
+ useEffect(()=>{
+  const q=ariaFold(query);
+  if(!visible||!open||!q){searchSeq.current++;setSearching(false);setResults([]);return;}
+  const token=epoch.current,seq=++searchSeq.current;
+  const cached=ariaCachedSuggestions(searchCache.current,q);
+  setResults(cached.items);
+  if(cached.exact){setSearching(false);return;}
+  // Avoid a request for every typed letter: paint memory matches immediately,
+  // then fetch only the latest query after a short pause.
+  const timer=setTimeout(async()=>{
+   if(token!==epoch.current||seq!==searchSeq.current)return;
+   if(!cached.items.length)setSearching(true);
+   try{
+    const data=await api.get('/api/aria/search?q='+encodeURIComponent(q),{cacheTtlMs:0,allowStale:false,retries:0});
+    if(token!==epoch.current||seq!==searchSeq.current)return;
+    const items=(data.items||[]).slice(0,30);
+    searchCache.current.set(q,{items,at:Date.now()});
+    if(searchCache.current.size>ARIA_SEARCH_CACHE_LIMIT)searchCache.current.delete(searchCache.current.keys().next().value);
+    setResults(items);setError('');
+   }catch(e){if(token===epoch.current&&seq===searchSeq.current&&!cached.items.length)setError(e.message||'Search unavailable');}
+   finally{if(token===epoch.current&&seq===searchSeq.current)setSearching(false);}
+  },cached.items.length?300:175);
   return()=>clearTimeout(timer);
- },[query,selected.map(x=>x.candidate_id).join('|'),identity,visible,open]);
- async function addCandidate(row){if(unknownRef.current.size){setError('Retry Save to verify the pending update before changing people.');return;}if(savingRef.current||selected.some(x=>x.candidate_id===row.candidate_id))return;const token=epoch.current;searchSeq.current++;setSearching(false);setLoading(String(row.candidate_id));setError('');
-  try{const data=await api.get('/api/candidates/'+encodeURIComponent(row.candidate_id)+'?edit_only=1',{cacheTtlMs:0,allowStale:false,retries:0});if(token!==epoch.current)return;
-   if(!data.item?.candidate_id)throw Error('Candidate not found');setSelected(old=>old.some(x=>x.candidate_id===data.item.candidate_id)?old:[...old,data.item]);setQuery('');setResults([]);setOutcomes(old=>({...old,[data.item.candidate_id]:null}));setTimeout(()=>inputRef.current?.focus({preventScroll:true}),30);}
-  catch(e){if(token===epoch.current)setError(e.message||'Candidate could not be loaded');}finally{if(token===epoch.current)setLoading('');}
+ },[query,identity,visible,open]);
+ async function addCandidate(row){
+  if(unknownRef.current.size){setError('Retry Save to verify the pending update before changing people.');return;}
+  if(savingRef.current||loading||selected.some(x=>x.candidate_id===row.candidate_id))return;
+  const token=epoch.current,id=String(row.candidate_id);
+  searchSeq.current++;setSearching(false);setLoading(id);setError('');
+  // Paint the selected chip immediately; server validation/hydration continues
+  // in the background. Save is disabled until the validated detail arrives.
+  setSelected(old=>old.some(x=>String(x.candidate_id)===id)?old:[...old,row]);
+  setQuery('');setResults([]);setOutcomes(old=>({...old,[id]:null}));
+  inputRef.current?.focus({preventScroll:true});
+  try{
+   const data=await api.get('/api/candidates/'+encodeURIComponent(id)+'?edit_only=1',{cacheTtlMs:0,allowStale:false,retries:0});
+   if(token!==epoch.current)return;
+   if(String(data.item?.candidate_id||'')!==id)throw Error('Candidate not found');
+   setSelected(old=>old.map(x=>String(x.candidate_id)===id?data.item:x));
+  }catch(e){if(token===epoch.current){setSelected(old=>old.filter(x=>String(x.candidate_id)!==id));setError(e.message||'Candidate could not be loaded');}}
+  finally{if(token===epoch.current)setLoading('');}
  }
  function removeCandidate(id){if(busy)return;if(unknownRef.current.size){setError('Retry Save to verify the pending update before removing people.');return;}setSelected(old=>old.filter(x=>x.candidate_id!==id));setOutcomes(old=>{const n={...old};delete n[id];return n;});setInterviews(old=>{const n={...old};delete n[id];return n;});}
  function change(key,value){if(savingRef.current||readOnly)return;if(unknownRef.current.size){setError('Retry Save to verify the previous request before changing it.');return;}setDraft(d=>({...d,[key]:value,...(key==='followup'?{followupSet:true}:{})}));setError('');setOutcomes({});}
  function changeTab(key){clearTimeout(hoverTimer.current);setActive(key);setWaMenu(false);}
- function hoverTab(key){clearTimeout(hoverTimer.current);if(Date.now()<hoverSuppressedUntil.current)return;hoverTimer.current=setTimeout(()=>changeTab(key),110);}
+ function hoverTab(key){clearTimeout(hoverTimer.current);if(Date.now()<hoverSuppressedUntil.current)return;hoverTimer.current=setTimeout(()=>changeTab(key),85);}
  async function loadInterviews(){const token=epoch.current;const fresh=selected.filter(x=>!Object.prototype.hasOwnProperty.call(interviews,x.candidate_id));
   for(const row of fresh){try{const data=await api.get('/api/aria/interviews/'+encodeURIComponent(row.candidate_id),{cacheTtlMs:0,retries:0});if(token===epoch.current)setInterviews(old=>({...old,[row.candidate_id]:data.items||[]}));}
    catch(e){if(token===epoch.current)setInterviews(old=>({...old,[row.candidate_id]:{error:e.message||'Cannot load interviews'}}));}}
@@ -98,7 +152,7 @@ export default function QuickUpdate(){
   if(!key){key=crypto.randomUUID().replaceAll('-','');receiptRef.current.set(signature,key);}
   return {...payload,command_id:key,__signature:signature};
  }
- async function save(){if(savingRef.current||readOnly||!selected.length||!dirty)return;const token=epoch.current;
+ async function save(){if(savingRef.current||loading||readOnly||!selected.length||!dirty)return;const token=epoch.current;
   const entries=pendingRef.current?.entries||selected.map(makeEntry).filter(x=>(Object.keys(x.fields).length||x.note)&&!confirmedRef.current.has(x.candidate_id+'|'+JSON.stringify(draft)));
   if(!entries.length){say('No new changes to save');return;}
   if(draft.interview&&!pendingRef.current){const blocked=selected.filter(x=>interviews[x.candidate_id]?.error||!Array.isArray(interviews[x.candidate_id]));if(blocked.length){setError('Interview list unavailable. Retry opening Interview before saving.');return;}
@@ -120,7 +174,7 @@ export default function QuickUpdate(){
     if((data.results||[]).length!==batch.length){for(const row of batch.filter(x=>!nextOut[x.candidate_id])){bad++;unknownRef.current.add(row.candidate_id);nextOut[row.candidate_id]={ok:false,code:'UNCONFIRMED',message:'No server confirmation · retry Save'};}}
    }catch(e){if(token!==epoch.current)return;for(const row of batch){bad++;unknownRef.current.add(row.candidate_id);nextOut[row.candidate_id]={ok:false,code:'UNCONFIRMED',message:e.message||'Network error · retry safely'};}}
   }
-  if(token===epoch.current){if(!unknownRef.current.size){try{sessionStorage.removeItem(pendingKey);}catch{}pendingRef.current=null;}setOutcomes(old=>({...old,...nextOut}));savingRef.current=false;setBusy(false);if(good)say(`${good} saved${confirmedLabels.size?' · '+[...confirmedLabels].join(', '):' · verified'}${bad?` · ${bad} need review`:''}`);if(bad){setError(unknownRef.current.size?`${unknownRef.current.size} candidate(s) await confirmation · Retry Save safely`:`${bad} candidate(s) not saved · review results and retry`);setOpen(true);if(!unknownRef.current.size){const failed=new Set(Object.keys(nextOut).filter(id=>!nextOut[id].ok));setSelected(rows=>rows.filter(row=>failed.has(row.candidate_id)));confirmedRef.current.clear();}}else{setDraft(EMPTY);receiptRef.current.clear();confirmedRef.current.clear();unknownRef.current.clear();setActive('status');setOutcomes({});setSelected([]);setInterviews({});setInterviewPick({});hide();}}
+  if(token===epoch.current){if(!unknownRef.current.size){try{sessionStorage.removeItem(pendingKey);}catch{}pendingRef.current=null;}setOutcomes(old=>({...old,...nextOut}));savingRef.current=false;setBusy(false);if(good)searchCache.current.clear();if(good)say(`${good} saved${confirmedLabels.size?' · '+[...confirmedLabels].join(', '):' · verified'}${bad?` · ${bad} need review`:''}`);if(bad){setError(unknownRef.current.size?`${unknownRef.current.size} candidate(s) await confirmation · Retry Save safely`:`${bad} candidate(s) not saved · review results and retry`);setOpen(true);if(!unknownRef.current.size){const failed=new Set(Object.keys(nextOut).filter(id=>!nextOut[id].ok));setSelected(rows=>rows.filter(row=>failed.has(row.candidate_id)));confirmedRef.current.clear();}}else{setDraft(EMPTY);receiptRef.current.clear();confirmedRef.current.clear();unknownRef.current.clear();setActive('status');setOutcomes({});setSelected([]);setInterviews({});setInterviewPick({});hide();}}
  }
  async function refreshSelected(){
   if(savingRef.current||!selected.length)return;if(unknownRef.current.size){setError('Retry Save first to confirm the previous request.');return;}
@@ -132,15 +186,15 @@ export default function QuickUpdate(){
  function contactGuard(id,token){return token===epoch.current&&currentRef.current.identity===identity&&currentRef.current.singleId===String(id)&&!window.__CC602_NETWORK_PAUSED__;}
  async function whatsapp(text=''){if(!single||contactBusy||readOnly)return;const id=single.candidate_id,token=epoch.current;setContactBusy(true);setError('');setWaMenu(false);try{const r=await openWhatsAppWithLog(single.candidate_id,single.phone,text,{source:'aria-quick',guard:()=>contactGuard(id,token)});if(!contactGuard(id,token))return;if(!r||r.error)throw Error(r?.error||'WhatsApp Desktop unavailable');say(r.needsClick?'Open WhatsApp Desktop to continue':'WhatsApp Desktop requested');}catch(e){setError(e.message);}finally{setContactBusy(false);}}
  async function dial(){if(!single||contactBusy||readOnly)return;const id=single.candidate_id,token=epoch.current;setContactBusy(true);setError('');try{await dialCandidateWithLog(single.candidate_id,single.phone,{candidate_name:single.full_name,process:single.process,client:single.client,location:single.location,source:'aria-quick',guard:()=>contactGuard(id,token)});if(contactGuard(id,token))say('Call sent to paired phone');}catch(e){setError(e.message||'Pair phone first');}finally{setContactBusy(false);}}
- const content=<section className="ccqu ccqu-panel ccqu-docked" role="dialog" aria-label="ARIA candidate quick update" ref={panelRef}  onKeyDown={e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();save();}}}>
+ const content=<section className="ccqu ccqu-panel ccqu-docked" role="dialog" aria-label="ARIA candidate quick update" ref={panelRef} onMouseEnter={keepOpen} onMouseLeave={leave} onKeyDown={e=>{if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){e.preventDefault();save();}}}>
   <header className="ccqu-header"><span className="ccqu-brand"><Icon name="bolt"/><strong>ARIA</strong><small>Quick Update</small></span><div className="ccqu-header-actions">{selected.length?<button type="button" aria-label="Refresh selected candidates" title="Refresh latest candidate values" disabled={busy||!!loading} onClick={refreshSelected}><Icon name="refresh"/></button>:null}<button type="button" title="Minimise" aria-label="Minimise ARIA" onClick={hide}><Icon name="min"/></button></div></header>
   <div className="ccqu-content"><div className="ccqu-guide"><b>1 Find</b><span>2 Choose action</span><span>3 Save</span></div>
-   <form className="ccqu-search" onSubmit={e=>e.preventDefault()}><Icon name="search"/><input ref={inputRef} aria-label="Find candidate by name number or ID" placeholder="Search name, phone or candidate ID" value={query} maxLength={80} autoComplete="off" disabled={busy} onChange={e=>{searchSeq.current++;setSearching(false);setQuery(e.target.value);setResults([]);setError('');}}/><button type="button" aria-label="Add candidate from search" title="Add candidate" disabled={busy} onClick={()=>{if(results.length===1)addCandidate(results[0]);else inputRef.current?.focus({preventScroll:true});}}><Icon name="plus"/></button></form>
+   <form className="ccqu-search" onSubmit={e=>e.preventDefault()}><Icon name="search"/><input ref={inputRef} aria-label="Find candidate by name number or ID" placeholder="Search name, phone or candidate ID" value={query} maxLength={80} autoComplete="off" disabled={busy} onChange={e=>{searchSeq.current++;setSearching(false);const next=e.target.value;setQuery(next);setResults(ariaCachedSuggestions(searchCache.current,next).items);setError('');}}/><button type="button" aria-label="Add candidate from search" title="Add candidate" disabled={busy} onClick={()=>{if(results.length===1)addCandidate(results[0]);else inputRef.current?.focus({preventScroll:true});}}><Icon name="plus"/></button></form>
    {searching||loading?<div className="ccqu-search-state" role="status">{loading?'Adding candidate…':'Searching…'}</div>:null}
-   {query&&results.length?<div className="ccqu-results ccqu-aria-results" role="listbox" aria-label="Candidate suggestions">{results.map(r=><button type="button" role="option" aria-selected="false" key={r.candidate_id} disabled={busy||!!loading} onClick={()=>addCandidate(r)}><span><strong>{r.full_name||r.candidate_id}</strong><small>{r.candidate_id} · {r.phone||'Phone hidden'}</small></span><b>＋</b></button>)}</div>:null}
+   {query&&results.some(r=>!selected.some(x=>x.candidate_id===r.candidate_id))?<div className="ccqu-results ccqu-aria-results" role="listbox" aria-label="Candidate suggestions">{results.filter(r=>!selected.some(x=>x.candidate_id===r.candidate_id)).map(r=><button type="button" role="option" aria-selected="false" key={r.candidate_id} disabled={busy||!!loading} onClick={()=>addCandidate(r)}><span><strong>{r.full_name||r.candidate_id}</strong><small>{r.candidate_id} · {r.phone||'Phone hidden'}</small></span><b>＋</b></button>)}</div>:null}
    {selected.length?<div className="ccqu-aria-selected"><div className="ccqu-aria-count"><strong>{selected.length} selected</strong><small>One action → all selected</small></div><div className="ccqu-aria-chips">{selected.map(row=><div key={row.candidate_id} className={'ccqu-aria-chip '+(outcomes[row.candidate_id]?.ok?'is-saved':outcomes[row.candidate_id]?'is-failed':'')}><span data-copy-value={row.full_name||row.candidate_id} data-copy-label="candidate name" title={row.full_name+' · '+row.candidate_id+' · '+(row.recruiter_name||'')}>{row.full_name||row.candidate_id}</span><button type="button" title={'Remove '+row.full_name} aria-label={'Remove '+row.full_name} onClick={()=>removeCandidate(row.candidate_id)}>×</button></div>)}</div></div>:<div className="ccqu-aria-hint">Type even 1 letter, pick a person, then ＋ add more</div>}
    {readOnly?<div className="ccqu-message">Read-only dashboard · switch to your editable dashboard</div>:null}
-   {selected.length?<><div className="ccqu-option-grid ccqu-aria-actions" role="tablist" aria-label="ARIA quick actions">{sections.map(([key,label,icon])=><button type="button" key={key} role="tab" aria-selected={active===key} className={'ccqu-option ccqu-'+key+(active===key?' is-active':'')} onClick={()=>changeTab(key)}><span className="ccqu-option-head"><Icon name={icon}/><strong>{label}</strong></span></button>)}</div>
+   {selected.length?<><div className="ccqu-option-grid ccqu-aria-actions" role="tablist" aria-label="ARIA quick actions">{sections.map(([key,label,icon])=><button type="button" key={key} role="tab" aria-selected={active===key} className={'ccqu-option ccqu-'+key+(active===key?' is-active':'')} onMouseEnter={()=>hoverTab(key)} onMouseLeave={()=>clearTimeout(hoverTimer.current)} onFocus={()=>hoverTab(key)} onClick={()=>changeTab(key)}><span className="ccqu-option-head"><Icon name={icon}/><strong>{label}</strong></span></button>)}</div>
    <div className={'ccqu-editor ccqu-aria-editor ccqu-editor-'+active} role="tabpanel"><div className="ccqu-editor-title"><span>{sections.find(x=>x[0]===active)?.[1]}</span><small>Applies to all selected</small></div>
     {active==='status'?<>{single?<p className="ccqu-current">Current: {single.status||'Not set'}</p>:null}<div className="ccqu-statuses">{STATUS.map(s=><button type="button" key={s} disabled={busy||readOnly} aria-pressed={draft.status===s} className={(draft.status===s?'is-chosen ':'')+(/Rejected|Backout|Not Interested/.test(s)?'tone-red':/Joined|Completed/.test(s)?'tone-green':/Selected|Joining/.test(s)?'tone-amber':'tone-blue')} onClick={()=>change('status',s)}>{s}</button>)}</div></>:null}
     {active==='interview'?<><div className="ccqu-aria-interview-list">{selected.map(row=>{const list=interviews[row.candidate_id];return <label key={row.candidate_id}>{row.full_name}<select aria-label={'Interview for '+row.full_name} disabled={busy||readOnly||!Array.isArray(list)} value={interviewPick[row.candidate_id]||((Array.isArray(list)&&list.length===1)?list[0].interview_id:'')} onChange={e=>setInterviewPick(old=>({...old,[row.candidate_id]:e.target.value}))}><option value="">{!Array.isArray(list)?'Loading interviews…':list.length>1?'Choose exact interview':list.length===0?'Profile interview date only':'Select interview'}</option>{Array.isArray(list)&&list.map(i=><option key={i.interview_id} value={i.interview_id}>{i.interview_id} · {i.stage||'Interview'} · {displayDate(i.scheduled_at)}</option>)}</select></label>;})}</div><div className="ccqu-presets">{[['Today',preset(0)],['Tomorrow',preset(0,true)]].map(([name,val])=><button type="button" key={name} onClick={()=>change('interview',val)}>{name}</button>)}</div><fieldset disabled={busy||readOnly}><Calendar value={draft.interview} label="Interview" onChange={v=>change('interview',v)}/></fieldset></>:null}
@@ -149,15 +203,15 @@ export default function QuickUpdate(){
     {active==='details'?<div className="ccqu-aria-details"><p>All Details Sent</p><small>Uses the same completion rules as the full profile.</small>{['Pending','Completed','Only Resume Pending'].map(s=><button type="button" key={s} className={draft.details===s?'is-chosen':''} disabled={busy||readOnly} onClick={()=>change('details',s)}>{s}</button>)}</div>:null}
     {active==='whatsapp'&&single?<div className="ccqu-aria-wa-list">{templates.map((t,i)=><button type="button" key={t.id||i} disabled={contactBusy||readOnly} onClick={()=>whatsapp(String(t.body||'').replace(/\{\{candidate_name\}\}/g,single.full_name||'Candidate').replace(/\{\{first_name\}\}/g,String(single.full_name||'Candidate').split(' ')[0]).replace(/\{\{recruiter_name\}\}/g,single.recruiter_name||user?.full_name||'Career Crox'))}>{t.title}</button>)}</div>:null}
    </div>
-   {single?<div className="ccqu-aria-person"><CopyInline value={single.phone} onCopy={copy} label="Phone"/><CopyInline value={single.email} onCopy={copy} label="Email"/><div className="ccqu-contact-actions"><button className="ccqu-call" title="Dial" disabled={contactBusy||readOnly} onClick={dial}><Icon name="phone"/></button><button className="ccqu-whatsapp" title="WhatsApp Desktop" disabled={contactBusy||readOnly} onClick={()=>{clearTimeout(hoverTimer.current);setWaMenu(x=>!x);}}><Icon name="whatsapp"/></button></div>{waMenu?<div className="ccqu-wa-menu"><button type="button" onClick={()=>whatsapp('')}>WhatsApp only</button><button type="button" onClick={async()=>{const token=epoch.current;clearTimeout(hoverTimer.current);hoverSuppressedUntil.current=Date.now()+450;setTemplates(getWhatsAppTemplates());setActive('whatsapp');setWaMenu(false);const ts=await loadSharedWhatsAppTemplates().catch(()=>getWhatsAppTemplates());if(token===epoch.current)setTemplates(ts);}}>Preset messages</button></div>:null}</div>:null}
+   {single?<div className="ccqu-aria-person" onMouseLeave={()=>setWaMenu(false)}><CopyInline value={single.phone} onCopy={copy} label="Phone"/><CopyInline value={single.email} onCopy={copy} label="Email"/><div className="ccqu-contact-actions"><button className="ccqu-call" title="Dial" disabled={contactBusy||readOnly} onClick={dial}><Icon name="phone"/></button><button className="ccqu-whatsapp" onMouseEnter={()=>setWaMenu(true)} onFocus={()=>setWaMenu(true)} title="WhatsApp Desktop" disabled={contactBusy||readOnly} onClick={()=>{clearTimeout(hoverTimer.current);setWaMenu(true);}}><Icon name="whatsapp"/></button></div>{waMenu?<div className="ccqu-wa-menu"><button type="button" onClick={()=>whatsapp('')}>WhatsApp only</button><button type="button" onClick={async()=>{const token=epoch.current;clearTimeout(hoverTimer.current);hoverSuppressedUntil.current=Date.now()+450;setTemplates(getWhatsAppTemplates());setActive('whatsapp');setWaMenu(false);const ts=await loadSharedWhatsAppTemplates().catch(()=>getWhatsAppTemplates());if(token===epoch.current)setTemplates(ts);}}>Preset messages</button></div>:null}</div>:null}
    {Object.entries(outcomes).length?<div className="ccqu-aria-outcomes" role="status">{selected.filter(row=>outcomes[row.candidate_id]).map(row=><div key={row.candidate_id} className={outcomes[row.candidate_id].ok?'ok':'fail'}>{outcomes[row.candidate_id].ok?'✓':'!'} {row.full_name} · {outcomes[row.candidate_id].message}</div>)}</div>:null}
    {error?<div className="ccqu-message is-error" role="alert">{error}</div>:null}
    </>:null}
   </div>
-  <footer className="ccqu-footer"><span>{busy?'Saving to database…':selected.length?`${selected.length} candidates · ${dirty?'changes ready':'select an action'}`:'Add candidates with ＋'}</span><button className="ccqu-save" type="button" disabled={!selected.length||!dirty||busy||readOnly} onClick={save}><Icon name="save"/>{busy?'Saving…':unknownRef.current.size?'Retry Save':`Save ${selected.length||''}`}</button></footer>
+  <footer className="ccqu-footer"><span>{busy?'Saving to database…':selected.length?`${selected.length} candidates · ${dirty?'changes ready':'select an action'}`:'Add candidates with ＋'}</span><button className="ccqu-save" type="button" disabled={!selected.length||!dirty||busy||!!loading||readOnly} onClick={save}><Icon name="save"/>{busy?'Saving…':unknownRef.current.size?'Retry Save':`Save ${selected.length||''}`}</button></footer>
  </section>;
  if(!visible||!surface)return null;
- return createPortal(<><style>{styles}</style><div className={"ccqu ccqu-launcher"+(busy?" is-saving":"")}><button type="button" title="ARIA Quick Update" aria-label="Open ARIA" aria-expanded={open} onClick={()=>{setOpen(value=>!value);if(!busy)setTimeout(()=>inputRef.current?.focus({preventScroll:true}),50);}}><span className="ccqu-aria-mark">ARIA</span>{dirty?<b/>:null}</button></div>{busy&&!open?<div className="ccqu ccqu-saving" role="status"><i/>Saving {selected.length} · you can keep working</div>:null}{toast?<div className="ccqu ccqu-toast ccqu-aria-top-toast" role="status"><Icon name="save"/>{toast}</div>:null}{open?content:null}</>,surface);
+ return createPortal(<><style>{styles}</style><div className={"ccqu ccqu-launcher"+(busy?" is-saving":"")} onMouseEnter={openPanel} onMouseLeave={leave}><button type="button" title="ARIA Quick Update" aria-label="Open ARIA" aria-expanded={open} onClick={()=>{setOpen(value=>!value);if(!busy)setTimeout(()=>inputRef.current?.focus({preventScroll:true}),50);}}><span className="ccqu-aria-mark">ARIA</span>{dirty?<b/>:null}</button></div>{busy&&!open?<div className="ccqu ccqu-saving" role="status"><i/>Saving {selected.length} · you can keep working</div>:null}{toast?<div className="ccqu ccqu-toast ccqu-aria-top-toast" role="status"><Icon name="save"/>{toast}</div>:null}{open?content:null}</>,surface);
 }
 function CopyInline({value,label}){if(value==null||String(value)==='')return null;return <span className="ccqu-aria-copy" tabIndex={0} data-copy-value={String(value)} data-copy-label={label} title={String(value)}><span>{value}</span></span>;}
 
@@ -176,5 +230,6 @@ const styles=String.raw`:host{all:initial;font:14px/1.4 "Segoe UI",Arial,sans-se
 .ccqu-toast,.ccqu-saving{position:fixed;right:64px;top:22px;z-index:13000;max-width:min(430px,calc(100vw - 24px));padding:9px 13px;border:1px solid #bce1ce;border-radius:11px;background:#eefff5eb;backdrop-filter:blur(15px);color:#257053;box-shadow:0 7px 25px #315b4930;display:flex;gap:7px;align-items:center;font-size:12px;font-weight:700;pointer-events:none;animation:aria-enter .14s ease-out}.ccqu-toast svg{width:15px;height:15px}.ccqu-saving{top:50%;right:60px;transform:translateY(-50%);background:#f2f5ffed;border-color:#d1d9f0;color:#51628f;font-weight:650}.ccqu-saving i{width:12px;height:12px;border:2px solid #d2dbee;border-top-color:#6b6fe8;border-radius:50%;animation:aria-spin .8s linear infinite}@keyframes aria-spin{to{rotate:360deg}}@keyframes aria-enter{from{opacity:0;translate:8px 0}to{opacity:1;translate:0 0}}
 @media(max-width:420px){.ccqu-panel{right:56px;max-width:calc(100vw - 64px)}.ccqu-launcher{right:8px;width:36px;height:36px}.ccqu-launcher>button{height:36px;width:36px;border-radius:13px;font-size:10px}.ccqu-option strong{font-size:12px}.ccqu-option svg{width:12px;height:12px}.ccqu-option-head{gap:4px}.ccqu-toast{right:12px;top:12px}.ccqu-brand small{font-size:10px}}@media(prefers-reduced-motion:reduce){.ccqu,.ccqu *{animation:none!important;transition:none!important}}
 
+.ccqu-option:focus-visible,.ccqu-option:hover{outline:2px solid #708de4;outline-offset:1px}.ccqu-launcher:hover>button{filter:brightness(1.08)}
 .ccqu-panel{background:linear-gradient(145deg,#faffff94,#e7edff9e)}.ccqu-header{min-height:43px;padding:7px 10px}.ccqu-content{gap:6px;padding:8px}.ccqu-guide{font-size:10px}.ccqu-search{height:36px;min-height:36px}.ccqu-aria-selected{padding:5px 7px}.ccqu-aria-count{line-height:1.05}.ccqu-aria-chips{margin-top:4px}.ccqu-aria-chip{padding:2px 5px 2px 7px}.ccqu-option{height:31px}.ccqu-aria-person{flex-wrap:nowrap;padding:5px 7px;min-height:37px}.ccqu-aria-person .ccqu-aria-copy:nth-child(2){flex:1;max-width:140px}.ccqu-contact-actions{flex:none}.ccqu-aria-person .ccqu-contact-actions button{width:25px;height:25px}.ccqu-editor{min-height:115px;padding:8px}.ccqu-editor-note .ccqu-editor-title{display:none}.ccqu-editor-note{gap:6px}.ccqu-aria-note-preview{max-height:17px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ccqu-aria-note-preview span{white-space:nowrap}.ccqu-aria-textarea{min-height:66px}.ccqu-note-preset select{height:29px;min-height:29px}.ccqu-statuses button{font-size:13px}
 `;
