@@ -1,0 +1,19 @@
+{
+  "name": "career-crox-render-stable-loose-crm2",
+  "private": true,
+  "version": "1.0.930",
+  "engines": {
+    "node": "24.x",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "render-build": "node scripts/restore-backend.mjs --sync-manifest && node scripts/render-safe-install.mjs frontend && npm run build --prefix frontend && node scripts/build-release.mjs --sync && node scripts/render-safe-install.mjs backend",
+    "build": "npm run render-build",
+    "start": "node backend/src/server.js",
+    "start:render": "node backend/src/server.js",
+    "local:setup": "node scripts/restore-backend.mjs --sync-manifest && npm install --prefix backend",
+    "local:backend": "npm run dev --prefix backend",
+    "postinstall": "node -e \"console.log('Career Crox loose GitHub package ready.');\"",
+    "prestart": "node scripts/restore-backend.mjs"
+  }
+}
