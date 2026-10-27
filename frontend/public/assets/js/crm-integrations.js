@@ -4017,7 +4017,7 @@ installCompactReminderRuntime();
     // Shared lease suppresses duplicate tabs; acknowledge the activity only after
     // success. A failed pulse must not mark unsaved work as already sent.
     try{localStorage.setItem('cc602_last_human_activity_pulse',String(now))}catch(_e){}
-    nativeFetch('/api/auth/activity',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json','X-Career-Crox-Last-Activity-At':String(activity),'X-Career-Crox-Activity-Age-Ms':String(Math.max(0,Date.now()-activity))},body:'{}'})
+    nativeFetch('/api/auth/activity',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json','X-Career-Crox-Last-Activity-At':String(activity),'X-Career-Crox-Activity-Age-Ms':String(Math.max(0,Date.now()-activity))},body:JSON.stringify({last_page:location.pathname})})
       .then(function(r){if(!r.ok)throw Error('Activity not saved');return r.json();})
       .then(function(data){if(login!==read(G)||account!==localStorage.getItem(U)||window.__CC602_NETWORK_PAUSED__)return;
         try{localStorage.setItem('cc835_last_sent_activity_at',String(Math.max(activity,read('cc835_last_sent_activity_at'))))}catch(_){}
