@@ -158,6 +158,25 @@ router.post('/auth/activity', requireAuth, (req, res) => {
   const activityAt=require('../lib/sessionPolicy').activityAt(req);
   if(req.authDegraded || !activityAt || String(req.get('x-career-crox-background')||'')==='1')return res.json({ok:true});
   require('../lib/recentHumanActivity').markRecentHumanActivity(req.user,activityAt);
+
+  // CC933: transfer-page interaction keeps authentication alive without
+  // changing the attendance snapshot that the manager is reviewing.
+  const transferPage = value => {
+    try {
+      const path = new URL(String(value || ''), 'http://crm.local').pathname;
+      return path === '/data-backup' || path === '/data-backup/';
+    } catch { return false; }
+  };
+  const role = String(req.user?.role || req.user?.designation || '').trim().toLowerCase();
+  const page = req.body?.last_page;
+  const fromTransfer = page
+    ? transferPage(page)
+    : transferPage(req.get('referer'));
+  if (['manager', 'admin'].includes(role) && fromTransfer) {
+    res.setHeader('Cache-Control', 'private, no-store');
+    return res.json({ok:true,transfer_workspace:true});
+  }
+
   req.body={compact:true,has_activity:'1',last_activity_at:new Date(activityAt).toISOString(),last_page:req.body?.last_page || '/candidates'};
   return attendance.ping(req,res);
 });
