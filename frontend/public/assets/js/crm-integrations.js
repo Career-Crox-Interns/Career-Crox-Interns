@@ -4659,6 +4659,7 @@ window.addEventListener('career-crox-idle-lock-begin',function(){observer.discon
   function popupWasHidden(config){return ['manager','admin'].includes(currentRole())&&Number(autoHidden.get(popupOccurrence(config))||0)>Date.now();}
   let popupEl = null;
   let popupKey = '';
+  let undoPopupOccurrence = '';
   let pollTimer = null;
   let localReminderClockTimer=null;
   let reminderSyncChannel=null;
@@ -4740,7 +4741,7 @@ window.addEventListener('career-crox-idle-lock-begin',function(){observer.discon
     try { localStorage.setItem(reminderSnoozeKey(type, key), String(Date.now() + Number(minutes || 0) * 60 * 1000)); } catch(_e){}
   }
   function isSnoozed(type, key){ return readSnooze(type, key) > Date.now(); }
-  function closePopup(){clearTimeout(popupHideTimer);popupHideTimer=null; if(popupEl){ popupEl.remove(); popupEl = null; popupKey = ''; } const orphan=document.querySelector('.cc388-reminder-deck.cc730-direct-reminder-deck'); if(orphan){orphan.remove();} }
+  function closePopup(){undoPopupOccurrence='';clearTimeout(popupHideTimer);popupHideTimer=null; if(popupEl){ popupEl.remove(); popupEl = null; popupKey = ''; } const orphan=document.querySelector('.cc388-reminder-deck.cc730-direct-reminder-deck'); if(orphan){orphan.remove();} }
 
   function formatDateTime(value){
     if(!value) return '-';
@@ -4830,7 +4831,8 @@ window.addEventListener('career-crox-idle-lock-begin',function(){observer.discon
     if(!box){box=document.createElement('div');box.className='cc898-reminder-context';box.innerHTML='<div><b>Last activity</b><span data-activity>Loading…</span></div><div><b>Last seen by owner</b><span data-seen>Loading…</span></div>';container.appendChild(box);}
     const principal=safe(currentUser().user_id)+'|'+safe(window.__CC875_DASHBOARD_KEY__?.());
     const key=principal+'|'+cid,previous=reminderContextMemory.get(key);
-    const load=previous&&previous.until>Date.now()?previous.promise:fetchJson('/api/reports/reminder-context?candidate_id='+encodeURIComponent(cid)).then(function(d){if(!d?.ok||!d.item)throw Error('Context unavailable');return d.item;});
+    if(config.undoReplay&&!previous){box.querySelector('[data-activity]').textContent='Use Refresh for details';box.querySelector('[data-seen]').textContent='Not cached';return;}
+    const load=previous&&(config.undoReplay||previous.until>Date.now())?previous.promise:fetchJson('/api/reports/reminder-context?candidate_id='+encodeURIComponent(cid)).then(function(d){if(!d?.ok||!d.item)throw Error('Context unavailable');return d.item;});
     reminderContextMemory.set(key,{until:Date.now()+60000,promise:load});
     load.then(function(data){
       if(!container.isConnected||principal!==safe(currentUser().user_id)+'|'+safe(window.__CC875_DASHBOARD_KEY__?.()))return;
@@ -4896,11 +4898,22 @@ window.addEventListener('career-crox-idle-lock-begin',function(){observer.discon
     card.addEventListener('keydown',function(event){if(event.target===card&&(event.key==='Enter'||event.key===' ')){event.preventDefault();card.click();}});
     card.addEventListener('click', function(event){
       if(event.target.closest('button,a,input,select,textarea')||Date.now()<Number(window.__CC878_POPUPS_MINIMIZED_UNTIL__||0))return;
+      const localKey=config.localKey||config.key,savedKey=reminderSnoozeKey(config.type||'generic',localKey),previous=localStorage.getItem(savedKey);
       try { openReminder(); } catch(_e){}
       // CC26_764: opening a still-unresolved reminder is a local 5-minute acknowledgement,
       // not permanent removal from the snapshot. It returns automatically if no write resolves it.
       snoozeUntil(config.type || 'generic', config.localKey || config.key, Number(config.repeatMinutes || 5));
+      const openedValue=localStorage.getItem(savedKey);
       closePopup();
+      window.__CC126_POPUP_UNDO__?.push({title:config.name||config.title,restore:function(){
+        const live=reminderSnapshotConfigs.find(item=>item.key===config.key&&String(item.localKey||item.key)===String(localKey));
+        if(!hasUser()||onLoginRoute()||!live||window.__CC124_INACTIVE_CANDIDATES__?.has(String(live.candidateId)))return false;
+        if(document.querySelector('.cc803-review-popup'))throw new Error('A profile review is open.');
+        if(localStorage.getItem(savedKey)!==openedValue)return false;
+        if(previous===null)localStorage.removeItem(savedKey);else localStorage.setItem(savedKey,previous);
+        autoHidden.delete(popupOccurrence(live));closePopup();showReminderPopup({...live,undoReplay:true});undoPopupOccurrence=popupOccurrence(live);
+        return !!popupEl?.isConnected;
+      }});
       setTimeout(function(){ renderReminderConfigs(reminderSnapshotConfigs); }, 60);
     });
     card.querySelector('.cc388-x').addEventListener('click', function(event){
@@ -5364,10 +5377,10 @@ window.addEventListener('career-crox-idle-lock-begin',function(){observer.discon
       if(snoozeWake) scheduleDueReload(snoozeWake);
       if(managerReminderMode()){
         removeManagerReminderCenter();const allowed=popupPrefs().managerTeamPopups===false?dueNow.filter(isPersonalRecruiterReminder):dueNow;
-        const chosen=allowed.find(item=>!popupWasHidden(item));if(chosen){chosen.countText='1 of '+allowed.length+' pending';showReminderPopup(chosen);}else closePopup();return;
+        const chosen=allowed.find(item=>popupOccurrence(item)===undoPopupOccurrence&&!popupWasHidden(item))||allowed.find(item=>!popupWasHidden(item));if(chosen){chosen.countText='1 of '+allowed.length+' pending';showReminderPopup(chosen);}else closePopup();return;
       }
       removeManagerReminderCenter();
-      const visiblePopups=dueNow.filter(item=>!popupWasHidden(item));const chosen=currentRole()==='tl' ? (visiblePopups.find(isPersonalRecruiterReminder) || visiblePopups[0]) : visiblePopups[0];if(!chosen){closePopup();return;}
+      const visiblePopups=dueNow.filter(item=>!popupWasHidden(item));const chosen=visiblePopups.find(item=>popupOccurrence(item)===undoPopupOccurrence)||(currentRole()==='tl' ? (visiblePopups.find(isPersonalRecruiterReminder) || visiblePopups[0]) : visiblePopups[0]);if(!chosen){closePopup();return;}
       chosen.countText = dueNow.length > 1 ? `1 of ${dueNow.length} • ${dueNow.length} pending` : '1 due';
       showReminderPopup(chosen);
       return;
