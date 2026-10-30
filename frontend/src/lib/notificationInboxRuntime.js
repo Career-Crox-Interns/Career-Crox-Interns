@@ -79,7 +79,16 @@ export function installNotificationInboxRuntime(user,{navigate=path=>window.loca
   const article=document.createElement('article');article.setAttribute('role','status');article.setAttribute('aria-label','Work notification');
   const header=document.createElement('header'),dot=document.createElement('span'),heading=document.createElement('button'),close=document.createElement('button'),body=document.createElement('div');
   dot.className='dot';heading.className='heading';heading.textContent=item.title||'Work update';heading.title='Open update';close.className='close';close.textContent='×';close.setAttribute('aria-label','Dismiss notification');body.className='body';body.textContent=item.message||'';
-  const open=()=>{finish();navigate(notificationTarget(item));void api.post('/api/notifications/'+encodeURIComponent(item.notification_id)+'/read',{}, {retries:0,detachedWrite:true,background:true,headers:{'X-CC-Dashboard-User':'global'}}).catch(()=>{});};
+  const open=()=>{
+   window.open(notificationTarget(item),'_blank','noopener,noreferrer');finish();
+   window.__CC126_POPUP_UNDO__?.push({title:item.title,restore:()=>{
+    if(!live())return false;
+    clearTimeout(hideTimer);clearTimeout(removeTimer);clearTimeout(queueTimer);
+    if(current&&String(current.notification_id)!==String(item.notification_id)&&!queue.some(row=>String(row.notification_id)===String(current.notification_id)))queue.unshift(current);
+    current=null;show(item);return current?.notification_id===item.notification_id;
+   }});
+   void api.post('/api/notifications/'+encodeURIComponent(item.notification_id)+'/read',{}, {retries:0,detachedWrite:true,background:true,headers:{'X-CC-Dashboard-User':'global'}}).catch(()=>{});
+  };
   heading.onclick=open;body.onclick=open;close.onclick=finish;
   article.onpointerenter=()=>{hover=true;clearTimeout(hideTimer);place();};article.onpointerleave=()=>{hover=false;scheduleHide(200);};article.onfocusin=()=>{hover=true;clearTimeout(hideTimer);};article.onfocusout=()=>{hover=false;scheduleHide(200);};
   const metadata=noticeMetadata(item),subject=document.createElement('span');subject.className='subject';subject.textContent=[metadata.candidate_name,metadata.candidate_id].filter(Boolean).join(' · ');
