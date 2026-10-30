@@ -37,7 +37,7 @@ export function installTaskReminderRuntime(user){
 }
 function createRuntime(user){
  const principal=String(user.user_id),key='cc917-task-alerts:'+principal;
- const rt={principal,refs:0},rows=new Map(),pendingTasks=new Set();let pendingSnooze=null;let state={},disposed=false,inflight=null,lastSync=0,current=null,signature='',busy=false,error='';
+ const rt={principal,refs:0},rows=new Map(),pendingTasks=new Set();let pendingSnooze=null;let state={},disposed=false,inflight=null,lastSync=0,current=null,signature='',busy=false,error='',undoTaskKey='';
  try{const saved=JSON.parse(localStorage.getItem(key)||'{}');state=saved.state||{};(saved.rows||[]).forEach(r=>rows.set(String(r.task_id),r));}catch{}
  const host=document.createElement('div');host.id='cc917-task-reminder';host.style.cssText='position:fixed;right:18px;bottom:18px;z-index:100910;width:min(410px,calc(100vw - 24px));max-height:calc(100dvh - 24px);';
  const shadow=host.attachShadow({mode:'open'});document.body.append(host);
@@ -63,7 +63,7 @@ function createRuntime(user){
  function render(){
   if(document.getElementById('cc929-lost')||document.querySelector('dialog[open]')){hide();return;}
   if(disposed||!getPollingLeaderSnapshot().isLeader||document.hidden||/\/(login|data-backup)(?:[/?#]|$)/.test(location.pathname)){hide();return;}
-  const due=candidates(),o=due[0];window.__CC917_TASK_DUE_COUNT__=new Set(due.map(x=>x.row.task_id)).size;
+  const due=candidates(),o=due.find(item=>item.key===undoTaskKey)||due[0];window.__CC917_TASK_DUE_COUNT__=new Set(due.map(x=>x.row.task_id)).size;
   const historyEntries=due.slice(0,200).reverse().map(entry=>({key:'task:'+entry.key,kind:'Task reminder',title:entry.row.title,note:entry.row.description,time:entry.due,path:'/tasks?task_id='+encodeURIComponent(entry.row.task_id),target_type:'task',target_id:entry.row.task_id}));
   if(window.__CC125_REMEMBER_POPUPS__)window.__CC125_REMEMBER_POPUPS__(historyEntries);else for(const entry of historyEntries)window.__CC124_REMEMBER_POPUP__?.(entry);
   if(!o){hide();return;}if(busy)return;
@@ -76,7 +76,17 @@ function createRuntime(user){
   const button=event.target.closest('button');if(!button||!current)return;const o=current,id=String(o.row.task_id);if(pendingTasks.has(id))return;
   if(button.dataset.action==='custom'){openReminderPause({target_type:'task',target_id:o.row.task_id,title:o.row.title},()=>{hide();render();});return;}
   if(button.dataset.action==='ack'){state[o.key]={ack:true};persist();hide();render();return;}
-  if(button.dataset.action==='open'){window.open('/tasks?task_id='+encodeURIComponent(o.row.task_id),'_blank','noopener,noreferrer');return;}
+  if(button.dataset.action==='open'){
+   window.open('/tasks?task_id='+encodeURIComponent(o.row.task_id),'_blank','noopener,noreferrer');
+   const previous=state[o.key],opened={...(previous||{}),until:Date.now()+300000};state[o.key]=opened;undoTaskKey='';persist();hide();render();
+   window.__CC126_POPUP_UNDO__?.push({title:o.row.title,restore:()=>{
+    const fresh=rows.get(id);if(disposed||!fresh||['completed','done','closed','cancelled','canceled','deleted'].includes(String(fresh.status||'').toLowerCase())||state[o.key]?.until!==opened.until)return false;
+    if(previous===undefined)delete state[o.key];else state[o.key]=previous;
+    const due=candidates(),target=due.find(item=>item.key===o.key)||due.find(item=>String(item.row.task_id)===id);
+    if(!target){state[o.key]=opened;return false;}
+    undoTaskKey=target.key;signature='';persist();render();return current?.key===target.key;
+   }});return;
+  }
   const later=button.dataset.minutes||button.dataset.action==='later',complete=button.dataset.action==='complete';if(!later&&!complete)return;
   let intent;
   if(later){const minutes=Number(button.dataset.minutes||30);if(!pendingSnooze||pendingSnooze.key!==o.key||pendingSnooze.minutes!==minutes)pendingSnooze={key:o.key,minutes,until:new Date(Date.now()+minutes*60000).toISOString(),request_id:crypto.randomUUID()};intent={...pendingSnooze};}
