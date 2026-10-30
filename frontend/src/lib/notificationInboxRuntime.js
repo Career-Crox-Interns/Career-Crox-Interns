@@ -48,6 +48,99 @@ export function mergeInboxRows(current,incoming,userId){
  return recentWorkNotices([...map.values()].filter(row=>String(row.user_id)===String(userId))).filter(row=>String(row.status||'unread').toLowerCase()!=='read').slice(0,60);
 }
 
+// CC127 changes presentation only; delivery, read state and Undo stay unchanged.
+const POPUP_THEMES={
+ calls:['Calls','📞','#9b4b08','#fff5e5','#edc58f'],
+ activity:['Activity','⚡','#a33140','#fff0f1','#edb8c1'],
+ notes:['Notes','📝','#087369','#eaf9f4','#a1d9ca'],
+ profile:['Profile','👤','#075b91','#edf7ff','#afd3eb'],
+ transfer:['Transfer','🔀','#a03c13','#fff2ea','#ecc0a6'],
+ status:['Status','🔄','#65509c','#f4efff','#ccc0e8'],
+ submission:['Submission','📤','#2365aa','#edf3ff','#b5cbea'],
+ approval:['Approval','✅','#24703e','#eff9ed','#b1d7ae'],
+ interview:['Interview','🎤','#813b9d','#faf0ff','#d9b6e5'],
+ attendance:['Attendance','⏱️','#896012','#fff9df','#ddce8d'],
+ task:['Task','📌','#4943b5','#f1f0ff','#c4bff0'],
+ report:['Report','📊','#146679','#ebf8fc','#aed6df'],
+ chat:['Team chat','💬','#a52c71','#fff0f8','#eab8d3'],
+ goal:['Goals','🎯','#667015','#f5f8e6','#d0d8a3'],
+ learning:['Learning','📚','#456d21','#f1f8e9','#c0d7a4'],
+ aaria:['Aaria','✨','#963d6f','#fff1f7','#e7bbd1'],
+ system:['System','⚙️','#435d72','#edf4fa','#bdcddd'],
+ warning:['Warning','⚠️','#ad3030','#fff0ed','#edbab0'],
+ other:['Update','🔔','#5a607b','#f2f3fa','#cacedf'],
+};
+function popupTheme(item){
+ const meta=noticeMetadata(item),raw=String(item?.category||'').toLowerCase(),title=String(item?.title||'');
+ let kind=noticeCategory(item);
+ if(/call ratio|no[- ]?call|low.call|call.*warning/i.test(title+' '+String(meta.reason||'')))kind='calls';
+ else if(/low activity|idle.*warning|low_activity/i.test(title+' '+String(meta.reason||'')))kind='activity';
+ else if(raw==='goal-post')kind='goal';
+ else if(['learning','aaria','system','warning'].includes(raw))kind=raw;
+ else if(kind==='other'&&raw&&!['general','other'].includes(raw)){
+  let hash=0;for(const ch of raw)hash=(hash*31+ch.charCodeAt(0))>>>0;
+  const hue=hash%360,label=raw.replace(/[_-]+/g,' ').replace(/^./,c=>c.toUpperCase()).slice(0,24);
+  return {kind:raw,label,icon:'🔔',accent:`hsl(${hue} 62% 32%)`,soft:`hsl(${hue} 76% 96%)`,line:`hsl(${hue} 46% 80%)`};
+ }
+ const [label,icon,accent,soft,line]=POPUP_THEMES[kind]||POPUP_THEMES.other;
+ return {kind,label,icon,accent,soft,line};
+}
+function highlightNotice(target,value,metadata){
+ const text=String(value||'Work update'),ranges=[],lower=text.toLocaleLowerCase();
+ // Exact metadata values and numbers are marked with DOM nodes, never HTML.
+ const terms=[metadata.candidate_name,...(Array.isArray(metadata.changes)?metadata.changes.slice(0,12).map(change=>change.to):[])];
+ for(const value of terms){
+  if(!['string','number'].includes(typeof value))continue;
+  const term=String(value).trim();if(!term||term.length>120)continue;
+  const needle=term.toLocaleLowerCase();let from=0,index;
+  while((index=lower.indexOf(needle,from))!==-1&&ranges.length<80){ranges.push([index,index+term.length]);from=index+term.length;}
+ }
+ const keyValues=/\b(?:\d+\s*\/\s*\d+|\d+(?:\.\d+)?(?:\s*(?:minutes?|mins?|hours?|hrs?|days?|calls?))?|approved|rejected|pending|completed|rescheduled|selected|joined|cancelled|on hold|in progress)\b/gi;
+ for(const match of text.matchAll(keyValues)){if(ranges.length>=120)break;ranges.push([match.index,match.index+match[0].length]);}
+ ranges.sort((a,b)=>a[0]-b[0]||b[1]-a[1]);const merged=[];
+ for(const range of ranges){const last=merged[merged.length-1];if(last&&range[0]<last[1])last[1]=Math.max(last[1],range[1]);else merged.push([...range]);}
+ let offset=0;
+ for(const [start,end]of merged){target.append(document.createTextNode(text.slice(offset,start)));const mark=document.createElement('mark');mark.textContent=text.slice(start,end);target.append(mark);offset=end;}
+ target.append(document.createTextNode(text.slice(offset)));
+}
+const POPUP_STYLE=`
+:host([hidden]){display:none!important}
+*{box-sizing:border-box}
+article{font:11px/1.4 "Segoe UI",Arial,sans-serif;color:#263247;background:linear-gradient(135deg,#fff 62%,var(--notice-soft));border:1px solid var(--notice-line);border-left:4px solid var(--notice-accent);border-radius:12px;box-shadow:0 6px 20px #25384d26;transform-origin:top right;animation:notice-boing .68s both cubic-bezier(.22,.7,.3,1)}
+header{display:flex;align-items:center;gap:8px;min-height:38px;padding:7px 6px 5px 10px}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+button:focus-visible,.changes:focus-visible{outline:2px solid var(--notice-accent);outline-offset:2px}
+.mascot{position:relative;display:block;flex:none;width:24px;height:24px;margin:1px 3px 0 0;border-radius:9px;background:var(--notice-soft);border:1.5px solid var(--notice-accent);transform-origin:50% 80%;animation:mascot-dance .56s ease-in-out .18s 2}
+.mascot:before,.mascot:after{content:'';position:absolute;top:12px;width:5px;height:3px;border-radius:4px;background:var(--notice-accent)}
+.mascot:before{left:-5px;transform:rotate(-30deg)}
+.mascot:after{right:-5px;transform-origin:left center;animation:mascot-wave .22s ease-in-out .2s 5 alternate}
+.eye{position:absolute;top:8px;width:3px;height:4px;border-radius:50%;background:var(--notice-accent)}
+.eye.left{left:6px}.eye.right{right:6px;animation:mascot-wink .75s ease-in-out .25s 2}
+.smile{position:absolute;left:7px;top:13px;width:8px;height:5px;border:1.5px solid var(--notice-accent);border-top:0;border-radius:0 0 7px 7px}
+.category-icon{position:absolute;right:-5px;top:-7px;display:grid;place-items:center;width:15px;height:15px;border-radius:50%;background:#fff;font-size:11px;line-height:1;box-shadow:0 1px 3px #26324720}
+.heading{flex:1;min-width:0;padding:0;text-align:left;font-size:11.5px;line-height:1.3;font-weight:750;overflow-wrap:anywhere;color:var(--notice-accent)}
+.close{flex:none;align-self:flex-start;display:grid;place-items:center;width:23px;height:23px;padding:0;margin-top:-2px;font-size:18px;line-height:1;color:#667386;border-radius:6px}
+.close:hover{background:var(--notice-soft);color:var(--notice-accent)}
+.subject{display:block;padding:0 10px 4px;font-size:10px;font-weight:600;color:#5d697d;overflow-wrap:anywhere}.subject:empty{display:none}
+.body{padding:0 8px 4px;max-height:min(170px,38vh);overflow:auto;overscroll-behavior:contain;overflow-wrap:anywhere}
+.changes{padding:7px 8px;background:var(--notice-soft);border:1px solid var(--notice-line);border-radius:8px;font-size:11.5px;line-height:1.5;font-weight:650;color:var(--notice-accent);white-space:pre-wrap;cursor:pointer}
+.changes mark{padding:0 3px;border-radius:4px;background:var(--notice-accent);color:#fff;font-weight:800;box-decoration-break:clone;-webkit-box-decoration-break:clone}
+.note-kicker{display:block;margin-bottom:3px;font-size:9px;font-weight:600;color:var(--notice-accent)}
+.notice-footer{display:flex;align-items:center;justify-content:space-between;gap:7px;padding:1px 9px 6px;font-size:9.5px;color:#5e6a7a}
+.kind{max-width:95px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:5px;padding:1px 4px;background:var(--notice-soft);color:var(--notice-accent);font-weight:700}
+.footer-actions{display:flex;align-items:center;gap:5px}
+.more{padding:3px 2px;color:var(--notice-accent);font-size:9.5px}
+.next{padding:3px 6px;border:1px solid var(--notice-line);border-radius:6px;background:#fff;color:var(--notice-accent);font-size:9.5px;font-weight:600}
+.context{padding:7px 2px 2px;color:#526176;font-size:10px;white-space:pre-wrap}
+.leaving{animation:notice-bye .16s ease-in forwards}
+@keyframes notice-boing{0%{opacity:0;transform:translateX(38px) scale(.85) rotate(4deg)}48%{opacity:1;transform:translateX(-7px) scale(1.018) rotate(-1.5deg)}70%{transform:translateX(3px) scale(.99) rotate(.8deg)}86%{transform:translateX(-1px) rotate(-.35deg)}100%{opacity:1;transform:none}}
+@keyframes mascot-dance{0%,100%{transform:none}25%{transform:translateY(-3px) rotate(-13deg) scale(1.06,.94)}50%{transform:translateY(1px) rotate(9deg) scale(.94,1.06)}75%{transform:translateY(-2px) rotate(-5deg)}}
+@keyframes mascot-wave{from{transform:rotate(25deg)}to{transform:rotate(-60deg)}}
+@keyframes mascot-wink{0%,30%,56%,100%{transform:scaleY(1)}42%{transform:scaleY(.16)}}
+@keyframes notice-bye{to{opacity:0;transform:translateX(16px) scale(.96)}}
+@media(prefers-reduced-motion:reduce){article,.leaving,.mascot,.mascot:after,.eye.right{animation:none!important}}
+`;
+
 export function installNotificationInboxRuntime(user,{navigate=path=>window.location.assign(path)}={}){
  if(!user?.user_id||typeof document==='undefined')return()=>{};
  const principal=accountPrincipal(),uid=String(user.user_id),mountedAt=Date.now();
@@ -58,15 +151,14 @@ export function installNotificationInboxRuntime(user,{navigate=path=>window.loca
  let hideTimer,removeTimer,recoveryTimer,queueTimer;
  const stable=item=>/candidate_update|profile_access|approval|attendance/.test(String(item.category||''))||/note|transfer|reassign|submission|interview|follow.up|unlock|profile access/.test(String(item.title||'').toLowerCase());
  const host=document.createElement('div');host.className='cc120-work-notice-host';host.hidden=true;
- host.style.cssText='position:fixed;z-index:100960;width:min(370px,calc(100vw - 20px));pointer-events:auto;';
+ host.style.cssText='position:fixed;z-index:100960;width:min(282px,calc(100vw - 20px));pointer-events:auto;';
  const shadow=host.attachShadow({mode:'open'}),style=document.createElement('style');
- style.textContent=`:host([hidden]){display:none!important}*{box-sizing:border-box}article{font:12px/1.4 "Segoe UI",Arial,sans-serif;color:#263b56;background:rgba(248,251,255,.94);border:1px solid #bfd0e5;border-radius:11px;box-shadow:0 4px 14px #26436020;animation:pop .22s ease-out;transform-origin:top right}header{display:flex;align-items:center;gap:7px;min-height:37px;padding:4px 6px 4px 10px}.dot{width:7px;height:7px;background:#5782d2;border-radius:50%;flex:none}.heading{flex:1;min-width:0;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:650}button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;padding:4px 0}.close{font-size:19px;width:23px;height:25px;line-height:1;color:#6c7f97}.body{display:none;padding:0 12px 10px;max-height:145px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:#425b78;font-size:12px}article:hover .body,article:focus-within .body{display:block}.leaving{animation:bye .16s ease-in forwards}@keyframes pop{0%{opacity:0;transform:translateY(-7px) scale(.88) rotate(-2deg)}70%{opacity:1;transform:translateY(1px) scale(1.025) rotate(1deg)}100%{opacity:1;transform:none}}@keyframes bye{to{opacity:0;transform:translateY(-5px) scale(.9) rotate(2deg)}}@media(prefers-reduced-motion:reduce){article,.leaving{animation:none}}`;
- const readable=document.createElement('style');readable.textContent='article{border-radius:14px;background:#fff;box-shadow:0 9px 28px #2434522b}header{min-height:42px;padding:8px 9px 5px 13px}.heading{font-size:14px;line-height:1.4;white-space:normal;color:#2f2948}.body{display:block;padding:0 13px 12px;max-height:min(210px,35vh);font-size:13px;line-height:1.5;color:#3e4960;overflow:auto;overflow-wrap:anywhere}.subject{display:block;padding:0 13px 7px;font-size:12px;color:#5f6780}.changes{background:#f4f0fd;border:1px solid #e0d9ef;border-radius:9px;padding:9px 10px;white-space:pre-wrap}.notice-footer{display:flex;align-items:center;justify-content:space-between;padding:0 13px 10px;gap:8px;color:#6f7890;font-size:11px}.notice-footer button{padding:4px 8px;border:1px solid #d8dfee;border-radius:7px;background:#f7f9fe}.body .more{font:inherit;border:0;text-align:left;color:#5064a3;padding-top:8px}.context{font-size:12px;color:#6b7890;white-space:pre-wrap;margin-top:6px}';
- shadow.append(style,readable);(document.body||document.documentElement).append(host);
+ style.textContent=POPUP_STYLE;
+ shadow.append(style);(document.body||document.documentElement).append(host);
  const live=()=>!disposed&&accountPrincipal()===principal;
  function persist(){const cutoff=Date.now()-7*86400000;shown=Object.fromEntries(Object.entries(shown).filter(([,at])=>Number(at)>=cutoff).slice(-1000));try{localStorage.setItem(seenKey,JSON.stringify(shown));}catch{}}
  function place(){
-  const anchor=document.querySelector('.topbar'),rect=anchor?.getBoundingClientRect(),box=host.getBoundingClientRect(),width=box.width||370,height=box.height||140;
+  const anchor=document.querySelector('.topbar'),rect=anchor?.getBoundingClientRect(),box=host.getBoundingClientRect(),width=box.width||282,height=box.height||115;
   host.style.left=Math.round(Math.max(8,innerWidth-width-14))+'px';
   host.style.top=Math.round(Math.max(8,Math.min(innerHeight-height-8,rect?rect.bottom+7:64)))+'px';
  }
@@ -77,8 +169,12 @@ export function installNotificationInboxRuntime(user,{navigate=path=>window.loca
   window.__CC124_REMEMBER_POPUP__?.({key:'notice:'+item.notification_id,kind:'Notification',title:item.title,note:item.message,candidate_id:noticeMetadata(item).candidate_id,time:item.created_at,path:notificationTarget(item)});
   if(!live())return;clearTimeout(hideTimer);clearTimeout(removeTimer);current=item;hover=false;shown[item.notification_id]=Date.now();persist();
   const article=document.createElement('article');article.setAttribute('role','status');article.setAttribute('aria-label','Work notification');
+  const theme=popupTheme(item);article.dataset.category=theme.kind;
+  for(const [key,value]of Object.entries({accent:theme.accent,soft:theme.soft,line:theme.line}))article.style.setProperty('--notice-'+key,value);
   const header=document.createElement('header'),dot=document.createElement('span'),heading=document.createElement('button'),close=document.createElement('button'),body=document.createElement('div');
-  dot.className='dot';heading.className='heading';heading.textContent=item.title||'Work update';heading.title='Open update';close.className='close';close.textContent='×';close.setAttribute('aria-label','Dismiss notification');body.className='body';body.textContent=item.message||'';
+  dot.className='mascot';dot.setAttribute('aria-hidden','true');
+  for(const className of ['eye left','eye right','smile','category-icon']){const part=document.createElement('span');part.className=className;if(className==='category-icon')part.textContent=theme.icon;dot.append(part);}
+  heading.type='button';heading.className='heading';heading.textContent=item.title||'Work update';heading.title='Open update';close.type='button';close.className='close';close.textContent='×';close.setAttribute('aria-label','Dismiss notification');body.className='body';
   const open=()=>{
    window.open(notificationTarget(item),'_blank','noopener,noreferrer');finish();
    window.__CC126_POPUP_UNDO__?.push({title:item.title,restore:()=>{
@@ -92,10 +188,13 @@ export function installNotificationInboxRuntime(user,{navigate=path=>window.loca
   heading.onclick=open;body.onclick=open;close.onclick=finish;
   article.onpointerenter=()=>{hover=true;clearTimeout(hideTimer);place();};article.onpointerleave=()=>{hover=false;scheduleHide(200);};article.onfocusin=()=>{hover=true;clearTimeout(hideTimer);};article.onfocusout=()=>{hover=false;scheduleHide(200);};
   const metadata=noticeMetadata(item),subject=document.createElement('span');subject.className='subject';subject.textContent=[metadata.candidate_name,metadata.candidate_id].filter(Boolean).join(' · ');
-  const changes=document.createElement('div');changes.className='changes';changes.textContent=item.message||'Work update';body.textContent='';body.append(changes);
-  if(metadata.note_id||metadata.note_body){const kicker=document.createElement('small');kicker.textContent='Updated note';kicker.style.cssText='display:block;margin-bottom:4px;color:#76698e';changes.prepend(kicker);}
-  const more=document.createElement('button');more.type='button';more.className='more';more.textContent='More activity details';more.onclick=event=>{event.stopPropagation();let details=body.querySelector('.context');if(details){details.remove();place();return;}details=document.createElement('div');details.className='context';details.textContent=[metadata.actor_name?'By '+metadata.actor_name:'',new Date(item.created_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),metadata.candidate_id?'Candidate '+metadata.candidate_id:''].filter(Boolean).join('\n');body.append(details);place();};body.append(more);body.onclick=event=>{if(!event.target.closest('button'))open();};
-  const footer=document.createElement('div');footer.className='notice-footer';const hint=document.createElement('span');hint.textContent=stable(item)?'Stays until you close it':'Work notification';const nextButton=document.createElement('button');nextButton.type='button';nextButton.textContent='Next update';nextButton.onclick=finish;footer.append(hint,nextButton);
+  const changes=document.createElement('div');changes.className='changes';highlightNotice(changes,item.message,metadata);body.append(changes);
+  changes.tabIndex=0;changes.setAttribute('role','button');changes.setAttribute('aria-label','Open '+(item.title||'work update'));changes.onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();open();}};
+  if(metadata.note_id||metadata.note_body){const kicker=document.createElement('small');kicker.className='note-kicker';kicker.textContent='Updated note';changes.prepend(kicker);}
+  const more=document.createElement('button');more.type='button';more.className='more';more.textContent='Details';more.title='More activity details';more.setAttribute('aria-expanded','false');more.setAttribute('aria-controls','cc127-notice-context');more.onclick=event=>{event.stopPropagation();let details=body.querySelector('.context');if(details){details.remove();more.setAttribute('aria-expanded','false');place();return;}details=document.createElement('div');details.className='context';details.id='cc127-notice-context';details.textContent=[metadata.actor_name?'By '+metadata.actor_name:'',new Date(item.created_at).toLocaleString('en-IN',{timeZone:'Asia/Kolkata'}),metadata.candidate_id?'Candidate '+metadata.candidate_id:''].filter(Boolean).join('\n');body.append(details);more.setAttribute('aria-expanded','true');place();};body.onclick=event=>{if(!event.target.closest('button'))open();};
+  const footer=document.createElement('div');footer.className='notice-footer';const hint=document.createElement('span');hint.className='kind';hint.textContent=theme.label;hint.title=stable(item)?'Stays until you close it':'Work notification';
+  const nextButton=document.createElement('button');nextButton.type='button';nextButton.className='next';nextButton.textContent='Next →';nextButton.setAttribute('aria-label','Next update');nextButton.onclick=finish;
+  const footerActions=document.createElement('div');footerActions.className='footer-actions';footerActions.append(more,nextButton);footer.append(hint,footerActions);
   header.append(dot,heading,close);article.append(header,subject,body,footer);shadow.querySelector('article')?.remove();shadow.append(article);host.hidden=false;place();
   const anchor=document.getElementById('cc120-notifications-trigger');anchor?.classList.remove('cc120-bell-bounce');if(anchor){void anchor.offsetWidth;anchor.classList.add('cc120-bell-bounce');}
   if(!stable(item)){const policy=readWorkNoticePolicy(),seconds=String(user.role).toLowerCase()==='tl'?policy.tl_seconds:policy.manager_seconds;scheduleHide(seconds*1000-160);}else{article.onpointerleave=()=>{hover=false;};article.onfocusout=()=>{hover=false;};}
