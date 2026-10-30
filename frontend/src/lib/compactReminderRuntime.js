@@ -1127,8 +1127,8 @@ export function submissionReviewDue(rows, snoozes, now = Date.now()) {
 }
 export function installSubmissionReviewRuntime(user) {
   if(typeof document==='undefined'||!user?.user_id||!['manager','admin','tl'].includes(String(user.role||'').toLowerCase()))return()=>{};
-  let rows=[],current=null,deck=null,timer=null,busy=false,stopped=false,inFlight=false,lastSync=0,pendingSync=false,eventSerial=0,shownAt=0,hiddenReviewUntil=0;
-  const eventUpdates=new Map(),candidateUpdates=new Map();
+  let rows=[],current=null,deck=null,timer=null,busy=false,stopped=false,inFlight=false,lastSync=0,pendingSync=false,eventSerial=0,shownAt=0,hiddenReviewUntil=0,undoReviewId='',undoContextReplay=false;
+  const eventUpdates=new Map(),candidateUpdates=new Map(),reminderContextCache=new Map();
   function rememberEvent(id,row){eventUpdates.set(String(id),{serial:++eventSerial,row});if(eventUpdates.size>250)eventUpdates.delete(eventUpdates.keys().next().value);}
   const principal=String(user.user_id),key='cc803-review-snooze:'+principal,draftKey='cc803-review-notes:'+principal;
   let snoozes={},drafts={};try{snoozes=JSON.parse(localStorage.getItem(key)||'{}');drafts=JSON.parse(sessionStorage.getItem(draftKey)||'{}');}catch{}
@@ -1167,21 +1167,33 @@ export function installSubmissionReviewRuntime(user) {
     if(!due.length){close();return;}
     // Keep the textarea mounted while typing; retain its draft across pending decisions.
     const active=current&&due.find(x=>String(x.id)===String(current.id));
-    const row=active||due[0];
+    const row=due.find(item=>String(item.id)===undoReviewId)||active||due[0];
     if(deck&&current?.id===row.id&&current?.requested_at===row.requested_at){const count=deck.querySelector('[data-count]');if(count)count.textContent=due.length+' pending';return;}
     if(busy)return;close();current=row;deck=document.createElement('section');deck.className='cc803-review-popup';deck.setAttribute('role','dialog');deck.setAttribute('aria-label','Review submitted profile');
     deck.innerHTML=`<div data-reminder-kind="submission" class="panel cc604-approval-popup"><div class="cc803-review-head"><span class="cc604-approval-eyebrow">SUBMISSION REVIEW</span><span class="cc803-review-count" data-count>${due.length} pending</span><button class="cc803-review-close" data-action="hide" aria-label="Remind me later" title="Hide for 15 minutes">×</button></div><div class="cc803-review-title">${esc(row.title||'Candidate')}</div><div class="cc882-review-owner"><span><small>${esc(row.owner_role==='tl'?'TL profile':row.owner_role==='manager'?'Manager profile':'Recruiter')}</small><strong>${esc(row.owner_name||row.recruiter_name||'Unassigned')}</strong></span><span><small>Team leader</small><strong>${esc(row.tl_name||'Not assigned')}</strong></span></div><div class="cc882-review-process"><small>PROCESS</small><strong>${esc(row.process||'Not specified')}</strong></div><div class="cc803-review-meta">${esc(time(row.requested_at))}</div>${row.profile_note?`<div class="cc803-review-note">${esc(row.profile_note)}</div>`:''}<label class="cc803-review-field">Review note<textarea rows="2" maxlength="4000" placeholder="Optional for approval; required for rejection">${esc(drafts[String(row.id)]||'')}</textarea></label><div class="cc803-review-actions"><button class="cc803-review-approve" data-action="approve">Approve</button><button class="cc803-review-reject" data-action="reject">Reject</button><button class="cc803-review-open" data-action="open">Open profile ↗</button></div><div class="cc803-review-actions">${[2,5,15,30,60].map(n=>`<button class="cc803-review-snooze" data-minutes="${n}">${n<60?n+'m':'1h'}</button>`).join('')}<button data-action="custom" aria-label="Custom reminder pause">+</button></div><div class="cc803-review-error" data-error role="status"></div></div>`;
     deck.addEventListener('input',event=>{if(event.target.matches('textarea')){drafts[String(row.id)]=event.target.value;persist();}});
     deck.addEventListener('click',event=>{const button=event.target.closest('button');if(!button||busy)return;
       if(button.dataset.minutes){snooze(Number(button.dataset.minutes));return;}
-      const action=button.dataset.action;if(action==='custom'){openReminderPause({candidate_id:row.candidate_id,title:row.title},()=>{close();render();});return;}if(action==='hide')snooze(15);else if(action==='approve'||action==='reject')resolve(action);else if(action==='open')window.open('/candidate/'+encodeURIComponent(row.candidate_id)+'?jump=submission','_blank','noopener,noreferrer');else if(action==='exact'){
+      const action=button.dataset.action;if(action==='custom'){openReminderPause({candidate_id:row.candidate_id,title:row.title},()=>{close();render();});return;}if(action==='hide')snooze(15);else if(action==='approve'||action==='reject')resolve(action);else if(action==='open'){
+        window.open('/candidate/'+encodeURIComponent(row.candidate_id)+'?jump=submission','_blank','noopener,noreferrer');
+        const id=String(row.id),previous=snoozes[id],opened={until:Date.now()+300000,version:String(row.requested_at||'')};snoozes[id]=opened;undoReviewId='';persist();close();render();
+        window.__CC126_POPUP_UNDO__?.push({title:row.title,restore:()=>{
+          const live=rows.find(item=>String(item.id)===id&&String(item.requested_at||'')===opened.version);
+          if(!isLive()||!live||submissionReviewIsClosed(live)||window.__CC124_INACTIVE_CANDIDATES__?.has(String(live.candidate_id))||snoozes[id]?.until!==opened.until)return false;
+          if(previous===undefined)delete snoozes[id];else snoozes[id]=previous;
+          undoReviewId=id;undoContextReplay=true;hiddenReviewUntil=0;persist();close();render();return String(current?.id)===id;
+        }});
+      }else if(action==='exact'){
         const raw=deck.querySelector('input').value,until=Date.parse(raw+'+05:30');if(!Number.isFinite(until)||until<=Date.now()){error('Choose a future time in IST.');return;}snoozes[String(row.id)]={until,version:String(row.requested_at||'')};persist();close();render();
       }
     });
     window.__CC124_REMEMBER_POPUP__?.({key:'submission:'+row.id+':'+row.requested_at,kind:'Submission review',title:row.title,note:row.latest_note||row.note||'',candidate_id:row.candidate_id,time:row.requested_at,path:'/candidate/'+encodeURIComponent(row.candidate_id)+'?jump=submission'});
     deck.dataset.cc927Occurrence=row.id+':'+row.requested_at;shownAt=Date.now();document.body.appendChild(deck);document.body.classList.add('cc803-review-open');
     const shownDeck=deck;const context=document.createElement('div');context.className='cc898-reminder-context';context.innerHTML='<div><b>Last activity</b><span data-activity>Loading…</span></div><div><b>Last seen by owner</b><span data-seen>Loading…</span></div>';deck.querySelector('.panel').appendChild(context);
-    api.get('/api/reports/reminder-context?candidate_id='+encodeURIComponent(row.candidate_id),{cacheTtlMs:60000,allowStale:false,background:true,retries:0}).then(data=>{
+    const contextKey=String(row.candidate_id),replay=undoContextReplay;undoContextReplay=false;
+    const contextLoad=replay?(reminderContextCache.get(contextKey)||Promise.resolve({item:{last_activity_label:'Not cached · use Refresh'}})):api.get('/api/reports/reminder-context?candidate_id='+encodeURIComponent(row.candidate_id),{cacheTtlMs:60000,allowStale:false,background:true,retries:0});
+    reminderContextCache.set(contextKey,contextLoad);
+    contextLoad.then(data=>{
       if(deck!==shownDeck||!shownDeck.isConnected)return;const item=data?.item||{};
       context.querySelector('[data-activity]').textContent=[item.last_activity_label,item.last_activity_actor?'by '+item.last_activity_actor:'',item.last_activity_at?time(item.last_activity_at):''].filter(Boolean).join(' · ')||'No recorded activity';
       context.querySelector('[data-seen]').textContent=item.owner_last_seen_at?time(item.owner_last_seen_at):'Not recorded';
