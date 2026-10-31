@@ -1,7 +1,7 @@
 {
   "name": "career-crox-crm2",
   "private": true,
-  "version": "1.0.931",
+  "version": "1.0.935",
   "engines": {
     "node": "24.x",
     "npm": ">=10"
