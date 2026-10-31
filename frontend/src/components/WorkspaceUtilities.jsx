@@ -107,7 +107,25 @@ function VoiceTyping({enabled,principal}){
    style.textContent=':host{all:initial}*{box-sizing:border-box}.mic{position:fixed;z-index:2147483647;display:grid;place-items:center;width:24px;height:24px;padding:3px;margin:0;border:1px solid #bfd0e8;border-radius:7px;background:#f4f8ffed;color:#476394;cursor:pointer;box-shadow:0 1px 4px #21436d15}.mic:hover,.mic:focus-visible{background:#e5eeff;outline:2px solid #7b97d9}.mic[aria-pressed=true]{background:#dc4560;color:white;border-color:#ca3854;animation:breathe 1s ease-in-out infinite}.mic[hidden],.voice-bar[hidden]{display:none}.voice-bar{position:fixed;z-index:2147483647;bottom:14px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:center;max-width:calc(100vw - 24px);padding:9px 12px;border:1px solid #b8cbe6;border-radius:12px;background:#fff;color:#28435f;box-shadow:0 5px 22px #17314d30;font:13px/1.4 "Segoe UI",sans-serif}.voice-bar select,.voice-bar button{font:inherit;border:1px solid #c4d2e7;border-radius:7px;background:#f0f5ff;color:#244574;padding:4px;cursor:pointer}.voice-bar .copy{max-width:300px}@keyframes breathe{50%{box-shadow:0 0 0 4px #dc45602a}}@media(prefers-reduced-motion:reduce){.mic{animation:none!important}}';
    const bar=document.createElement('div');bar.className='voice-bar';bar.hidden=true;bar.setAttribute('role','status');const message=document.createElement('span');message.className='copy';const lang=document.createElement('select');lang.setAttribute('aria-label','Voice typing language');lang.innerHTML='<option value="en-IN">English</option><option value="hi-IN">हिन्दी</option>';lang.value=language;
    lang.onchange=()=>{language=lang.value;try{localStorage.setItem('cc123-voice-language',language);}catch{}stop();message.textContent='Language saved. Tap a mic to speak.';tipTimer=setTimeout(()=>bar.hidden=true,3500);};
-   const stopButton=document.createElement('button');stopButton.type='button';stopButton.textContent='Stop';stopButton.onclick=()=>{stop();bar.hidden=true;};bar.append(message,lang,stopButton);shadow.append(style,bar);container.append(host);const item={host,shadow,bar,message,lang};surfaces.set(container,item);return item;
+   const stopButton=document.createElement('button');stopButton.type='button';stopButton.textContent='Stop';stopButton.onclick=()=>{stop();bar.hidden=true;};
+   const testButton=document.createElement('button');testButton.type='button';testButton.textContent='Test mic';testButton.title='Test this microphone locally for 2 seconds; audio is not saved or uploaded';
+   testButton.onclick=async()=>{
+    stop();testButton.disabled=true;bar.hidden=false;message.textContent='Testing microphone locally… speak normally.';
+    let stream=null,audio=null;
+    try{
+     if(!navigator.mediaDevices?.getUserMedia)throw Error('Microphone access is unavailable. Open this CRM using HTTPS in Chrome.');
+     stream=await navigator.mediaDevices.getUserMedia({audio:true});
+     const Context=window.AudioContext||window.webkitAudioContext;
+     if(!Context)throw Error('Audio testing is not supported in this browser.');
+     audio=new Context();if(audio.state==='suspended')await audio.resume();
+     const source=audio.createMediaStreamSource(stream),analyser=audio.createAnalyser();analyser.fftSize=1024;source.connect(analyser);
+     const data=new Uint8Array(analyser.fftSize);let peak=0;const start=performance.now();
+     await new Promise(resolve=>{const check=()=>{if(closed||performance.now()-start>2200){resolve();return;}analyser.getByteTimeDomainData(data);let sum=0;for(let i=0;i<data.length;i++){const n=(data[i]-128)/128;sum+=n*n;}peak=Math.max(peak,Math.sqrt(sum/data.length));requestAnimationFrame(check);};check();});
+     tip({bar,message,lang},peak>0.012?'Mic working: sound detected. Choose Hindi or English, then tap the field mic.':'Microphone connected but no clear sound detected. Select the right input device in Windows/Chrome, then retry.');
+    }catch(error){const type=error?.name||'';tip({bar,message,lang},type==='NotAllowedError'||type==='PermissionDeniedError'?'Microphone blocked. Chrome site controls → Microphone → Allow; also enable Windows microphone privacy permissions.':type==='NotFoundError'?'No microphone was found. Check Windows Input settings.':String(error?.message||'Microphone test failed.'));}
+    finally{stream?.getTracks()?.forEach(track=>track.stop());try{await audio?.close();}catch{}testButton.disabled=false;}
+   };
+   bar.append(message,lang,testButton,stopButton);shadow.append(style,bar);container.append(host);const item={host,shadow,bar,message,lang};surfaces.set(container,item);return item;
   }
   function eligible(node){
    if(!(node instanceof Element)||node.disabled||node.readOnly||node.closest('[data-no-voice],.cc927-placement-box'))return false;
@@ -121,23 +139,36 @@ function VoiceTyping({enabled,principal}){
   function write(node,value,caret){
    if(node.isContentEditable){node.textContent=value;const range=document.createRange();range.selectNodeContents(node);range.collapse(false);const selection=window.getSelection();selection.removeAllRanges();selection.addRange(range);}
    else{const prototype=node.tagName==='TEXTAREA'?HTMLTextAreaElement.prototype:HTMLInputElement.prototype;Object.getOwnPropertyDescriptor(prototype,'value').set.call(node,value);try{node.setSelectionRange(caret,caret);}catch{}}
-   node.dispatchEvent(new Event('input',{bubbles:true,composed:true}));node.dispatchEvent(new Event('change',{bubbles:true,composed:true}));
+   // React onChange listens to input. Do not also send change for each interim word.
+   node.dispatchEvent(new Event('input',{bubbles:true,composed:true}));
   }
   function stop(){const previous=session;session=null;if(previous){previous.wanted=false;clearTimeout(previous.restart);try{previous.recognition.abort();}catch{}previous.entry.button.setAttribute('aria-pressed','false');previous.entry.ui.message.textContent='Voice typing stopped.';}}
   function tip(ui,message){clearTimeout(tipTimer);ui.bar.hidden=false;ui.message.textContent=message;ui.lang.value=language;tipTimer=setTimeout(()=>{if(!session)ui.bar.hidden=true;},6500);}
   function begin(entry){
    if(session?.entry===entry){stop();entry.ui.bar.hidden=true;return;}stop();if(!Recognition){tip(entry.ui,'Voice typing needs a supported browser such as Chrome. Windows users can also use Win + H.');return;}
-   const node=entry.node;if(!node.isConnected||!eligible(node))return;entry.ui.host.parentNode.append(entry.ui.host);const current=String(valueOf(node)||''),from=node.isContentEditable?current.length:node.selectionStart??current.length,to=node.isContentEditable?current.length:node.selectionEnd??from,recognition=new Recognition(),state={entry,recognition,wanted:true,prefix:current.slice(0,from),suffix:current.slice(to),lastValue:current,inserted:'',restart:null};session=state;
-   recognition.lang=language;recognition.continuous=true;recognition.interimResults=true;recognition.maxAlternatives=1;entry.ui.bar.hidden=false;entry.ui.lang.value=language;entry.ui.message.textContent='Listening… Speak into your headset. Browser speech service may process audio.';entry.button.setAttribute('aria-pressed','true');node.focus({preventScroll:true});
+   const node=entry.node;if(!node.isConnected||!eligible(node))return;entry.ui.host.parentNode.append(entry.ui.host);const current=String(valueOf(node)||''),from=node.isContentEditable?current.length:node.selectionStart??current.length,to=node.isContentEditable?current.length:node.selectionEnd??from,recognition=new Recognition(),state={entry,recognition,wanted:true,prefix:current.slice(0,from),suffix:current.slice(to),lastValue:current,inserted:'',restart:null,attempts:0,heard:false,lastSpeechAt:0};session=state;
+   recognition.lang=language;recognition.continuous=true;recognition.interimResults=true;recognition.maxAlternatives=1;entry.ui.bar.hidden=false;entry.ui.lang.value=language;entry.ui.message.textContent='Starting speech service… (if nothing types, tap Test mic).';entry.button.setAttribute('aria-pressed','true');node.focus({preventScroll:true});
+   recognition.onstart=()=>{if(session===state)entry.ui.message.textContent='Listening… Speak clearly in '+(language==='hi-IN'?'Hindi':'English')+'.';};
    recognition.onresult=event=>{
-    if(session!==state||!state.wanted||!node.isConnected||!eligible(node)){stop();return;}if(String(valueOf(node)||'')!==state.lastValue){stop();return;}
-    let transcript=Array.from(event.results||[]).map(result=>result[0]?.transcript||'').join(' ').trim();const numeric=node.type==='number'||node.type==='tel'||node.inputMode==='numeric';
+    if(session!==state||!state.wanted||!node.isConnected||!eligible(node)){stop();return;}
+    // React-controlled fields can temporarily reformat text after an input event.
+    // Trusted user edits are handled by beforeinput; do not kill dictation on a harmless rerender.
+    let transcript=Array.from(event.results||[]).map(result=>result[0]?.transcript||'').join(' ').trim();if(!transcript)return;state.heard=true;state.attempts=0;state.lastSpeechAt=Date.now();
+    const numeric=node.type==='number'||node.type==='tel'||node.inputMode==='numeric';
     if(numeric)transcript=transcript.replace(/[०-९]/g,c=>String(c.charCodeAt(0)-2406)).replace(/[^\d.+-]/g,'');
     const lead=!numeric&&state.prefix&&!/\s$/.test(state.prefix)&&transcript?' ':'',tail=!numeric&&state.suffix&&!/^\s/.test(state.suffix)&&transcript?' ':'',max=node.maxLength>0?Math.max(0,node.maxLength-state.prefix.length-state.suffix.length):Infinity;
     state.inserted=(lead+transcript+tail).slice(0,max);write(node,state.prefix+state.inserted+state.suffix,state.prefix.length+state.inserted.length);state.lastValue=String(valueOf(node)||'');entry.ui.message.textContent='Listening… '+(language==='hi-IN'?'हिन्दी':'English')+' · Tap the mic or Stop when done.';
    };
-   recognition.onerror=event=>{if(session!==state)return;const messages={'not-allowed':'Allow microphone access in your browser, then tap the mic again.','service-not-allowed':'Speech service is unavailable in this browser. Try Chrome.','audio-capture':'Connect your headset microphone and select it in browser settings.',network:'Speech service could not connect. Check internet and try again.','language-not-supported':'This voice language is unavailable. Choose English or Hindi.'};if(event.error==='no-speech')return;stop();tip(entry.ui,messages[event.error]||'Voice typing stopped. Tap the mic to retry.');};
-   recognition.onend=()=>{if(session!==state||!state.wanted)return;if(document.hidden||!node.isConnected||!eligible(node)){stop();return;}state.prefix+=state.inserted;state.inserted='';state.lastValue=String(valueOf(node)||'');state.restart=setTimeout(()=>{if(session===state&&state.wanted){try{recognition.start();}catch{stop();tip(entry.ui,'Tap the mic to continue voice typing.');}}},200);};
+   recognition.onerror=event=>{if(session!==state)return;const messages={'not-allowed':'Microphone blocked: Chrome site controls → Microphone → Allow.','service-not-allowed':'Browser speech service denied recognition. Check Chrome and internet; Windows Win + H is an alternative.','audio-capture':'No usable microphone. Check Windows Settings → System → Sound → Input, then Test mic.',network:'Speech recognition network error. Chrome speech service needs internet; try Windows Win + H.','language-not-supported':'Speech language unavailable. Choose English or Hindi.', 'no-speech':'No speech detected. Try Test mic and check the selected Windows input device.', 'aborted':'Speech recognition was interrupted.'};stop();tip(entry.ui,messages[event.error]||'Speech recognition error ('+String(event.error||'unknown')+'). Try Test mic.');};
+   recognition.onend=()=>{
+    if(session!==state||!state.wanted)return;
+    if(document.hidden||!node.isConnected||!eligible(node)){stop();return;}
+    // Do not silently poll the speech service forever when a mic is muted/disconnected.
+    if(!state.heard){state.attempts+=1;if(state.attempts>1){stop();tip(entry.ui,'No words recognized. Click Test mic; then retry or press Windows + H in the text box.');return;}}
+    else if(Date.now()-state.lastSpeechAt>12000){stop();tip(entry.ui,'Dictation paused after silence. Tap the mic again when ready.');return;}
+    state.prefix+=state.inserted;state.inserted='';state.lastValue=String(valueOf(node)||'');
+    state.restart=setTimeout(()=>{if(session===state&&state.wanted){try{recognition.start();}catch{stop();tip(entry.ui,'Speech service could not restart. Tap mic to retry.');}}},350);
+   };
    try{recognition.start();}catch{stop();tip(entry.ui,'Voice typing could not start. Check microphone permission and retry.');}
   }
   function scan(){
