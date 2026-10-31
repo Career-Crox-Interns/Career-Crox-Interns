@@ -768,7 +768,7 @@ export default function CandidatesPage() {
     return () => { cancelled = true; };
   }, [showFilterDrawer]);
 
-  useEffect(()=>{const team=()=>load(1,filters,true).catch(()=>{});window.addEventListener('career-crox-team-changed',team);return()=>window.removeEventListener('career-crox-team-changed',team);},[filters]);
+  // CC132: team-change is handled by the debounced listener below; avoid duplicate Supabase reads.
   async function load(targetPage=page,nextFilters=filters,force=false) {
     const loadSeq = ++loadSeqRef.current;setSliceLoading(true);
     try {
@@ -779,6 +779,9 @@ export default function CandidatesPage() {
       const safe=exactCached.items.filter(row=>candidateVisibleLocally(row,user)&&inProject(row));
       setAllRows(safe);setSelectableRows(safe);
       if (Number.isFinite(Number(exactCached.total))) setTotalRows(Number(exactCached.total));
+      if (exactCached.summary && typeof exactCached.summary === 'object') setSummary(exactCached.summary);
+      // Cached slice and its own counters are usable immediately; verify in background.
+      setSliceLoading(false);
     }
     // Frontend-first: exact cached rows render immediately; backend verification continues behind them.
     const data = await api.get(`/api/candidates?${qs}${force ? '&_refresh='+Date.now() : ''}`, { cacheTtlMs: force?0:60000, timeoutMs: 12000, retries: 0, allowStale: false, background: false });
@@ -840,7 +843,7 @@ export default function CandidatesPage() {
 
   useEffect(()=>{
     let timer;
-    const changed=event=>{const d=event.detail||{};if(event.type!=='career-crox-team-changed'&&!d.item?.candidate_id&&!/\/(candidates|bucket|flowchart|admin\/(?:upload|import))/.test(String(d.source||'')))return;clearTimeout(timer);timer=setTimeout(()=>load(page,filters,true).catch(()=>{}),350);};
+    const changed=event=>{const d=event.detail||{};if(event.type!=='career-crox-team-changed'&&!d.item?.candidate_id&&!/\/(candidates|bucket|flowchart|admin\/(?:upload|import))/.test(String(d.source||'')))return;clearTimeout(timer);timer=setTimeout(()=>load(event.type==='career-crox-team-changed'?1:page,filters,true).catch(()=>{}),350);};
     window.addEventListener('career-crox-workspace-change',changed);
     window.addEventListener('career-crox-team-changed',changed);
     return()=>{clearTimeout(timer);window.removeEventListener('career-crox-workspace-change',changed);window.removeEventListener('career-crox-team-changed',changed);};
@@ -1306,12 +1309,15 @@ export default function CandidatesPage() {
   }
 
   function showInstantBucketPreview(nextFilters, requestedView) {
-    const qs = buildCandidateQuery(nextFilters, 1, pageSize);
+    // Match the exact server query/cache key including sort + current CRM instance.
+    const qs = buildCandidateQuery({...nextFilters,sort_by:sortBy},1,pageSize)+(projectScope?'&project_id='+encodeURIComponent(projectScope):'');
     const exact = readPageCache(`${candidatesCacheKey}:slice:${qs}`, null);
     if (exact && Array.isArray(exact.items)) {
       setAllRows(exact.items);
       setSelectableRows(exact.items);
       if (Number.isFinite(Number(exact.total))) setTotalRows(Number(exact.total));
+      if (exact.summary && typeof exact.summary === 'object') setSummary(exact.summary);
+      setSliceLoading(false);
       return true;
     }
     const source = readPageCache(`${candidatesCacheKey}:filter-options:v517`, filterRows);
@@ -1335,6 +1341,7 @@ export default function CandidatesPage() {
     setAllRows(preview);
     setSelectableRows(preview);
     setTotalRows(matchingRows.length);
+    setSliceLoading(false);
     return true;
   }
 
