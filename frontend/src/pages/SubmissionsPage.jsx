@@ -1229,7 +1229,7 @@ export default function SubmissionsPage() {
                         ✓
                       </button>
                     </td>
-                    <td><strong>{index + 1}</strong><button type="button" className="mini-btn view" aria-label={'Submission reminders for '+(row.full_name||row.candidate_id)} title="Reminder settings" onClick={e=>{e.stopPropagation();openReminderSchedule('submission',row);}}>⏰</button></td>
+                    <td><strong>{index + 1}</strong></td>
                     <td><strong>{safeCellText(row.full_name || row.candidate_id, '-')}</strong><br /><span className="subtle">{safeCellText(row.candidate_id, '-')}</span></td>
                     <td>{safeCellText(row.recruiter_name || 'Team member', '-')}</td>
                     <td>{safeCellText(row.process, '-')}</td>
