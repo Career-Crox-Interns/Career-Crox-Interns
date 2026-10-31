@@ -20,10 +20,10 @@ function parseStored(raw) {
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed === 'object' && Object.prototype.hasOwnProperty.call(parsed, 'data')) {
       const age = now() - Number(parsed.cachedAt || 0);
-      if (Number.isFinite(age) && age >= 0 && age <= MAX_CACHE_AGE_MS) return parsed.data;
+      if (Number.isFinite(age) && age >= 0 && age <= MAX_CACHE_AGE_MS) return {data:parsed.data,at:Number(parsed.cachedAt)};
       return null;
     }
-    return parsed;
+    return {data:parsed,at:now()};
   } catch {
     return null;
   }
@@ -47,7 +47,7 @@ export function readPageCache(key, fallback = null) {
   for (const storage of storages) {
     try {
       const value = parseStored(storage.getItem(key));
-      if (value !== null && value !== undefined && matchesFallbackShape(value, fallback)) return remember(key,{data:value,at:now()}).data;
+      if (value !== null && value !== undefined && matchesFallbackShape(value.data, fallback)) return remember(key,value).data;
     } catch {}
   }
   return fallback;

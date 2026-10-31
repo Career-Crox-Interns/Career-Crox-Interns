@@ -6,6 +6,7 @@
   'use strict';
   const CUSTOM_VARS=['--grad-1-a','--grad-1-b','--grad-2-a','--grad-2-b','--brand-primary','--brand-secondary','--brand-accent','--brand-button','--panel-tint-a','--panel-tint-b','--panel-tint-c','--surface-bg-base','--app-bg-start','--app-bg-mid','--app-bg-end','--custom-hue-rotate','--surface-strength','--surface-mix-a','--surface-mix-b','--surface-mix-c','--surface-line','--surface-soft-a','--surface-soft-b'];
   const CUSTOM_KEY='careerCroxCustomTheme';
+  document.addEventListener('career-crox-reset-custom-theme',clearStaleCustomThemeVars);
   function clearStaleCustomThemeVars(){
     try{localStorage.removeItem(CUSTOM_KEY)}catch{}
     CUSTOM_VARS.forEach((k)=>document.documentElement.style.removeProperty(k));
@@ -751,7 +752,7 @@
     if(applying) return;
     applying = true;
     try{
-      clearStaleCustomThemeVars?.();
+      document.dispatchEvent(new Event('career-crox-reset-custom-theme'));
     }catch(_){ }
     try{
       localStorage.removeItem(SAVED_KEY);
@@ -5045,92 +5046,11 @@ window.addEventListener('career-crox-idle-lock-begin',function(){observer.discon
     center.querySelector('.cc763-manager-center-head').setAttribute('aria-expanded',managerCenterExpanded?'true':'false');
   }
 
-  async function loadSubmissionReminder(){
-    if(!canPoll()) return null;
-    try {
-      const data = await fetchJson('/api/submissions?view=all_pending&_cc730=' + Date.now());
-      const next = pickSubmissionReminder(Array.isArray(data && data.items) ? data.items : []);
-      if(!next) return null;
-      const key = submissionKey(next);
-      if(!key || isSnoozed('submission', key) || isSnoozed('submission-global', key)) return null;
-      const dueAt = new Date(reminderStamp(next) || 0).getTime();
-      if(!dueAt) return null;
-      return {
-        dueAt,
-        key: 'submission:' + key,
-        localKey: key,
-        type: 'submission',
-        priority: 1,
-        title: 'Submission Reminder',
-        subtitle: uniqueParts([next.candidate_id, next.recruiter_name || next.recruiter_code]).join(' • '),
-        name: safe(next.full_name) || 'Pending submission',
-        note: safe(next.submission_note || next.submission_notes || next.reminder_note || next.last_note || next.last_notes || next.notes || next.note) || 'No submission note saved yet.',
-        timeText: 'Reminder time: ' + formatDateTime(reminderStamp(next)),
-        actions: [
-          { label: 'Open Profile', onClick: function(){ openProfile(next); } },
-          { label: 'Open Queue', kind:'secondary', onClick: function(){ openSubmissionQueue(next); } }
-        ]
-      };
-    } catch(_e){ return null; }
-  }
+  
 
-  async function loadTaskReminder(){
-    if(!canPoll()) return null;
-    try {
-      const data = await fetchJson('/api/tasks/reminders/next?_cc730=' + Date.now());
-      const next = data && data.item || null;
-      if(!next || !next.task_id) return null;
-      const key = safe(next.task_id);
-      if(isSnoozed('task', key)) return null;
-      const dueAt = Number(next.dueAt || 0) || new Date(next.due_date || 0).getTime() || 0;
-      if(!dueAt) return null;
-      return {
-        dueAt,
-        key: 'task:' + key,
-        localKey: key,
-        type: 'task',
-        priority: 3,
-        title: 'Task Reminder',
-        subtitle: uniqueParts([next.assigned_to_name, next.assigned_to_code]).join(' • '),
-        name: safe(next.title) || 'Task due',
-        note: safe(next.task_note || next.description || next.notes) || 'No task note saved yet.',
-        timeText: 'Due: ' + formatDateTime(next.due_date || dueAt),
-        actions: [
-          { label: 'Open Task', onClick: function(){ openTask(next); } },
-          { label: 'Open Tasks', kind:'secondary', onClick: function(){ openPath('/tasks'); } }
-        ]
-      };
-    } catch(_e){ return null; }
-  }
+  
 
-  async function loadFollowupReminder(){
-    if(!canPoll()) return null;
-    try {
-      const data = await fetchJson('/api/followups/reminders/next?_cc730=' + Date.now());
-      const next = data && data.item || null;
-      if(!next || !next.candidate_id) return null;
-      const key = safe(next.candidate_id);
-      if(isSnoozed('followup', key)) return null;
-      const dueAt = Number(next.dueAt || 0) || new Date(next.follow_up_at || 0).getTime() || 0;
-      if(!dueAt) return null;
-      return {
-        dueAt,
-        key: 'followup:' + key,
-        localKey: key,
-        type: 'followup',
-        priority: 2,
-        title: 'Follow-up Reminder',
-        subtitle: uniqueParts([next.candidate_id, next.recruiter_name || next.recruiter_code]).join(' • '),
-        name: safe(next.full_name) || 'Follow-up due',
-        note: safe(next.follow_up_note || next.followup_note || next.callback_note) || 'No follow-up note saved yet.',
-        timeText: 'Due: ' + formatDateTime(next.follow_up_at || dueAt),
-        actions: [
-          { label: 'Open Profile', onClick: function(){ openProfile(next); } },
-          { label: 'Open FollowUps', kind:'secondary', onClick: function(){ openPath('/followups'); } }
-        ]
-      };
-    } catch(_e){ return null; }
-  }
+  
 
   function interviewDateValue(row){ return safe(row && (row.interview_reschedule_date || row.interview_date_effective || row.interview_date || row.scheduled_at || row.created_at)); }
   function interviewDueMs(row){
@@ -5150,63 +5070,9 @@ window.addEventListener('career-crox-idle-lock-begin',function(){observer.discon
     const dateKey = interviewDateValue(row).slice(0,10);
     return dateKey <= todayKey() || dueAt <= Date.now() + PRE_DUE_BUFFER_MS;
   }
-  async function loadSummaryExtraReminder(){
-    if(!canPoll()) return null;
-    try {
-      const data = await fetchJson('/api/reports/reminder-summary?fresh=1&_cc736=' + Date.now());
-      const actions = (Array.isArray(data && data.actions) ? data.actions : []).filter(function(x){return String(x.type||'').toLowerCase()!=='task';});
-      const allowed = new Set(['report','notification','break','idle']);
-      const rows = actions.filter(function(row){ return row && allowed.has(lower(row.type)); })
-        .map(function(row){ return { row:row, dueAt:new Date(row.due_at || row.created_at || row.updated_at || 0).getTime() || Date.now() }; })
-        .filter(function(entry){ return !isSnoozed(lower(entry.row.type), safe(entry.row.key || entry.row.notification_id || entry.row.type)); })
-        .sort(function(a,b){ return a.dueAt-b.dueAt; });
-      if(!rows.length) return null;
-      const selected=rows[0]; const row=selected.row; const type=lower(row.type || 'generic'); const key=safe(row.key || row.notification_id || type);
-      return {
-        dueAt:selected.dueAt,
-        key:type + ':' + key,
-        localKey:key,
-        type:type,
-        priority:5,
-        title:safe(row.title) || reminderVisualLabel(type),
-        name:safe(row.title) || reminderVisualLabel(type),
-        note:safe(row.message) || 'Reminder needs action.',
-        timeText:'Due: ' + formatDateTime(row.due_at || selected.dueAt),
-        actions:[{ label:'Open', onClick:function(){ openPath(safe(row.open_path) || '/reports'); } }]
-      };
-    } catch(_e){ return null; }
-  }
+  
 
-  async function loadInterviewReminder(){
-    if(!canPoll()) return null;
-    try {
-      const data = await fetchJson('/api/interviews?_cc730=' + Date.now());
-      const rows = Array.isArray(data && data.items) ? data.items : [];
-      const next = rows.filter(isInterviewRelevant).sort(function(a,b){ return interviewDueMs(a) - interviewDueMs(b); })[0] || null;
-      if(!next) return null;
-      const key = safe(next.interview_id || next.candidate_id || interviewDateValue(next));
-      if(!key || isSnoozed('interview', key)) return null;
-      const interviewAt = interviewDueMs(next);
-      const dueAt = Math.max(1, interviewAt);
-      const overdue = safe(interviewDateValue(next)).slice(0,10) < todayKey() || dueAt < Date.now();
-      return {
-        key: 'interview:' + key,
-        localKey: key,
-        dueAt,
-        type: 'interview',
-        priority: 4,
-        title: overdue ? 'Interview Follow-up' : 'Interview Reminder',
-        subtitle: uniqueParts([next.candidate_id, next.recruiter_name || next.recruiter_code, next.virtual_onsite]).join(' • '),
-        name: safe(next.full_name) || 'Interview candidate',
-        note: safe(next.interview_note || next.interview_notes || next.interview_feedback) || 'No interview note saved yet.',
-        timeText: 'Interview: ' + (safe(interviewDateValue(next)).slice(0,10) === todayKey() ? formatDateShort(interviewDateValue(next)) + ' (Today)' : formatDateShort(interviewDateValue(next))),
-        actions: [
-          { label: 'Open Profile', onClick: function(){ openInterview(next); } },
-          { label: 'Open Interviews', kind:'secondary', onClick: function(){ openPath('/interviews'); } }
-        ]
-      };
-    } catch(_e){ return null; }
-  }
+  
 
 
   function reminderLocalKey(row, type){

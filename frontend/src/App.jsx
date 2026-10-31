@@ -15,10 +15,10 @@ const DataBackupPage = deferredPage(['/data-backup'], () => import('./pages/Data
 const SettingsPage = deferredPage(['/settings'], () => import('./pages/SettingsPage'));
 const WorkspaceToolsPage = deferredPage(['/data-extractor','/quality-analyst','/hr-head'], () => import('./pages/WorkspaceToolsPage'));
 const LoginPage = deferredPage(['/login'], () => import('./pages/LoginPage'));
-import CandidatesPage from './pages/CandidatesPage';
+const CandidatesPage = deferredPage(['/candidates'], () => import('./pages/CandidatesPage'));
 const CandidateDraftsPage = deferredPage(['/candidate-drafts'], () => import('./pages/CandidateDraftsPage'));
 const ProfileSafetyPage = deferredPage(['/profile-safety'], () => import('./pages/ProfileSafetyPage'));
-import CandidateDetailPage from './pages/CandidateDetailPage';
+const CandidateDetailPage = deferredPage(['/candidate'], () => import('./pages/CandidateDetailPage'));
 const TasksPage = deferredPage(['/tasks'], () => import('./pages/TasksPage'));
 const InterviewsPage = deferredPage(['/interviews'], () => import('./pages/InterviewsPage'));
 const FollowUpsPage = deferredPage(['/followups'], () => import('./pages/FollowUpsPage'));

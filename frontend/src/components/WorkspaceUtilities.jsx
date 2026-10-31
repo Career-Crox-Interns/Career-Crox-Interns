@@ -2,7 +2,7 @@ import React,{useEffect,useRef,useState,useSyncExternalStore} from 'react';
 import {createPortal} from 'react-dom';
 import {useLocation} from 'react-router-dom';
 import {useAuth} from '../lib/auth';
-import {api} from '../lib/api';
+import {api,accountPrincipal} from '../lib/api';
 import {useDashboardScope} from '../lib/dashboardScope';
 import {openReminderPause} from '../lib/reminderPause';
 import {isInactiveProfile} from '../lib/candidateAccess';
@@ -212,20 +212,68 @@ const DAY=86400000;
 const instant=value=>{if(typeof value==='number')return value;let s=String(value||'').trim();if(!s)return NaN;if(/^\d{4}-\d\d-\d\d$/.test(s))s+='T00:00:00+05:30';else if(!/(Z|[+-]\d\d:?\d\d)$/i.test(s))s=s.replace(' ','T')+'+05:30';return Date.parse(s);};
 const when=value=>Number.isFinite(instant(value))?new Date(instant(value)).toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):'Not set';
 const wall=value=>new Date(value+19800000).toISOString().slice(0,16);
-export function allocationDeadline(row={}){const start=instant(row.bucket_assigned_at||row.allocated_at||row.assigned_on||row.created_at);const lock=String(row.allocation_lock_owner_id||'')===String(row.recruiter_user_id||'')&&String(row.allocation_lock_assigned_at||'')===String(row.bucket_assigned_at||row.created_at||'')?instant(row.allocation_lock_until):0;return Math.max(instant(row.bucket_expires_at)||0,(start||0)+7*DAY,lock||0);}
-export function warnAllocationDate(row,value){const date=instant(value),expiry=allocationDeadline(row);if(row?.candidate_id&&row.bucket_is_active!==false&&date>expiry&&expiry>Date.now())window.dispatchEvent(new CustomEvent('cc124-lock-warning',{detail:{row,until:new Date(date+DAY).toISOString()}}));}
+export function allocationDeadline(row={}){
+ const start=instant(row.bucket_assigned_at||row.allocated_at||row.assigned_on||row.created_at);
+ const server=instant(row.bucket_expires_at);
+ const validLock=row.allocation_lock_request_id&&String(row.allocation_lock_owner_id||'')===String(row.recruiter_user_id||'')&&String(row.allocation_lock_assigned_at||'')===String(row.bucket_assigned_at||row.created_at||'');
+ return Math.max(Number.isFinite(server)?server:0,Number.isFinite(start)?start+7*DAY:0,validLock?(instant(row.allocation_lock_until)||0):0);
+}
+export function allocationCanExtend(row={},now=Date.now()){
+ const role=String(row.recruiter_designation||row.role||'').toLowerCase(),code=String(row.recruiter_code||'').toLowerCase();
+ const closed=['closed','joined','hired','rejected','not interested','not intrested','not_interested','completed','done','backout','back out','not joined','not_joined','notjoined','cancelled','canceled'];
+ const enabled=value=>value===true||String(value).toLowerCase()==='true';
+ return Boolean(row.candidate_id&&row.recruiter_user_id&&row.bucket_assigned_at&&enabled(row.bucket_is_active)&&!enabled(row.bucket_is_terminal)&&String(row.bucket_state).toLowerCase()!=='fresh'&&!/manager|admin/.test(role)&&!/^(?:mgr|adm)/.test(code)&&!closed.includes(String(row.status||'').trim().toLowerCase())&&!isInactiveProfile(row)&&allocationDeadline(row)>now);
+}
+export function warnAllocationDate(row,value){
+ const date=instant(value),expiry=allocationDeadline(row);
+ if(allocationCanExtend(row)&&date>expiry)window.dispatchEvent(new CustomEvent('cc124-lock-warning',{detail:{row,until:new Date(date+DAY).toISOString()}}));
+}
 
-export function AllocationBadge({item={},onUpdated,initialUntil,onlyDialog=false}){
- const [now,setNow]=useState(Date.now()),[open,setOpen]=useState(false),[until,setUntil]=useState(''),[reason,setReason]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');const dialog=useRef(null),badge=useRef(null),lockAnchor=useRef(null),lastWarning=useRef('');
- useEffect(()=>{const t=setInterval(()=>setNow(Date.now()),60000);return()=>clearInterval(t);},[]);
- const expiry=allocationDeadline(item),left=Math.max(0,Math.ceil((expiry-now)/DAY)),locked=instant(item.allocation_lock_until)>now&&String(item.allocation_lock_owner_id)===String(item.recruiter_user_id),active=item.bucket_is_active!==false&&item.bucket_is_terminal!==true&&expiry>now;
- const launch=(date=expiry+7*DAY)=>{const f=document.activeElement;lockAnchor.current=f instanceof Element&&f.matches('input,select,textarea')?(f.closest('[data-field],.field')||f):badge.current;setUntil(wall(Math.max(Date.now()+DAY,date)));setMessage('');setOpen(true);};
- useEffect(()=>{if(initialUntil)launch(instant(initialUntil));},[initialUntil]);
- useEffect(()=>{const warn=e=>{if(String(e.detail?.row?.candidate_id)!==String(item.candidate_id))return;const key=item.candidate_id+':'+e.detail.until;if(lastWarning.current===key)return;lastWarning.current=key;launch(instant(e.detail.until));};window.addEventListener('cc124-lock-warning',warn);return()=>window.removeEventListener('cc124-lock-warning',warn);},[item.candidate_id,expiry]);
- useEffect(()=>{if(!open)return;const node=dialog.current;if(!node)return;node.showModal();const place=()=>{const r=[lockAnchor.current,badge.current,document.querySelector('.profile-state-chip')].map(n=>n?.getBoundingClientRect()).find(r=>r&&r.width>0&&r.bottom>10&&r.top<innerHeight-12),w=Math.min(410,innerWidth-24);for(const [key,value]of Object.entries({width:w+'px',margin:'0',position:'fixed',left:Math.max(12,Math.min(r?.left||innerWidth/2-w/2,innerWidth-w-12))+'px',top:Math.max(12,Math.min((r?.bottom||82)+10,innerHeight-node.offsetHeight-12))+'px'}))node.style.setProperty(key,value,'important');};place();window.addEventListener('resize',place);window.addEventListener('scroll',place,true);window.dispatchEvent(new Event('cc922-reminder-pauses-changed'));return()=>{node.close();window.removeEventListener('resize',place);window.removeEventListener('scroll',place,true);window.dispatchEvent(new Event('cc922-reminder-pauses-changed'));};},[open]);
- async function save(){setBusy(true);setMessage('');try{const result=await api.post('/api/workspace/allocation-locks/'+encodeURIComponent(item.candidate_id)+'/request',{kind:'lock',until:new Date(instant(until)).toISOString(),reason},{retries:0,headers:{'X-CC-Dashboard-User':'global'}});if(!result.ok)throw Error('Request was not confirmed.');setOpen(false);setMessage('Request sent to Approvals. The current expiry remains until approval.');window.dispatchEvent(new Event('career-crox-approval-changed'));onUpdated?.();}catch(e){setMessage(e.message);}finally{setBusy(false);}}
- if(!item.candidate_id||!Number.isFinite(expiry)||!item.bucket_assigned_at)return null;
- return <><style>{enhancementCss}</style><button ref={badge} hidden={onlyDialog} style={onlyDialog?{display:'none'}:undefined} type="button" className={'cc124-allocation-badge '+(locked?'is-locked':!active?'is-expired':left<=3?'is-green':left<=5?'is-amber':'is-red')} onClick={()=>active?launch():setMessage('This allocation has expired. Request allocation from search or Lost Profiles.')} title={'Allocation ends '+when(expiry)} aria-label={'Allocation: '+left+' days left'}><span aria-hidden="true">{locked?'🔒':'⏳'}</span><b>{!active?'Allocation ended':left===1?'1 day left':left+' days left'}</b><small>{locked?'Allocation locked':'Lock allocation ↗'}</small></button>{!open&&message?<span className="helper-text" role="status">{message}</span>:null}{open?createPortal(<dialog ref={dialog} className="cc124-lock-dialog" aria-label="Request allocation lock" onCancel={()=>setOpen(false)}><header><strong style={{display:'flex',alignItems:'center',gap:8}}><svg viewBox="0 0 24 24" aria-hidden="true" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.9"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2"/></svg>Lock this allocation</strong><button type="button" aria-label="Close allocation request" onClick={()=>setOpen(false)}>×</button></header><p>{item.full_name||item.candidate_id} · Current expiry: <b>{when(expiry)}</b></p><p>Request an extension whenever this candidate needs more time, even before an interview is scheduled. A manager must approve it.</p><label>Keep allocated until · IST<CrmDateTimeInput aria-label="Allocation lock end date" type="datetime-local" value={until} onChange={e=>setUntil(e.target.value)}/></label><label>Reason<textarea aria-label="Allocation lock reason" rows="3" maxLength={1000} placeholder="Candidate will be available in one month…" value={reason} onChange={e=>setReason(e.target.value)}/></label>{message?<p role="status">{message}</p>:null}<footer><button type="button" onClick={()=>setOpen(false)}>Continue profile</button><button type="button" disabled={busy||!reason.trim()||!Number.isFinite(instant(until))} onClick={save}>{busy?'Sending…':'Request manager approval'}</button></footer></dialog>,document.body):null}</>;
+export function AllocationBadge({item={},onUpdated,initialUntil,onlyDialog=false,triggerLabel=''}){
+ const principal=accountPrincipal(),identity=String(item.candidate_id||'');
+ const [now,setNow]=useState(Date.now()),[open,setOpen]=useState(false),[until,setUntil]=useState(''),[reason,setReason]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
+ const dialog=useRef(null),badge=useRef(null),lockAnchor=useRef(null),lastWarning=useRef(''),current=useRef({principal,identity});current.current={principal,identity};
+ const expiry=allocationDeadline(item),left=Math.max(0,Math.ceil((expiry-now)/DAY)),active=allocationCanExtend(item,now),locked=Boolean(item.allocation_lock_request_id&&instant(item.allocation_lock_until)>now&&String(item.allocation_lock_owner_id)===String(item.recruiter_user_id)&&String(item.allocation_lock_assigned_at)===String(item.bucket_assigned_at));
+ useEffect(()=>{const timer=setInterval(()=>setNow(Date.now()),60000);return()=>clearInterval(timer);},[]);
+ useEffect(()=>{setOpen(false);setBusy(false);setReason('');setMessage('');lastWarning.current='';},[identity,principal]);
+ const launch=(date=expiry+7*DAY)=>{if(!allocationCanExtend(item))return;const focus=document.activeElement;lockAnchor.current=focus instanceof Element&&focus.matches('input,select,textarea')?(focus.closest('[data-field],.field')||focus):badge.current;setUntil(wall(Math.max(Date.now()+DAY,date)));setMessage('');setOpen(true);};
+ useEffect(()=>{if(initialUntil)launch(instant(initialUntil));},[initialUntil,identity]);
+ useEffect(()=>{const warn=event=>{if(String(event.detail?.row?.candidate_id)!==identity||!allocationCanExtend(item))return;const key=identity+':'+event.detail.until;if(lastWarning.current===key)return;lastWarning.current=key;launch(instant(event.detail.until));};window.addEventListener('cc124-lock-warning',warn);return()=>window.removeEventListener('cc124-lock-warning',warn);},[identity,expiry,active]);
+ useEffect(()=>{
+  if(!open)return;const node=dialog.current;if(!node)return;node.showModal();
+  const place=()=>{const rect=[lockAnchor.current,badge.current,document.querySelector('.profile-state-chip')].map(n=>n?.getBoundingClientRect()).find(r=>r&&r.width>0&&r.bottom>10&&r.top<innerHeight-12),width=Math.min(410,innerWidth-24);for(const [key,value]of Object.entries({width:width+'px',margin:'0',position:'fixed',left:Math.max(12,Math.min(rect?.left??innerWidth/2-width/2,innerWidth-width-12))+'px',top:Math.max(12,Math.min((rect?.bottom||82)+10,innerHeight-node.offsetHeight-12))+'px'}))node.style.setProperty(key,value,'important');};
+  place();window.addEventListener('resize',place);window.addEventListener('scroll',place,true);window.dispatchEvent(new Event('cc922-reminder-pauses-changed'));
+  return()=>{node.close();window.removeEventListener('resize',place);window.removeEventListener('scroll',place,true);window.dispatchEvent(new Event('cc922-reminder-pauses-changed'));};
+ },[open]);
+ async function save(){
+  const end=instant(until);
+  if(!allocationCanExtend(item)){setMessage('The allocation changed or expired. Reopen this profile before requesting an extension.');return;}
+  if(!Number.isFinite(end)||end<=expiry||end>Date.now()+730*DAY){setMessage('Choose an end date after the current expiry, within two years.');return;}
+  if(!reason.trim()){setMessage('Enter a reason for this extension.');return;}
+  const owner=principal,id=identity,isCurrent=()=>accountPrincipal()===owner&&current.current.principal===owner&&current.current.identity===id;
+  setBusy(true);setMessage('');
+  try{
+   const result=await api.post('/api/workspace/allocation-locks/'+encodeURIComponent(id)+'/request',{kind:'lock',until:new Date(end).toISOString(),reason},{retries:0,headers:{'X-CC-Dashboard-User':'global'}});
+   if(!isCurrent())return;
+   if(result.ok!==true||result.item?.status!=='Pending'||String(result.item?.candidate_id)!==id)throw Error('Allocation request was not confirmed.');
+   setOpen(false);setMessage(result.replayed?'An allocation request is already pending until '+when(result.item.until)+'. Review it in Approvals.':'Request sent to Approvals. The current expiry remains until approval.');
+   window.dispatchEvent(new Event('career-crox-approval-changed'));onUpdated?.();
+  }catch(error){if(isCurrent())setMessage(error.message);}finally{if(isCurrent())setBusy(false);}
+ }
+ if(!identity||!Number.isFinite(expiry)||!item.bucket_assigned_at||triggerLabel&&!active)return null;
+ return <><style>{enhancementCss}</style>
+  <button ref={badge} hidden={onlyDialog} style={onlyDialog?{display:'none'}:undefined} type="button" className={'cc124-allocation-badge '+(locked?'is-locked':!active?'is-expired':left<=3?'is-green':left<=5?'is-amber':'is-red')} onClick={()=>active?launch():setMessage('This profile needs an active TL or recruiter allocation before requesting an extension.')} title={'Request a manager-approved extension. Current expiry: '+when(expiry)} aria-label={triggerLabel||('Allocation: '+left+' days left')}>
+   <span aria-hidden="true">{locked?'🔒':'⏳'}</span><b>{triggerLabel||(!active?'Allocation ended':left===1?'1 day left':left+' days left')}</b><small>{triggerLabel?(locked?'Extend lock':left+' days left'):(locked?'Allocation locked':'Lock allocation ↗')}</small>
+  </button>
+  {!open&&message?<span className="helper-text" role="status">{message}</span>:null}
+  {open?createPortal(<dialog ref={dialog} className="cc124-lock-dialog" aria-label="Request allocation lock" onCancel={event=>{if(busy)event.preventDefault();else setOpen(false);}}>
+   <header><strong>🔒 Lock this allocation</strong><button type="button" disabled={busy} aria-label="Close allocation request" onClick={()=>setOpen(false)}>×</button></header>
+   <p>{item.full_name||identity} · Current expiry: <b>{when(expiry)}</b></p><p>Request extra time now, even before an interview is scheduled. The manager approves the extension; Save and Submit work separately.</p>
+   <label>Keep allocated until · IST<CrmDateTimeInput aria-label="Allocation lock end date" type="datetime-local" value={until} onChange={event=>setUntil(event.target.value)}/></label>
+   <label>Reason<textarea aria-label="Allocation lock reason" rows="3" maxLength={1000} placeholder="Candidate will be available in one month…" value={reason} onChange={event=>setReason(event.target.value)}/></label>
+   {message?<p role="status">{message}</p>:null}<footer><button type="button" disabled={busy} onClick={()=>setOpen(false)}>Continue profile</button><button type="button" disabled={busy||!reason.trim()||!Number.isFinite(instant(until))} onClick={save}>{busy?'Sending…':'Request manager approval'}</button></footer>
+  </dialog>,document.body):null}
+ </>;
 }
 
 export function AllocationLockedCard(){

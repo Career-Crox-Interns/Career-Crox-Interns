@@ -57,6 +57,7 @@ function sharedTableColumns({types:t}){
 export default defineConfig({
   plugins: [react({babel:{plugins:[sharedTableColumns]}}), localHealth, originalLoginSlides, versionPublicAssets],
   build: {
+    target: 'es2020',
     manifest: true,
     rollupOptions: { output: { manualChunks(id) {
       if (id.includes('/node_modules/')) return 'vendor';

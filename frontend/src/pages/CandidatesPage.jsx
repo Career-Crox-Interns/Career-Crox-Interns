@@ -718,6 +718,7 @@ export default function CandidatesPage() {
   const [message, setMessage] = useState('');
   const [deleteBusyId,setDeleteBusyId]=useState('');
   const [sliceLoading,setSliceLoading]=useState(false);
+  const [refreshState,setRefreshState]=useState({checking:true,error:false});
   const [waTemplates, setWaTemplates] = useWhatsAppTemplates();
   const [selectedIds, setSelectedIds] = useState([]);
   const selectionAnchorRef = useRef(null);
@@ -770,7 +771,7 @@ export default function CandidatesPage() {
 
   // CC132: team-change is handled by the debounced listener below; avoid duplicate Supabase reads.
   async function load(targetPage=page,nextFilters=filters,force=false) {
-    const loadSeq = ++loadSeqRef.current;setSliceLoading(true);
+    const loadSeq = ++loadSeqRef.current;setSliceLoading(true);setRefreshState({checking:true,error:false});
     try {
     const qs = buildCandidateQuery({...nextFilters,sort_by:sortBy},targetPage,pageSize)+(projectScope?'&project_id='+encodeURIComponent(projectScope):'');
     const exactSliceCacheKey = `${candidatesCacheKey}:slice:${qs}`;
@@ -838,7 +839,8 @@ export default function CandidatesPage() {
     if (!filtersHaveAnyValue(nextFilters)) writePageCache(`${candidatesCacheKey}:metadata`,{total:serverTotal,summary:resolvedSummary});
     writePageCache(exactSliceCacheKey, { items, total: serverTotal, summary: resolvedSummary });
     setPage(Number(data?.page || targetPage || 1));
-    }catch(error){if(['DASHBOARD_CHANGED','BACKGROUND_ABORT','ACCOUNT_CHANGED'].includes(error?.code)||error?.name==='AbortError')return;if(loadSeq===loadSeqRef.current)setMessage(error.message||'This view could not refresh. Try again.');throw error;}finally{if(loadSeq===loadSeqRef.current)setSliceLoading(false);}
+    setRefreshState({checking:false,error:false});
+    }catch(error){if(['DASHBOARD_CHANGED','BACKGROUND_ABORT','ACCOUNT_CHANGED'].includes(error?.code)||error?.name==='AbortError')return;if(loadSeq===loadSeqRef.current){setMessage(error.message||'This view could not refresh. Try again.');setRefreshState({checking:false,error:true});}throw error;}finally{if(loadSeq===loadSeqRef.current)setSliceLoading(false);}
   }
 
   useEffect(()=>{
@@ -1031,6 +1033,7 @@ export default function CandidatesPage() {
   }, [activeFilterSection, filterSections]);
 
   const filterLoadMountedRef = useRef(false);
+  const previousBucketRef = useRef(filters.bucket_view);
   useEffect(() => {
     // CC26_694: the initial page already loads above. Do not schedule the same query again
     // 220ms later; this removes duplicate React work while the API dedupe remains a safety net.
@@ -1039,9 +1042,11 @@ export default function CandidatesPage() {
       return undefined;
     }
     if (showFilterDrawer) return undefined;
+    const bucketChanged=previousBucketRef.current!==filters.bucket_view;
+    previousBucketRef.current=filters.bucket_view;
     const timer = window.setTimeout(() => {
       load(1, filters).catch(() => {});
-    }, 220);
+    }, bucketChanged ? 0 : 220);
     return () => window.clearTimeout(timer);
   }, [JSON.stringify(filters), sortBy, showFilterDrawer]);
 
@@ -1313,8 +1318,9 @@ export default function CandidatesPage() {
     const qs = buildCandidateQuery({...nextFilters,sort_by:sortBy},1,pageSize)+(projectScope?'&project_id='+encodeURIComponent(projectScope):'');
     const exact = readPageCache(`${candidatesCacheKey}:slice:${qs}`, null);
     if (exact && Array.isArray(exact.items)) {
-      setAllRows(exact.items);
-      setSelectableRows(exact.items);
+      const safe=exact.items.filter(row=>candidateVisibleLocally(row,user)&&inProject(row));
+      setAllRows(safe);
+      setSelectableRows(safe);
       if (Number.isFinite(Number(exact.total))) setTotalRows(Number(exact.total));
       if (exact.summary && typeof exact.summary === 'object') setSummary(exact.summary);
       setSliceLoading(false);
@@ -1333,7 +1339,7 @@ export default function CandidatesPage() {
     // This is only used when source contains the COMPLETE visible result set.
     // Count from the exact same filtered rows as the preview; never invent a
     // "days_1" or "My Fresh" number from another card's cached summary.
-    const matchingRows = source.filter((row) => {
+    const matchingRows = source.filter(row=>candidateVisibleLocally(row,user)&&inProject(row)).filter((row) => {
       if (recruiterCode && String(row?.recruiter_code || '').trim().toLowerCase() !== recruiterCode) return false;
       return instantBucketMatches(row, effectiveView, user);
     });
@@ -1379,6 +1385,7 @@ export default function CandidatesPage() {
         <LostProfilesCard/><AllocationLockedCard/>
       </div>
 
+      <div className="helper-text cc135-refresh-status" data-cc135-freshness="true" role="status" aria-live="polite">{refreshState.error?'Refresh unavailable · the saved view may be out of date.':refreshState.checking?(allRows.length?'Showing saved data · checking updates…':'Loading current data…'):''}</div>
       <p className="cc878-card-equation">Total <b>{summary.total_visible||0}</b> = Allocated <b>{summary.active_bucket||0}</b> + Unallocated <b>{summary.other_profiles??Math.max(0,Number(summary.total_visible||0)-Number(summary.active_bucket||0))}</b><span>Drafts are separate. Follow-ups and warning cards can overlap.</span></p>
       <div className="table-panel top-gap-small glassy-card fade-up bucket-toolbar-panel">
         <div className="table-toolbar no-wrap-toolbar bucket-toolbar-stack cc876-candidate-tracker-head">

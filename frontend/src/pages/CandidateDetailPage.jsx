@@ -3169,7 +3169,7 @@ function CandidateDetailPageInner() {
   async function waitForBackgroundProfileWrite() {
     const waitStartedAt = Date.now();
     while (backgroundProfileSaveRef.current?.inFlight && Date.now() - waitStartedAt < 12000) {
-      await pause(40);
+      await new Promise(resolve => window.setTimeout(resolve, 40));
     }
   }
 
@@ -4270,7 +4270,7 @@ function CandidateDetailPageInner() {
           <div className="row-actions top-gap" data-profile-workflow="profile-commit-v2" data-workflow-release="CC861">
             <button className="ghost-btn bounceable candidate-action-btn candidate-reset-btn" type="button" onClick={resetFilledDetails} disabled={Boolean(actionBusy)}>Reset</button>
             <button className="add-profile-btn bounceable candidate-action-btn candidate-check-jd-btn" type="button" onClick={checkJdFit} disabled={Boolean(actionBusy)}>{'Check JD'}</button>
-            {!isNewCandidate && item?.bucket_assigned_at && <AllocationBadge item={item} onUpdated={()=>window.dispatchEvent(new Event('career-crox-approval-changed'))} />}
+            {!isNewCandidate && item?.bucket_assigned_at && <AllocationBadge item={item} triggerLabel="Lock allocation" onUpdated={()=>window.dispatchEvent(new Event('career-crox-approval-changed'))} />}
             <button className="add-profile-btn bounceable candidate-action-btn candidate-save-btn" type="button" onClick={save} disabled={Boolean(actionBusy)} aria-busy={actionBusy === 'save'} title="Save profile details without submitting for approval" style={{ minWidth: 92, paddingInline: 18 }}>{actionBusy === 'save' ? 'Saving…' : 'Save'}</button>
             {(!submittedWorkflowActive || approvalState==='rejected') && <button className="add-profile-btn bounceable candidate-action-btn candidate-submit-btn" type="button" onClick={submitForApproval} disabled={Boolean(actionBusy)} aria-busy={actionBusy === 'submit'} title="Save the latest details and submit for approval in one action">{submitButtonLabel}</button>}
             {!!message && <span className={`helper-text sync-message ${syncState === 'error' ? 'is-error' : syncState === 'saved' ? 'is-success' : ''}`}>{message}</span>}
