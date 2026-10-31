@@ -300,7 +300,8 @@ export function writePopupStudio(kind,profile){
  catch{throw Object.assign(new Error('Popup settings could not be saved in this browser.'),{code:'LOCAL_SETTINGS_NOT_SAVED',payload:{committed:false}});}
  window.dispatchEvent(new Event('cc927-popup-settings-changed'));return next;
 }
-export const isPopupStudioEnabled=kind=>readPopupStudio()[popupKind(kind)]?.enabled===true;
+// CC144: Keep the original CC923 notification popup independent of Popup Studio.
+export const isPopupStudioEnabled=kind=>popupKind(kind)==='notification'?false:readPopupStudio()[popupKind(kind)]?.enabled===true;
 export function popupBounds(profile,width=innerWidth,height=innerHeight){
  const p=sanitizePopupProfile(profile),margin=8,availableW=Math.max(1,width-margin*2),availableH=Math.max(1,height-margin*2);
  const w=Math.min(availableW,Math.max(Math.min(240,availableW),p.w*width)),h=Math.min(availableH,Math.max(Math.min(110,availableH),p.h*height));
@@ -354,6 +355,8 @@ export function installPopupStudioDriver(){
   dock.hidden=blocked;
   for(const node of document.querySelectorAll(targets)){
    if(node.hidden||getComputedStyle(node).display==='none'||(!node.dataset.cc927Popup&&getComputedStyle(node).visibility==='hidden'))continue;
+   // CC144: Never change the position, colours, dimensions or lifecycle of the classic CC923 notification toast.
+   if(node.matches('.mini-toast.cc835-notice'))continue;
    const kind=kindFor(node),p=config[kind];if(!p?.enabled)continue;
    if(node.parentElement?.closest(targets))continue;
    if(!groups.has(kind))groups.set(kind,[]);groups.get(kind).push(node);
