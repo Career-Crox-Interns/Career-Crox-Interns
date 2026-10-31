@@ -232,3 +232,119 @@
 
 // CC130: every quick-navigation action remains visible at normal zoom.
 (()=>{const s=document.createElement("style");s.id="cc130-quicknav-fit";s.textContent="html#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace body .cc560-quicknav{height:auto!important;min-height:44px!important;flex-wrap:wrap!important;gap:8px!important}html#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace body .cc560-quicknav-scroll{display:flex!important;flex:1 1 720px!important;min-width:0!important;max-width:100%!important;height:auto!important;flex-wrap:wrap!important;overflow:visible!important;gap:6px!important;padding:3px 2px!important}html#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace body .cc560-jump-btn{flex:1 1 auto!important;min-width:0!important;max-width:none!important;font-size:11px!important;padding:8px 7px!important;white-space:nowrap!important}";document.head.append(s);})();
+
+/* CC136: Sunset Split for the existing lower-left reminder/review cards.
+   Presentation only: no content nodes, fields, handlers, dimensions, requests,
+   polling, storage, queue order, snooze settings or Undo behavior are changed. */
+(function () {
+  'use strict';
+  const id = 'cc136-sunset-reminder-look';
+  if (document.getElementById(id)) return;
+  const sheet = document.createElement('style');
+  sheet.id = id;
+  // Match both original workspace roots; outrank legacy theme palettes only.
+  const p = 'html' + ':is(#cc787-workspace,#cc780-workspace)'.repeat(24) + ' body ';
+  sheet.textContent = `
+@layer cc829 {
+${p}.cc730-direct-reminder-deck,
+${p}.cc803-review-popup{
+ --cc902-note-bg:linear-gradient(130deg,#fff8f0,#fff0e9)!important;
+ --cc902-note-border:1px solid #f8b994!important;
+ --cc902-context-bg:linear-gradient(115deg,#fff8f3,#ffefe5)!important;
+ --cc902-body-ink:#2d2637!important;
+ --cc902-due-bg:linear-gradient(110deg,#ffe4cf,#fff2e7)!important;
+ box-shadow:inset 0 0 0 1px #ff7646,0 8px 22px #df381d24!important
+}
+${p}.cc730-direct-reminder-deck .cc388-card,
+${p}.cc391-reminder-deck .cc391-card,
+${p}.cc803-review-popup>.panel{
+ background:linear-gradient(180deg,#ff7c15,#e92877) left/5px 100% no-repeat,linear-gradient(135deg,#ffffff 65%,#fff0e9)!important;
+ border-color:#ff7646!important;border-radius:20px 7px 20px 7px!important;
+ box-shadow:inset 0 1px #ffffff,0 5px 14px #df381d20!important;
+ color:#2d2637!important;-webkit-text-fill-color:#2d2637!important
+}
+${p}.cc730-direct-reminder-deck .cc388-label,
+${p}.cc391-reminder-deck .cc391-label,
+${p}.cc803-review-popup .cc604-approval-eyebrow{
+ background:linear-gradient(115deg,#ef6712,#d91e68)!important;
+ color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;
+ border-color:#ffad82!important;border-radius:7px!important;
+ box-shadow:inset 0 1px #ffffff5c,0 2px 5px #de4a2820!important
+}
+${p}.cc730-direct-reminder-deck .cc388-count,
+${p}.cc730-direct-reminder-deck .cc388-head-actions>button,
+${p}.cc391-reminder-deck .cc391-count,
+${p}.cc803-review-popup .cc803-review-count,
+${p}.cc803-review-popup .cc803-review-close{
+ background:#fff4e9!important;color:#a72b22!important;-webkit-text-fill-color:#a72b22!important;
+ border-color:#f6ab81!important;box-shadow:inset 0 1px #ffffff!important
+}
+${p}.cc730-direct-reminder-deck .cc388-title,
+${p}.cc391-reminder-deck .cc391-title,
+${p}.cc803-review-popup .cc803-review-title{
+ color:#a72b22!important;-webkit-text-fill-color:#a72b22!important;text-shadow:0 1px #ffffff!important
+}
+${p}.cc730-direct-reminder-deck .cc388-note,
+${p}.cc391-reminder-deck .cc391-note,
+${p}.cc803-review-popup .cc803-review-note{
+ background:linear-gradient(130deg,#fff8f0,#fff0e9)!important;border-color:#f8b994!important;
+ box-shadow:inset 3px 0 #ef6712!important;color:#2d2637!important;-webkit-text-fill-color:#2d2637!important
+}
+${p}.cc730-direct-reminder-deck .cc388-note span,
+${p}.cc391-reminder-deck .cc391-note span,
+${p}.cc803-review-popup .cc803-review-note *,
+${p}.cc730-direct-reminder-deck .cc898-reminder-context span,
+${p}.cc803-review-popup .cc898-reminder-context span{
+ color:#2d2637!important;-webkit-text-fill-color:#2d2637!important
+}
+${p}.cc730-direct-reminder-deck .cc388-note b,
+${p}.cc730-direct-reminder-deck .cc388-preset-label,
+${p}.cc391-reminder-deck .cc391-note b,
+${p}.cc803-review-popup .cc803-review-field,
+${p}.cc730-direct-reminder-deck .cc898-reminder-context b,
+${p}.cc803-review-popup .cc898-reminder-context b{
+ color:#a72b22!important;-webkit-text-fill-color:#a72b22!important
+}
+${p}.cc730-direct-reminder-deck .cc882-reminder-owner span,
+${p}.cc803-review-popup .cc882-review-owner>span,
+${p}.cc803-review-popup .cc882-review-process,
+${p}.cc730-direct-reminder-deck .cc898-reminder-context,
+${p}.cc803-review-popup .cc898-reminder-context{
+ background:#fff8f3!important;border-color:#f5c5a9!important;color:#642e20!important;-webkit-text-fill-color:#642e20!important
+}
+${p}.cc803-review-popup .cc882-review-owner :is(small,strong),
+${p}.cc803-review-popup .cc882-review-process :is(small,strong),
+${p}.cc803-review-popup .cc803-review-meta{
+ color:#642e20!important;-webkit-text-fill-color:#642e20!important
+}
+${p}.cc730-direct-reminder-deck .cc388-time,
+${p}.cc391-reminder-deck .cc391-time{
+ background:linear-gradient(110deg,#ffe4cf,#fff2e7)!important;border-color:#f4af82!important
+}
+${p}.cc730-direct-reminder-deck .cc388-time :is(b,span),
+${p}.cc391-reminder-deck .cc391-time :is(b,span){
+ color:#982d18!important;-webkit-text-fill-color:#982d18!important
+}
+${p}.cc730-direct-reminder-deck .cc388-presets button,
+${p}.cc391-reminder-deck .cc391-presets button,
+${p}.cc803-review-popup .cc803-review-presets button,
+${p}.cc803-review-popup button[data-minutes]{
+ background:linear-gradient(145deg,#fff5e9,#ffe1c9)!important;border-color:#f0aa7c!important;
+ color:#a72b22!important;-webkit-text-fill-color:#a72b22!important;
+ box-shadow:inset 0 1px #ffffff,0 1px 3px #ba4a211a!important
+}
+${p}.cc730-direct-reminder-deck .cc388-presets button:hover,
+${p}.cc730-direct-reminder-deck .cc388-presets button:focus-visible,
+${p}.cc391-reminder-deck .cc391-presets button:hover{
+ background:linear-gradient(115deg,#e45b10,#d51e68)!important;color:#ffffff!important;-webkit-text-fill-color:#ffffff!important
+}
+${p}.cc803-review-popup :is(textarea,input){background:#ffffff!important;border-color:#f0b996!important;color:#2d2637!important;-webkit-text-fill-color:#2d2637!important}
+${p}.cc803-review-popup button[data-action=open],
+${p}.cc803-review-popup button[data-action=exact]{background:linear-gradient(115deg,#e45b10,#d51e68)!important;border-color:#d84525!important;color:#ffffff!important;-webkit-text-fill-color:#ffffff!important}
+/* Decisions retain their familiar semantic colors and every original control. */
+${p}.cc803-review-popup button[data-action=approve]{background:linear-gradient(115deg,#087a4c,#119768)!important;color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;border-color:#07613c!important}
+${p}.cc803-review-popup button[data-action=reject]{background:linear-gradient(115deg,#c32646,#de384d)!important;color:#ffffff!important;-webkit-text-fill-color:#ffffff!important;border-color:#ab1f3c!important}
+}
+`;
+  (document.head || document.documentElement).appendChild(sheet);
+})();
