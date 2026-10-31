@@ -1,2583 +1,536 @@
-import {installNotificationInboxRuntime,isManagedWorkNotice} from '../lib/notificationInboxRuntime';
-import CompactFilters,{PopupStudioRuntime,isPopupStudioEnabled} from './WorkspaceAppearance';
-import {installReminderPauseRuntime,loadReminderSchedules} from '../lib/reminderPause';
-import {installTaskReminderRuntime} from '../lib/taskReminderRuntime';
-import {BreakRoster} from './WorkspaceUtilities';
-import {readPersonalSettings} from '../lib/personalSettings';
-import {DashboardViewBanner,DashboardSwitcher,useDashboardScope} from '../lib/dashboardScope';
-import { parseDateInput } from '../lib/workspaceHelpers';
-import { CrmDateTimeInput } from './PremiumSelect';
-import { installDialerProfileBridge, openDialerProfile } from '../lib/candidateNav';
-import { readMobileAppearance } from '../lib/theme';
-import { ActionGlyph } from './EmojiGlyph';
-import PremiumSelect from './PremiumSelect';
-import {WorkspaceEnhancements,RunningBreak} from './WorkspaceUtilities';
-import React, { createContext, useContext, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { freshCandidateUrl } from './ContactTextExtractor';
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from '../lib/auth';
-import { canAccessFeature, resolveUserRole } from '../lib/roleAccess';
-import { api,rememberStaffNames } from '../lib/api';
-import { usePolling } from '../lib/usePolling';
-import { getPollingLeaderSnapshot } from '../lib/tabLeader';
-import { notificationTarget } from '../lib/workspaceHelpers';
-import { defaultCustomTheme } from '../lib/theme';
-import { openCandidateProfileInPopupTab } from '../lib/candidateNav';
-import HeaderSearch from './HeaderSearch';
-import { playNotificationSound } from '../lib/notificationSound';
-import {installSubmissionReviewRuntime} from '../lib/compactReminderRuntime';
-import { crmDateParts, crmTodayYmd, crmYmd } from '../lib/workspaceHelpers';
+import React, {Children,Fragment,cloneElement,isValidElement,useId,useEffect,useLayoutEffect,useRef,useState} from 'react';
+import {createPortal} from 'react-dom';
+import {useLocation,useNavigate} from 'react-router-dom';
+import {useAuth} from '../lib/auth';
+import {useDashboardScope} from '../lib/dashboardScope';
+import {applyPersonalSettings, readPersonalSettings, savePersonalSettings, allowedCursors, cursorUrl, pointerUrl} from '../lib/personalSettings';
+import '../styles/genz-motion.css';
+import {api,accountPrincipal,reportWriteFailure,shouldReportWriteFailure,trackUserWrite,hasPendingUserWrite,resolveWriteFailure} from '../lib/api';
+import {CrmSortSelect} from '../lib/workspaceHelpers';
 
-// Semantic reminder colours stay distinct from the selected workspace accent.
-function reminderKind(value, fallback = 'general') {
-  const text = typeof value === 'object'
-    ? [value?.kind, value?.category, value?.type, value?.title, value?.message, value?.item?.category, value?.item?.title].filter(Boolean).join(' ').toLowerCase()
-    : String(value || '').toLowerCase();
-  if (/feedback|result/.test(text)) return 'feedback';
-  if (/invoice|payout|payment|revenue/.test(text)) return 'revenue';
-  if (/joining|joined/.test(text)) return 'joining';
-  if (/interview/.test(text)) return 'interview';
-  if (/follow.?up|callback/.test(text)) return 'followup';
-  if (/approv|unlock/.test(text)) return 'approval';
-  if (/submission|details.sent/.test(text)) return 'submission';
-  if (/task/.test(text)) return 'task';
-  if (/report|goal/.test(text)) return 'report';
-  if (/break|attendance|activity|office/.test(text)) return 'attendance';
-  return fallback;
+const BLUE='#169ce0';
+const validColour=value=>/^#[0-9a-f]{6}$/i.test(value||'');
+const eligible=user=>Boolean(user?.user_id)&&allowedCursors(user.role).length>0;
+const selected=(p,user)=>allowedCursors(user?.role).find(c=>c[0]===p.cursor)||allowedCursors(user?.role)[0];
+const original=`<svg xmlns="http://www.w3.org/2000/svg" width="28" height="32" viewBox="0 0 28 32"><path d="M5 3 L23 21 L15 22 L11 30 Z" fill="${BLUE}" stroke="#fff" stroke-width="1.1" stroke-linejoin="miter"/></svg>`;
+function source(id,hand=false){
+ const url=hand?pointerUrl(id):cursorUrl(id);
+ const text=id==='cc922-precision'?original:decodeURIComponent(url.slice(url.indexOf(',')+1));
+ return new DOMParser().parseFromString(text,'image/svg+xml').documentElement;
 }
-
-const themes = [
-  ['crimson-noir', 'Crimson Noir'],
-  ['burgundy', 'Managers Only'],
-  ['orange', 'Orange'],
-  ['blue', 'Blue'],
-  ['green', 'Green'],
-  ['pink', 'Rose'],
-  ['purple', 'Purple'],
-  ['gold', 'Gold'],
-  ['rose', 'Pink'],
-  ['dark-navy', 'Dark Navy'],
-  ['midnight', 'Midnight'],
-  ['dark-midnight', 'Dark Sapphire'],
-  ['cosmic-berry', 'Cosmic Berry'],
-  ['magenta-pop', 'Magenta Pop'],
-  ['neon-ink', 'Neon Ink'],
-  ['berry-chrome', 'Berry Chrome'],
-  ['ice-lilac', 'Ice Lilac']
-];
-
-const BACKGROUND_PRESETS = [
-  { value: '#d9ebff', label: 'Ocean Blue Background' },
-  { value: '#73d9c8', label: 'Card Green Background' },
-  { value: '#6db7ff', label: 'Card Blue Background' },
-  { value: '#ffb36b', label: 'Coral Glow Background' },
-  { value: '#b79cff', label: 'Violet Mist Background' },
-];
-
-const TASK_SNOOZE_OPTIONS = [
-  { label: '5m', minutes: 5 },
-  { label: '30m', minutes: 30 },
-  { label: '1H', minutes: 60 },
-  { label: '2H', minutes: 120 },
-];
-
-const FOLLOWUP_SNOOZE_OPTIONS = [
-  { label: '5m', minutes: 5 },
-  { label: '30m', minutes: 30 },
-  { label: '1H', minutes: 60 },
-  { label: '2H', minutes: 120 },
-];
-
-
-const SUBMISSION_REMINDER_SNOOZE_OPTIONS = [
-  { label: '5m', minutes: 5 },
-  { label: '30m', minutes: 30 },
-  { label: '1H', minutes: 60 },
-  { label: '2H', minutes: 120 },
-];
-
-function globalSubmissionReminderKey(row = {}) {
-  return String(row.submission_id || row.candidate_id || '').trim();
+function options(p,id){
+ const saved=p.cursorAppearance?.[id]||{};
+ const svg=source(id),base=Number(svg.getAttribute('width'))||34;
+ const legacy=id==='cc922-precision';
+ const rawSize=saved.size??(legacy?p.cursorSize:undefined);
+ const rawColour=saved.colour??(legacy?p.cursorColour:undefined);
+ return {size:Math.max(18,Math.min(64,Math.round(Number(rawSize)||base))),colour:validColour(rawColour)?rawColour:'',base};
 }
-
-function globalSubmissionReminderStamp(row = {}) {
-  const snoozed = String(row.reminder_snoozed_until || '').trim();
-  if (snoozed) return snoozed;
-  const queued = String(row.next_follow_up_at || row.follow_up_at || '').trim();
-  if (queued) return queued;
-  const approval = lowerText(row.approval_status);
-  const details = lowerText(row.all_details_sent);
-  const base = row.approval_requested_at || row.submission_date || row.effective_submission_at || row.submission_origin_at || row.submitted_at || row.updated_at || row.created_at || '';
-  const baseMs = new Date(base || 0).getTime();
-  if (!baseMs) return '';
-  const offsetMinutes = 3;
-  return new Date(baseMs + offsetMinutes * 60000).toISOString();
+function tint(old,base){
+ if(!/^#[0-9a-f]{6}$/i.test(old)||/^#(?:ffffff|000000)$/i.test(old))return old;
+ const rgb=hex=>[1,3,5].map(n=>parseInt(hex.slice(n,n+2),16));
+ const light=rgb(old).reduce((a,b)=>a+b,0)/765;
+ const amount=light>.5?(light-.5)*1.1:(.5-light)*.5;
+ const to=light>.5?255:0;
+ return '#'+rgb(base).map(n=>Math.round(n*(1-amount)+to*amount).toString(16).padStart(2,'0')).join('');
 }
-
-function isGlobalSubmissionReminderDue(row = {}) {
-  const stamp = globalSubmissionReminderStamp(row);
-  const time = new Date(stamp || 0).getTime();
-  if (!time) return false;
-  return time <= Date.now() + CRM_REMINDER_LOOKAHEAD_MS;
-}
-
-function isGlobalSubmissionReminderPending(row = {}) {
-  const approval = lowerText(row.approval_status);
-  const details = lowerText(row.all_details_sent);
-  const status = lowerText(row.status || row.candidate_status || row.profile_status);
-  if (['deleted', '__deleted__', 'archived', 'rejected', 'draft'].includes(status)) return false;
-  if (['deleted', '__deleted__', 'archived', 'rejected', 'draft', ''].includes(approval)) return false;
-  return approval === 'pending' || (approval === 'approved' && details === 'pending');
-}
-
-function isGlobalSubmissionReminderSnoozed(row = {}) {
-  const key = globalSubmissionReminderKey(row);
-  if (!key) return true;
-  try {
-    return Date.now() < Number(localStorage.getItem(`cc_global_submission_reminder_snooze_${key}`) || 0);
-  } catch {
-    return false;
+function asset(p,id,hand=false){
+ const svg=source(id,hand),o=options(p,id);
+ const width=Number(svg.getAttribute('width'))||o.base;
+ const height=Number(svg.getAttribute('height'))||44;
+ if(!svg.hasAttribute('viewBox'))svg.setAttribute('viewBox',`0 0 ${width} ${height}`);
+ svg.setAttribute('width',String(o.size));
+ svg.setAttribute('height',String(Math.round(height*o.size/width)));
+ if(o.colour){
+  for(const node of [svg,...svg.querySelectorAll('*')]){
+   for(const key of ['fill','stop-color']){
+    const old=node.getAttribute(key);
+    if(old&&/^#[0-9a-f]{6}$/i.test(old))node.setAttribute(key,tint(old,o.colour));
+   }
   }
+ }
+ const x=hand&&id==='cc922-reference'?7:id==='cc922-precision'?5:2;
+ const y=id==='cc922-precision'?3:1;
+ return {url:'data:image/svg+xml,'+encodeURIComponent(new XMLSerializer().serializeToString(svg)),x:Math.round(x*o.size/width),y:Math.round(y*o.size/width),size:o.size,height:Math.round(height*o.size/width)};
 }
-
-
-function globalSubmissionReminderNote(row = {}) {
-  return String(row.submission_note || row.submission_notes || row.reminder_note || row.last_note || row.last_notes || row.notes || row.note || '').trim();
+function applyCursor(p,user){
+ const root=document.documentElement;
+ const choice=eligible(user)&&selected(p,user);
+ root.toggleAttribute('data-cc923-precision',Boolean(choice));
+ if(!choice)return;
+ const id=choice[0],arrow=asset(p,id),hand=asset(p,id,true);
+ root.style.setProperty('--cc923-arrow',`url("${arrow.url}") ${arrow.x} ${arrow.y},auto`);
+ root.style.setProperty('--cc923-point',`url("${hand.url}") ${hand.x} ${hand.y},pointer`);
 }
-
-function pickGlobalSubmissionReminder(rows = []) {
-  return (Array.isArray(rows) ? rows : [])
-    .filter((row) => row && isGlobalSubmissionReminderPending(row) && isGlobalSubmissionReminderDue(row) && !isGlobalSubmissionReminderSnoozed(row))
-    .sort((a, b) => {
-      const personal = Number(Boolean(b.personal_owner)) - Number(Boolean(a.personal_owner));
-      if (personal) return personal;
-      return new Date(globalSubmissionReminderStamp(a) || 0).getTime() - new Date(globalSubmissionReminderStamp(b) || 0).getTime();
-    })[0] || null;
-}
-
-function pickUpcomingGlobalSubmissionReminder(rows = []) {
-  return (Array.isArray(rows) ? rows : [])
-    .filter((row) => row && isGlobalSubmissionReminderPending(row) && !isGlobalSubmissionReminderSnoozed(row))
-    .sort((a, b) => {
-      const personal = Number(Boolean(b.personal_owner)) - Number(Boolean(a.personal_owner));
-      if (personal) return personal;
-      return new Date(globalSubmissionReminderStamp(a) || 0).getTime() - new Date(globalSubmissionReminderStamp(b) || 0).getTime();
-    })[0] || null;
-}
-
-const APPROVAL_SNOOZE_OPTIONS = [
-  { label: '5m', minutes: 5 },
-  { label: '30m', minutes: 30 },
-  { label: '1H', minutes: 60 },
-  { label: '2H', minutes: 120 },
-];
-
-const NOTIFICATION_TUNE_STORAGE_KEY = 'careerCroxNotificationTune';
-
-const NOTIFICATION_TUNE_PRESETS = [
-  { id: 'soft-hop', label: 'Soft Hop', notes: [659, 784, 988], wave: 'sine', spacing: 0.08, hold: 0.16, glide: 1.01 },
-  { id: 'desk-bell', label: 'Desk Bell', notes: [523, 659, 784], wave: 'triangle', spacing: 0.11, hold: 0.22, accent: 1.18 },
-  { id: 'mint-pop', label: 'Mint Pop', notes: [784, 932, 1175], wave: 'triangle' },
-  { id: 'metro-chip', label: 'Metro Chip', notes: [587, 659, 880], wave: 'square', spacing: 0.045, hold: 0.1, detune_step: 6 },
-  { id: 'peppy-ring', label: 'Peppy Ring', notes: [740, 988, 1244], wave: 'sine' },
-  { id: 'comic-bloop', label: 'Comic Bloop', notes: [440, 659, 523, 784], wave: 'triangle', spacing: 0.07, hold: 0.14, glide: 1.03 },
-  { id: 'glass-pop', label: 'Glass Pop', notes: [988, 1319, 1568], wave: 'sine' },
-  { id: 'tiny-trumpet', label: 'Tiny Trumpet', notes: [392, 523, 659], wave: 'square', spacing: 0.09, hold: 0.2, accent: 1.2 },
-  { id: 'happy-zing', label: 'Happy Zing', notes: [659, 831, 988, 1319], wave: 'triangle' },
-  { id: 'office-fizz', label: 'Office Fizz', notes: [523, 698, 880, 988], wave: 'sine' },
-  { id: 'spark-loop', label: 'Spark Loop', notes: [784, 698, 784, 1047], wave: 'triangle' },
-  { id: 'smart-ping', label: 'Smart Ping', notes: [622, 831, 1244], wave: 'sine' },
-  { id: 'lift-up', label: 'Lift Up', notes: [494, 587, 740, 988], wave: 'triangle' },
-  { id: 'mini-marimba', label: 'Mini Marimba', notes: [523, 659, 523, 784], wave: 'sine' },
-  { id: 'arcade-lite', label: 'Arcade Lite', notes: [784, 1047, 784, 1319], wave: 'square' },
-  { id: 'paper-plane', label: 'Paper Plane', notes: [523, 587, 784, 1175], wave: 'triangle' },
-  { id: 'quick-wink', label: 'Quick Wink', notes: [988, 880, 1175], wave: 'sine' },
-  { id: 'bubble-step', label: 'Bubble Step', notes: [523, 784, 698, 1047], wave: 'triangle' },
-  { id: 'ping-puff', label: 'Ping Puff', notes: [698, 880, 698, 988], wave: 'sine' },
-  { id: 'sunny-tap', label: 'Sunny Tap', notes: [587, 784, 988, 1175], wave: 'triangle' },
-  { id: 'chime-roll', label: 'Chime Roll', notes: [523, 659, 784, 988, 1319], wave: 'sine', spacing: 0.055, hold: 0.12, glide: 1.02, accent: 1.1 },
-  { id: 'soft-robot', label: 'Soft Robot', notes: [440, 523, 659, 523], wave: 'square' },
-  { id: 'cheer-dot', label: 'Cheer Dot', notes: [659, 880, 1109], wave: 'triangle' },
-  { id: 'wink-bell', label: 'Soft Bell', notes: [784, 1175, 988], wave: 'sine' },
-  { id: 'office-tone', label: 'Office Tone', notes: [523, 659, 831, 1047], wave: 'triangle' },
-];
-
-const POPUP_POLL_MS = 900000;
-const CRM_REMINDER_LOOKAHEAD_MS = 20 * 60 * 1000;
-const internalReminderStartMs = (stamp) => Math.max(Date.now(), Number(stamp || 0) - CRM_REMINDER_LOOKAHEAD_MS);
-const META_POLL_MS = 900000;
-const APPROVAL_POLL_MS = 300000; // optional recovery only; event stream handles urgent approvals
-const GOLD_REMINDER_POLL_MS = 900000;
-const PRESENCE_POLL_MS = 60000; // lightweight heartbeat only; not every second
-const ATTENDANCE_GATE_POLL_MS = 120000;
-const DISABLED_ARCHIVE_FEATURES = new Set();
-const DISABLED_SLICES_ROUTE = '/disabled-slices';
-
-const DAILY_WORKFLOW_SNOOZE_MINUTES = 15;
-const DAILY_TERMINAL_STATUSES = new Set(['selected', 'rejected', 'joined', 'not intrested', 'not interested', 'not responding', 'closed']);
-const DAILY_RESOLVED_TOMORROW_STATUSES = new Set(['all set for interview', 'appeared in interview', 'selected', 'joined']);
-
-function lowerText(value) {
-  return String(value || '').trim().toLowerCase();
-}
-
-function pad2(value) {
-  return String(value).padStart(2, '0');
-}
-
-function formatLocalYmd(value) {
-  return crmYmd(value);
-}
-
-function parseInterviewStamp(row) {
-  const scheduled = String(row?.scheduled_at || '').trim();
-  if (scheduled) {
-    const parsed = new Date(scheduled);
-    if (!Number.isNaN(parsed.getTime())) return parsed;
-  }
-  const fallbackDate = String(row?.interview_reschedule_date || row?.interview_date || '').slice(0, 10);
-  if (!fallbackDate) return null;
-  const parsed = new Date(`${fallbackDate}T09:00:00+05:30`);
-  if (Number.isNaN(parsed.getTime())) return null;
-  return parsed;
-}
-
-function interviewDateKey(row) {
-  const dateOnly = String(row?.interview_reschedule_date || row?.interview_date || '').slice(0, 10);
-  if (dateOnly) return dateOnly;
-  const parsed = parseInterviewStamp(row);
-  return parsed ? formatLocalYmd(parsed) : '';
-}
-
-function isPastInterview(row, now) {
-  const parsed = parseInterviewStamp(row);
-  if (parsed) return parsed.getTime() <= now.getTime();
-  const dateKey = interviewDateKey(row);
-  return Boolean(dateKey) && dateKey < formatLocalYmd(now);
-}
-
-function dailyWorkflowSnoozeKey(userId, kind, dateKey) {
-  return `dailyInterviewWorkflow:snooze:${userId}:${kind}:${dateKey}`;
-}
-
-function threeMinuteGate(dateValue) {
-  const t = new Date(dateValue || 0).getTime();
-  if (!t) return false;
-  return Date.now() - t >= 3 * 60 * 1000;
-}
-
-function formatMinutes(total) {
-  const mins = Number(total || 0);
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return `${h}h ${m}m`;
-}
-
-
-function breakMeterSnapshot(presence = {}) {
-  const startedAt = new Date(presence.break_started_at || 0).getTime();
-  const expectedAt = new Date(presence.break_expected_end_at || 0).getTime();
-  const now = Date.now();
-  const plannedMs = startedAt && expectedAt && expectedAt > startedAt ? expectedAt - startedAt : 0;
-  const elapsedMs = plannedMs ? Math.max(0, now - startedAt) : 0;
-  const rawPercent = plannedMs ? Math.round((elapsedMs / plannedMs) * 100) : (expectedAt && now > expectedAt ? 100 : 0);
-  const percent = Math.max(0, Math.min(130, rawPercent));
-  const overdueSeconds = expectedAt && now > expectedAt ? Math.floor((now - expectedAt) / 1000) : 0;
-  const left = Math.max(0, 180 - overdueSeconds);
-  const level = percent >= 100 ? 'exceeded' : percent >= 95 ? 'critical' : percent >= 90 ? 'warning' : 'safe';
-  return { percent, level, leftText: `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` };
-}
-
-function LockedRequestModal({ role, managerSuspended=false, reasonDefault, refreshAttendanceGate, navigate, breakExpiryAt = 0, overrunText = "" }) {
-  async function resumeSelf(){const note=reason.trim();if(note.length<5||sending)return;setSending(true);setRequestError('');try{const result=await api.post('/api/attendance/self-unlock',{reason:note},{retries:0});if(result?.ok!==true)throw Error('Resume was not confirmed. Please retry.');if(result.unlocked_at)window.dispatchEvent(new CustomEvent('career-crox-unlock-resolved',{detail:result}));await refreshAttendanceGate(true);}catch(e){setRequestError(e.message);}finally{setSending(false);}}
-  const [reason, setReason] = useState('');
-  const [sending, setSending] = useState(false);
-  const [requestSent, setRequestSent] = useState(false);
-  const [requestError, setRequestError] = useState('');
-  // Keep the typed reason during background presence/lock refreshes (never discard it).
-  async function sendRequest() {
-    const note = String(reason || '').trim();
-    if (sending || requestSent) return;
-    if (note.length < 5) { setRequestError('Please enter the reason for your delay (at least 5 characters).'); return; }
-    setSending(true); setRequestError('');
-    try {
-      const result = await api.post('/api/attendance/request-unlock', { reason: note, note, employee_note: note, compact: true }, { timeoutMs: 20000 });
-      if (!result?.request_sent) throw new Error('Request was not confirmed. Please retry.');
-      setRequestSent(true);
-      await refreshAttendanceGate(true).catch(() => {});
-    } catch (error) {
-      const message = String(error?.message || 'Request could not be sent. Please retry.');
-      setRequestError(/activity_log|null value in column|violates not-null/i.test(message) ? 'Request could not be saved. Please retry.' : message);
-    } finally { setSending(false); }
-  }
-  return <div className="crm-modal-backdrop crm-lock-backdrop"><div className={`crm-premium-modal crm-lock-modal danger premium-crm-lock-request-modal ${breakExpiryAt ? 'cc556-expired-request' : ''}`}><div className="lock-premium-chip">{managerSuspended?'Manager approval required':role==='tl'?'Resume with manager review':'TL approval required'}</div><div className="panel-title">CRM Access Paused</div>{breakExpiryAt ? <div className="cc556-negative-clock" data-break-expiry={breakExpiryAt} aria-live="off">{overrunText}</div> : null}<div className="helper-text top-gap-small">{breakExpiryAt ? 'Your break allowance has ended. Explain why you were late; approval is required to resume.' : 'Explain why access is needed; approval is required to resume.'}</div><div className="field top-gap"><label htmlFor="cc579-access-reason">{breakExpiryAt ? 'Reason for late return (required)' : 'Reason for access (required)'}</label><textarea id="cc579-access-reason" rows="4" maxLength={500} required value={reason} onChange={(e) => { setReason(e.target.value); setRequestError(''); }} placeholder="Why were you late returning from break?" /></div>{requestError && <div className="helper-text cc579-error" role="alert">{requestError}</div>}{requestSent && <div className="helper-text cc579-success" role="status">Request sent to the approver. Wait for approval.</div>}<div className="row-actions top-gap">{role==='tl'&&!managerSuspended&&<button type="button" className="add-profile-btn" disabled={sending||reason.trim().length<5} onClick={resumeSelf}>{sending?'Resuming…':'Resume work · notify manager'}</button>}<button className="add-profile-btn bounceable" type="button" disabled={sending || requestSent || reason.trim().length < 5} onClick={sendRequest}>{requestSent ? 'Request Sent' : sending ? 'Sending...' : 'Request for Access'}</button><button className="mini-btn view bounceable" type="button" onClick={() => refreshAttendanceGate(true)}>Check Approval</button></div></div></div>;
-}
-
-
-// CC876: standby safety banner and independent, non-blocking Excel reminder.
-function MultipleCrmGate(){
- const {user}=useAuth(),navigate=useNavigate();
- const [data,setData]=useState(null);const manager=['manager','admin'].includes(String(user?.role||'').toLowerCase());
- useEffect(()=>{let active=true;const load=async()=>{try{const s=await api.get('/api/multiple-crm/status',{cacheTtlMs:0,allowStale:false,retries:0,background:true});if(active){setData(s);window.__CC874_INSTANCE_MODE__=s.mode;}}catch{}};load();return()=>{active=false;};},[user?.user_id]);
- if(!data?.available||['ACTIVE','LOCAL','UNCONFIGURED'].includes(data.mode))return null;
- return <div className="cc874-standby-banner" style={{position:'fixed',top:0,left:0,right:0,zIndex:100030}}>This CRM is {String(data.mode).toLowerCase()}. {manager?'Manager recovery workspace remains available.':'Continue on your active CRM.'}<button className="ghost-btn" onClick={()=>navigate('/data-backup')}>Backup workspace</button></div>;
-}
-function ExcelBackupReminderGate(){
- const {user}=useAuth(),location=useLocation(),navigate=useNavigate(),manager=['manager','admin'].includes(String(user?.role||'').toLowerCase());
- const [reminder,setReminder]=useState(null),[error,setError]=useState(''),[backupNow,setBackupNow]=useState(Date.now());
- useEffect(()=>{if(!manager)return;const clock=setInterval(()=>setBackupNow(Date.now()),15000);return()=>clearInterval(clock);},[manager]);
- useEffect(()=>{if(!manager)return;let live=true;const update=async()=>{try{const result=await api.get('/api/data-backup/full-excel/reminder',{cacheTtlMs:0,retries:0,allowStale:false,background:true});if(live)setReminder({...result.reminder,__received:Date.now()});}catch{}};update();window.addEventListener('focus',update);window.addEventListener('cc876-backup-state',update);return()=>{live=false;window.removeEventListener('focus',update);window.removeEventListener('cc876-backup-state',update);};},[manager,user?.user_id]);
- const offset=reminder?.server_now&&reminder?.__received?Date.parse(reminder.server_now)-reminder.__received:0;
- const due=Boolean(reminder)&&backupNow+offset>=Date.parse(reminder.next_due_at)&&!(Date.parse(reminder.snooze_until||'')>backupNow+offset)&&!location.pathname.startsWith('/data-backup')&&!location.pathname.startsWith('/admin');
- const postpone=async()=>{try{const result=await api.post('/api/data-backup/full-excel/remind-later',{hours:6},{retries:0});setReminder({...result.reminder,__received:Date.now()});setError('');}catch(e){setError(e.message);}};
- if(!manager||!due)return null;
- return <div className="cc874-backup-overlay" style={{zIndex:100020}}><section className="cc874-backup-dialog" role="dialog" aria-modal="true" aria-label="Download full CRM Excel reminder"><span className="cc874-kicker">CAREER CROX · MANAGER BACKUP REMINDER</span><h3>Download Full CRM Excel</h3><p>{reminder.days_without_backup} days since the last saved backup. Save candidates, staff allocations, notes, tasks and reminders. Resume and recording files are never included.</p><div className="row-actions"><button className="add-profile-btn" onClick={()=>navigate('/data-backup')}>Download Full CRM Excel</button><button className="ghost-btn" onClick={postpone}>Remind after 6 hours</button></div>{error?<p role="alert">{error}</p>:null}<p className="helper-text">You can postpone even after three days; staff work is never locked by this reminder.</p></section></div>;
-}
-
-function ProfileNoticeContext({notification}){
- const [more,setMore]=useState(false);let metadata=notification?.metadata||{};if(typeof metadata==='string')try{metadata=JSON.parse(metadata);}catch{metadata={};}
- if(!metadata.candidate_id)return null;
- if(notification?.category!=='candidate_update')return <ProfileNoticeLegacyContext notification={notification}/>;
- const clock=value=>{if(!/^\d{4}-\d\d-\d\d/.test(String(value)))return String(value||'Not set');try{return new Intl.DateTimeFormat('en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:'short',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true}).format(new Date(/(?:Z|[+-]\d\d:\d\d)$/.test(value)?value:value+'+05:30'))+' IST';}catch{return String(value);}};
- const note=metadata.note_body||(metadata.note_id?notification.message:'');
- return <div className="cc918-profile-notice" style={{font:'400 13px/1.5 "Segoe UI",sans-serif',textAlign:'left',color:'#27435a'}}>
-  <div style={{color:'#54718a',margin:'5px 0 10px'}}>{metadata.candidate_name||metadata.candidate_id} · {metadata.candidate_id}</div>
-  {(metadata.changes||[]).map((change,i)=><div key={i} style={{margin:'7px 0',padding:'9px 11px',borderRadius:10,background:/reject|backout/i.test(change.to)?'#fff0f2':'#eef9f3',border:'1px solid #d8e9e3'}}><span style={{display:'block',fontWeight:600,color:'#284e59'}}>{change.label||change.field}</span><span style={{color:'#7f6671',whiteSpace:'pre-wrap'}}>{clock(change.from)}</span><span style={{color:'#4c7b6a'}}> → </span><span style={{fontWeight:500,color:/reject|backout/i.test(change.to)?'#a33c52':'#087453',whiteSpace:'pre-wrap'}}>{clock(change.to)}</span></div>)}
-  {note?<div style={{padding:12,border:'1px solid #ddd9ef',borderRadius:10,background:'#f5f2ff',marginTop:8}}><span style={{display:'block',fontWeight:600,color:'#6e4d91'}}>Updated note</span><span style={{whiteSpace:'pre-wrap',overflowWrap:'anywhere'}}>{note}</span></div>:!(metadata.changes||[]).length?<div style={{whiteSpace:'pre-wrap'}}>{notification.message}</div>:null}
-  <span role="button" tabIndex={0} className="cc918-more-activity" style={{background:'transparent',border:0,padding:'8px 0',font:'inherit',color:'#51788a',textAlign:'left'}} onClick={e=>{e.preventDefault();e.stopPropagation();setMore(x=>!x);}}>More activity details</span>{more?<ProfileNoticeLegacyContext notification={notification}/>:null}
- </div>;
-}
-function ProfileNoticeLegacyContext({notification}){
- let metadata=notification?.metadata||{};if(typeof metadata==='string')try{metadata=JSON.parse(metadata);}catch{metadata={};}
- const id=String(metadata.candidate_id||''),[context,setContext]=useState(null);
- useEffect(()=>{let live=true;setContext(null);if(id)api.get('/api/reports/reminder-context?candidate_id='+encodeURIComponent(id),{cacheTtlMs:60000,allowStale:false,background:true,retries:0}).then(data=>{if(live)setContext(data.item||{});}).catch(()=>{if(live)setContext({unavailable:true});});return()=>{live=false;};},[id]);
- if(!id)return null;
- const clock=value=>{try{return new Intl.DateTimeFormat('en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:'short',hour:'numeric',minute:'2-digit',hour12:true}).format(new Date(value));}catch{return'';}};
- return <div className="cc898-reminder-context">
-  {context?.note_body&&<div><b>Note</b><span>{context.note_body}</span></div>}
-  <div><b>Last activity</b><span>{!context?'Loading…':context.unavailable?'Unavailable':[context.last_activity_label,context.last_activity_actor?'by '+context.last_activity_actor:'',context.last_activity_at?clock(context.last_activity_at):''].filter(Boolean).join(' · ')||'No recorded activity'}</span></div>
-  <div><b>Last seen by owner</b><span>{!context?'Loading…':context.unavailable?'Unavailable':context.owner_last_seen_at?clock(context.owner_last_seen_at):'Not recorded'}</span></div>
- </div>;
-}
-function isUnlockNotice(item={}){
- let metadata=item.metadata||{};if(typeof metadata==='string')try{metadata=JSON.parse(metadata);}catch{metadata={};}
- return Boolean(metadata.request_id&&(metadata.approval_kind==='unlock'||metadata.manager_review||/unlock|access approval/i.test(item.title||'')));
-}
-function PopupMinimizeControl(){
- const [until,setUntil]=useState(0);
+function CursorControls({user}){
+ const [p,setP]=useState(readPersonalSettings);
+ const [status,setStatus]=useState('');
  useEffect(()=>{
-  if(!until)return;
-  document.documentElement.classList.add('cc878-popups-paused');window.__CC878_POPUPS_MINIMIZED_UNTIL__=until;
-  const previous=new Map(),selectors='.cc388-reminder-deck,.cc391-reminder-deck,.cc803-review-popup,#cc497-unlock-approval,.cc841-approval-center,.mini-toast,.task-reminder-wrap,.followup-reminder-wrap,.revenue-reminder-wrap,.global-submission-reminder-wrap,.cc808-task-toast,#cc763-manager-reminder-center,.goalpost-reminder-panel';
-  const hide=()=>{for(const node of document.querySelectorAll(selectors)){
-   if(!previous.has(node))previous.set(node,{display:node.style.getPropertyValue('display'),priority:node.style.getPropertyPriority('display'),inert:node.inert});
-   node.inert=true;node.style.setProperty('display','none','important');
-  }};
-  hide();const observer=new MutationObserver(hide);observer.observe(document.body,{childList:true,subtree:true});
-  const timer=setTimeout(()=>setUntil(0),Math.max(0,until-Date.now()));
-  return()=>{
-   clearTimeout(timer);observer.disconnect();
-   for(const[node,old]of previous){if(old.display)node.style.setProperty('display',old.display,old.priority);else node.style.removeProperty('display');node.inert=old.inert;}
-   document.documentElement.classList.remove('cc878-popups-paused');window.__CC878_POPUPS_MINIMIZED_UNTIL__=0;
+  const sync=()=>setP(readPersonalSettings());
+  window.addEventListener('cc787-settings-changed',sync);window.addEventListener('storage',sync);
+  return()=>{window.removeEventListener('cc787-settings-changed',sync);window.removeEventListener('storage',sync);};
+ },[]);
+ const choice=selected(p,user);
+ if(!choice)return null;
+ const id=choice[0],o=options(p,id),preview=asset(p,id);
+ const initial=source(id).querySelector('[stop-color]')?.getAttribute('stop-color')||source(id).querySelector('[fill]')?.getAttribute('fill')||BLUE;
+ const change=patch=>{
+  const latest=readPersonalSettings(),current=selected(latest,user);
+  if(!current)return;
+  const key=current[0],previous=options(latest,key);
+  const next=savePersonalSettings({cursorAppearance:{...latest.cursorAppearance,[key]:{size:previous.size,colour:previous.colour,...patch}}});
+  applyCursor(next,user);setP(next);setStatus('Saved for this cursor on this browser');
+ };
+ return <section aria-label="Selected cursor appearance" style={{marginTop:18,padding:18,border:'1px solid #c7d8ec',borderRadius:16,background:'#fff',color:'#173654'}}>
+  <h3 style={{margin:'0 0 8px'}}>Selected cursor: {choice[1]}</h3>
+  <p style={{margin:'0 0 12px',fontSize:13}}>Colour aur size isi selected design ke liye save honge.</p>
+  <div style={{display:'flex',gap:18,alignItems:'center',flexWrap:'wrap'}}>
+   <img src={preview.url} alt="Selected cursor preview" width={preview.size} height={preview.height}/>
+   <label>Cursor colour<input aria-label="Cursor colour" type="color" value={o.colour||(validColour(initial)?initial:BLUE)} onChange={e=>change({colour:e.target.value})}/></label>
+   <label>Cursor size: {o.size}px<input aria-label="Cursor size" type="range" min="18" max="64" step="1" value={o.size} onChange={e=>change({size:Number(e.target.value)})}/></label>
+   <button type="button" className="ghost-btn" onClick={()=>change({colour:'',size:o.base})}>Reset selected cursor</button>
+  </div>
+  <small role="status" aria-live="polite">{status}</small>
+ </section>;
+}
+
+export function GlobalTextToneOverride(){
+ useLayoutEffect(()=>{document.getElementById('crm-global-text-tone-override')?.remove();},[]);
+ return null;
+}
+
+export function PersonalSettingsBridge(){
+ const {user,theme}=useAuth();
+ const location=useLocation();
+ const [host,setHost]=useState(null);
+ useLayoutEffect(()=>{document.documentElement.dataset.cc825Page=location.pathname.split('/')[1]||'home';},[location.pathname]);
+ useLayoutEffect(()=>{
+  const apply=()=>{
+   if(user){const p=readPersonalSettings();applyPersonalSettings(p,theme,user.role);applyCursor(p,user);}
+   else document.documentElement.removeAttribute('data-cc923-precision');
   };
- },[until]);
- return <button type="button" className="cc878-minimize-popups" aria-label="Minimize all popups for 5 seconds" title={until?'Popups return after 5 seconds':'Minimize all popups for 5 seconds'} disabled={!!until} onClick={event=>{event.preventDefault();event.stopPropagation();setUntil(Date.now()+5000);}}><span aria-hidden="true">⊟</span><small>{until?'5s':''}</small></button>;
-}
-
-function WorkspaceLayout({ title, subtitle, children }) {
-  const dashboardScope=useDashboardScope();
-  const [popupPrefs,setPopupPrefs]=useState(readPersonalSettings);
-  useEffect(()=>{const changed=()=>setPopupPrefs(readPersonalSettings());window.addEventListener('cc787-settings-changed',changed);window.addEventListener('storage',changed);return()=>{window.removeEventListener('cc787-settings-changed',changed);window.removeEventListener('storage',changed);};},[]);
-  const { user, logout, theme, setTheme, customTheme, setCustomTheme, resetCustomTheme, persistTheme } = useAuth();
-  // Router values are read by render-time dependency arrays below.
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [quickPair,setQuickPair]=useState(null);
-  const quickPairRef = useRef(null);
-  const quickPairButtonRef = useRef(null);
-  const quickPairRequestRef = useRef(false);
-  const quickPairSeqRef = useRef(0);
-  const quickPairInFlightSeqRef = useRef(0);
-  const quickPairProposalRef = useRef('');
-  function closeQuickPair() { quickPairSeqRef.current += 1; setQuickPair(null); }
-  const [blockedProfile,setBlockedProfile]=useState(null);
-  useEffect(()=>installDialerProfileBridge(user),[user?.user_id]);
-  useEffect(()=>{const h=e=>setBlockedProfile(e.detail);window.addEventListener('career-crox-profile-popup-blocked',h);return()=>window.removeEventListener('career-crox-profile-popup-blocked',h);},[]);
-  // CC815: show the four digits synchronously, then confirm the exact code was stored.
-  // Clicking elsewhere closes the popover, without another API request.
-  function makeVisiblePairCode() {
-    const buffer = new Uint32Array(1);
-    if (typeof window !== 'undefined' && window.crypto?.getRandomValues) {
-      window.crypto.getRandomValues(buffer);
-      return String(1000 + (buffer[0] % 9000));
-    }
-    return String(1000 + Math.floor(Math.random() * 9000));
-  }
-  async function showQuickPair() {
-    if (quickPairRequestRef.current) {
-      // Reopen the pending single request without triggering a second DB write.
-      quickPairSeqRef.current = quickPairInFlightSeqRef.current;
-      setQuickPair({ pairing_code: quickPairProposalRef.current, loading: true, confirmed: false });
-      return;
-    }
-    quickPairRequestRef.current = true;
-    const requestSeq = ++quickPairSeqRef.current;
-    quickPairInFlightSeqRef.current = requestSeq;
-    const proposed = makeVisiblePairCode();
-    quickPairProposalRef.current = proposed;
-    setQuickPair({ pairing_code: proposed, loading: true, confirmed: false });
-    try {
-      const data = await api.post('/api/dialer/pair-code', {
-        appearance: readMobileAppearance(), client_pairing_code: proposed,
-      }, { timeoutMs: 14000, retries: 0, background: false });
-      if (!data?.ok || !/^\d{4}$/.test(String(data.pairing_code || ''))) {
-        throw new Error('Pair code was not confirmed by CRM. Click Pair Phone again.');
-      }
-      if (requestSeq === quickPairSeqRef.current) setQuickPair({ ...data, loading: false, confirmed: true });
-    } catch (error) {
-      if (requestSeq === quickPairSeqRef.current) setQuickPair({ pairing_code: '', loading: false, confirmed: false,
-        error: String(error?.message || 'Pairing unavailable. Try once more.') });
-    } finally { quickPairRequestRef.current = false; }
-  }
-  useEffect(() => {
-    if (!quickPair) return undefined;
-    const onOutside = (event) => {
-      if (quickPairRef.current?.contains(event.target) || quickPairButtonRef.current?.contains(event.target)) return;
-      closeQuickPair();
-    };
-    const onKey = (event) => { if (event.key === 'Escape') closeQuickPair(); };
-    document.addEventListener('pointerdown', onOutside);
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('pointerdown', onOutside); document.removeEventListener('keydown', onKey); };
-  }, [Boolean(quickPair)]);
-  const effectiveCustomTheme = customTheme || defaultCustomTheme;
-  const [notifications, setNotifications] = useState(0);
-  useEffect(()=>{const manager=['manager','admin'].includes(String(user?.role||'').toLowerCase());const scan=node=>{if(!node?.querySelectorAll)return;const candidates=[...(node.matches?.('button,a,[role=button]')?[node]:[]),...node.querySelectorAll('button,a,[role=button]')];for(const element of candidates){const label=String(element.textContent||element.getAttribute('aria-label')||'').trim();if(label.length<120&&/\b(export|download)\b/i.test(label)){element.dataset.cc831NoExport=manager?'false':'true';}}};scan(document.body);const observer=new MutationObserver(changes=>{for(const change of changes)for(const node of change.addedNodes)if(node.nodeType===1)scan(node);});observer.observe(document.body,{childList:true,subtree:true});return()=>observer.disconnect();},[user?.role]);
-
-  const [approvals, setApprovals] = useState(0);
-  useEffect(()=>{const seen=new Set();const receive=e=>{const item=e.detail;if(!item?.notification_id||seen.has(item.notification_id))return;seen.add(item.notification_id);if(seen.size>200)seen.delete(seen.values().next().value);if(item.category!=='chat'&&!isUnlockNotice(item)&&!isManagedWorkNotice(item))setToast({title:item.title,message:item.message,item});setNotifications(n=>n+1);if(item.category!=='chat'&&!isManagedWorkNotice(item))playNotificationSound('', '', 'notice:'+item.notification_id).catch(()=>{});};window.addEventListener('career-crox-notification',receive);return()=>window.removeEventListener('career-crox-notification',receive);},[]);
-
-  useEffect(()=>installNotificationInboxRuntime(user,{navigate}),[user?.user_id,user?.role,navigate]);
-  useEffect(()=>{installReminderPauseRuntime();void loadReminderSchedules().catch(()=>{});},[user?.user_id]);
-  useEffect(()=>installTaskReminderRuntime(user),[user?.user_id]);
-  useEffect(()=>installSubmissionReviewRuntime(user),[user?.user_id,user?.role]);
-  const [showTheme, setShowTheme] = useState(false);
-  const [notificationTune, setNotificationTune] = useState(() => {
-    try {
-      const stored = localStorage.getItem(NOTIFICATION_TUNE_STORAGE_KEY);
-      return NOTIFICATION_TUNE_PRESETS.some((item) => item.id === stored) ? stored : 'office-tone';
-    } catch {
-      return 'office-tone';
-    }
-  });
-  const [previewingTuneId, setPreviewingTuneId] = useState('');
-  const [showAddMenu, setShowAddMenu] = useState(false);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  useEffect(()=>{let cancelled=false;const names=(force=false)=>api.get('/api/ui/lookups?scope=profile',{cacheTtlMs:force?0:60000,allowStale:!force,timeoutMs:10000,retries:0}).then(p=>{if(!cancelled)rememberStaffNames(p.users||[]);}).catch(()=>{});names();const changed=e=>{if(/flowchart|users/.test(e.detail?.source||e.detail?.path||'')){names(true);window.dispatchEvent(new Event('career-crox-team-changed'));}};window.addEventListener('career-crox-manager-reminder-dirty',changed);window.addEventListener('career-crox-data-written',changed);return()=>{cancelled=true;window.removeEventListener('career-crox-manager-reminder-dirty',changed);window.removeEventListener('career-crox-data-written',changed);};},[user?.user_id]);
-  const [toast, setToast] = useState(null);
-  const [chatToast,setChatToast]=useState(null);
-  useLayoutEffect(()=>{if(!chatToast)return;const position=()=>{const banner=document.querySelector('.cc936-chat-toast');if(!banner)return;const top=Math.max(70,(document.querySelector('.topbar')?.getBoundingClientRect().bottom||70)+8);banner.style.setProperty('top',top+'px','important');document.documentElement.style.setProperty('--cc936-chat-bottom',(top+banner.getBoundingClientRect().height+8)+'px');};position();window.addEventListener('resize',position);return()=>window.removeEventListener('resize',position);},[chatToast?.key]);
-
-  useEffect(()=>{setChatToast(null);chatToastSeen.current?.clear();},[user?.user_id]);
-  useEffect(()=>{if(!chatToast)return;const timer=setTimeout(()=>setChatToast(value=>value?.key===chatToast.key?null:value),Math.max(5,Number(popupPrefs.popupSeconds)||10)*1000);return()=>clearTimeout(timer);},[chatToast,popupPrefs.popupSeconds]);
-
-  const [popupStudioRevision,setPopupStudioRevision]=useState(0);
-  useEffect(()=>{const changed=()=>setPopupStudioRevision(value=>value+1);window.addEventListener('cc927-popup-settings-changed',changed);return()=>window.removeEventListener('cc927-popup-settings-changed',changed);},[]);
-  const [toastClosing,setToastClosing]=useState(false),toastExitTimer=useRef(null);
-  function dismissToast(){const current=toast;if(!current)return;setToastClosing(true);clearTimeout(toastExitTimer.current);toastExitTimer.current=setTimeout(()=>{setToast(value=>value===current?null:value);},220);}
-  useEffect(()=>{setToastClosing(false);clearTimeout(toastExitTimer.current);if(!toast||!popupPrefs.popupAutoHide)return;const timer=setTimeout(()=>dismissToast(),popupPrefs.popupSeconds*1000);return()=>{clearTimeout(timer);clearTimeout(toastExitTimer.current);};},[toast,popupPrefs.popupAutoHide,popupPrefs.popupSeconds,popupStudioRevision]);
-  const attendanceReadSequence=useRef(0),attendanceUnlockedAt=useRef(0),lastUnlockEvent=useRef('');
-  const [lastNotificationId, setLastNotificationId] = useState('');
-  const chatToastSeen=useRef(new Set());
-  // CC84: The complete ARIA scorecard belongs in Team Chat / its report page,
-  // never inside the tiny notification. Show a compact, top-docked notice only.
-  useEffect(() => {
-    window.__CC814_CHAT_TOAST_OWNER__ = true;
-    const incoming = (event) => {
-      const message = event.detail;
-      if (!message || message.deleted || message.deleted_at || message.sender_username === user?.username) return;
-      const key = String(message.id || message.message_id || '');
-      if (!key || chatToastSeen.current.has(key)) return;
-      chatToastSeen.current.add(key);
-      if (chatToastSeen.current.size > 200) chatToastSeen.current.delete(chatToastSeen.current.values().next().value);
-      const fullBody = String(message.body || message.message || message.text || 'New message');
-      const isAriaReport = String(message.sender_username || message.sender_name || '').toLowerCase() === 'aria'
-        && (String(message.reference_type || '') === 'semi_hourly_report' || /^30-minute team performance/i.test(fullBody));
-      const reportId = String(message.reference_id || '').trim();
-      const reportMatch = fullBody.match(/(?:^|\n)Chart:\s*\/semi-hourly-report\?reportId=([^\s]+)/i);
-      const reportPath = isAriaReport && (reportId || reportMatch)
-        ? `/semi-hourly-report?reportId=${encodeURIComponent(reportId || reportMatch[1])}`
-        : '';
-      if(isAriaReport)return; // Recipient-scoped report already has a bell preview.
-      else if(window.__CC920_OFFICE_GATE__?.()!==false){
-        const activeThread=new URLSearchParams(window.location.search).get('thread')||'team';
-        if(window.location.pathname!=='/chat'||document.hidden||activeThread!==String(message.thread_key||'team'))setChatToast({key,name:message.sender_name||message.sender_full_name||message.sender_username||'Teammate',body:fullBody,thread:message.thread_title||message.group_title||(String(message.thread_key||'team').startsWith('dm:')?'Direct message':'Team Chat'),href:'/chat?thread='+encodeURIComponent(message.thread_key||'team')});
-      }
-
-
-      playNotificationSound('', false, 'chat:' + key).catch(() => {});
-    };
-    window.addEventListener('career-crox-chat-message', incoming);
-    return () => {
-      window.__CC814_CHAT_TOAST_OWNER__ = false;
-      window.removeEventListener('career-crox-chat-message', incoming);
-    };
-  }, [user?.username]);
-
-  const [approvalPopup, setApprovalPopup] = useState(null);
-  // Keep queue state updates pure: React StrictMode may evaluate an updater twice.
-  const [taskChangeToasts,setTaskChangeToasts] = useState([]);
-  const taskChangeToast=taskChangeToasts[0]||null;
-  const closeTaskChangeToast=()=>setTaskChangeToasts(items=>items.slice(1));
-  const taskChangeSeenRef = useRef(new Set());
-  useEffect(()=>{setTaskChangeToasts([]);taskChangeSeenRef.current.clear();},[user?.user_id]);
-  useEffect(()=>{
-    if(!user?.user_id)return;
-    const received=event=>{
-      const payload=event.detail||{},task=payload.task;
-      if(!task?.task_id||String(payload.recipient_user_id||task.assigned_to_user_id||'')!==String(user.user_id))return;
-      const key=[task.task_id,payload.kind,task.status,task.due_at||task.due_date,payload.at].join(':');
-      if(taskChangeSeenRef.current.has(key))return;
-      taskChangeSeenRef.current.add(key);if(taskChangeSeenRef.current.size>120)taskChangeSeenRef.current.delete(taskChangeSeenRef.current.values().next().value);
-      setTaskChangeToasts(items=>[...items,{task,kind:payload.kind,key}]);
-      playTaskReminderSound('popup','','task-change:'+key);
-    };
-    window.addEventListener('career-crox-task-changed',received);
-    return()=>window.removeEventListener('career-crox-task-changed',received);
-  },[user?.user_id]);
-  // Routine Task Updated/Completed receipts auto-hide after 3 seconds. New Task
-  // assignment is actionable and remains until the user opens or closes it.
-  useEffect(()=>{if(!taskChangeToast||taskChangeToast.kind==='assigned')return;
-    const timer=window.setTimeout(closeTaskChangeToast,3000);
-    return()=>window.clearTimeout(timer);
-  },[taskChangeToast?.key]);
-  const [taskPopup, setTaskPopup] = useState(null);
-  const [followUpPopup, setFollowUpPopup] = useState(null);
-  const [globalSubmissionReminderPopup, setGlobalSubmissionReminderPopup] = useState(null);
-  const [taskPopupAnimatingOut, setTaskPopupAnimatingOut] = useState(false);
-  const [revenuePopup, setRevenuePopup] = useState(null);
-  const [dailyWorkflowPopup, setDailyWorkflowPopup] = useState(null);
-  const [semiHourlyPopup, setSemiHourlyPopup] = useState(null);
-  const [goalPostReminderPopup, setGoalPostReminderPopup] = useState(null);
-  // CC136: Never silently auto-dismiss actionable approvals, task reminders,
-  // follow-ups, submission or Pipeline Hub reminders. Keep auto-hide for the two
-  // informational workflow notices only, according to existing user preference.
-  useEffect(()=>{if(!popupPrefs.popupAutoHide)return;
-    const routine=[dailyWorkflowPopup&&[dailyWorkflowPopup,setDailyWorkflowPopup],semiHourlyPopup&&[semiHourlyPopup,setSemiHourlyPopup]].filter(Boolean);
-    const timers=routine.map(([,setter])=>window.setTimeout(()=>{if(!isPopupStudioEnabled('reminder'))setter(null);},popupPrefs.popupSeconds*1000));
-    return()=>timers.forEach(window.clearTimeout);
-  },[dailyWorkflowPopup,semiHourlyPopup,popupPrefs.popupAutoHide,popupPrefs.popupSeconds,popupStudioRevision]);
-  const [goalPostLogoutChoice, setGoalPostLogoutChoice] = useState(null);
-  const [rejectReason, setRejectReason] = useState('');
-  const [approvalReminderForm, setApprovalReminderForm] = useState({ exact_time: '' });
-  const [savingApproval, setSavingApproval] = useState(false);
-  const pendingApprovalKeysRef=useRef(new Set());
-  const [showJoinOffice, setShowJoinOffice] = useState(false);
-  const [sendingJoin, setSendingJoin] = useState(false);
-  const [officeJoinError, setOfficeJoinError] = useState('');
-  const [attendanceGate, setAttendanceGate] = useState(()=>window.__CC836_ATTENDANCE__?.()||null);
-  const [breakCountdownNow, setBreakCountdownNow] = useState(() => Date.now());
-  const [showLogoutSummary, setShowLogoutSummary] = useState(false);
-  const [logoutSummary, setLogoutSummary] = useState(null);
-  const logoutTargets = logoutSummary?.attendance_report?.targets || {};
-  const logoutWorkTarget = Number(logoutTargets.payable_work_minutes || 540) || 540;
-  const logoutDialedTarget = Number(logoutTargets.dialed_calls || 100) || 100;
-  const logoutConnectedTarget = Number(logoutTargets.connected_calls || 60) || 60;
-  const logoutTalkTarget = Number(logoutTargets.talktime_minutes || 180) || 180;
-  const logoutSubmissionTarget = Number(logoutTargets.submissions || 10) || 10;
-  const [sendingReport, setSendingReport] = useState(false);
-  const [logoutReportNotes, setLogoutReportNotes] = useState('');
-  const [writeBusy, setWriteBusy] = useState(false);
-  const [manualDialerOpen, setManualDialerOpen] = useState(false);
-  const [manualDialerPhone, setManualDialerPhone] = useState('');
-  const [manualDialerName, setManualDialerName] = useState('');
-  const [manualDialerBusy, setManualDialerBusy] = useState(false);
-  const [manualDialerMessage, setManualDialerMessage] = useState('');
-  useLayoutEffect(() => {
-    const host = document.querySelector('.cc785-route-content');
-    if (!host) return;
-    const markMetrics = () => {
-      const cards = host.querySelectorAll('.stat-card,.metric-card,.bda-stat-card,.goalpost-summary-card,.goalpost-metric-card,.mail-top-card,.assistant-stat-card');
-      const parents = new Set([...cards].map(card => card.parentElement));
-      for (const parent of parents) {
-        const count = parent.children.length;
-        if (count < 2 || count > 10 || ![...parent.children].every(child => child.matches('.stat-card,.metric-card,.bda-stat-card,.goalpost-summary-card,.goalpost-metric-card,.mail-top-card,.assistant-stat-card'))) continue;
-        parent.dataset.cc785Stats = String(count);
-        parent.style.setProperty('--cc785-stat-count', String(count));
-      }
-    };
-    markMetrics();
-    const observer = new MutationObserver(markMetrics);
-    observer.observe(host, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, [location.pathname]);
-  const normalizedRole = resolveUserRole(user);
-  const leadership = ['admin', 'manager', 'tl'].includes(normalizedRole);
-  const approvalLockExempt = ['admin', 'manager'].includes(normalizedRole);
-  const AUTO_SYSTEM_POPUPS_ENABLED = String(import.meta.env?.VITE_AUTO_SYSTEM_POPUPS || 'false').toLowerCase() === 'true';
-  const AUTO_SEMI_HOURLY_POPUPS_ENABLED = String(import.meta.env?.VITE_AUTO_SEMI_HOURLY_POPUPS || 'false').toLowerCase() === 'true';
-  const quickAddRef = useRef(null);
-  const [chatUnread,setChatUnread]=useState(0);
-  const chatRowsRef=useRef([]),chatSeenRef=useRef(new Set());
-  useEffect(()=>{
-    let alive=true,timer,running=false,again=false;const storageKey='cc930:chat-inbox:'+user?.user_id;
-    window.__CC930_CHAT_BADGE_OWNER__=true;document.querySelectorAll('.cc758-chat-pill-badge').forEach(el=>el.remove());
-    const apply=rows=>{chatRowsRef.current=rows;setChatUnread(rows.reduce((n,r)=>n+Math.max(0,Number(r.unread_count)||0),0));try{localStorage.setItem(storageKey,JSON.stringify(rows));}catch{}};
-    try{apply(JSON.parse(localStorage.getItem(storageKey)||'[]'));}catch{}
-    const read=e=>{const d=e.detail||{};if(Array.isArray(d.items))apply(d.items);else if(d.thread_key)apply(chatRowsRef.current.map(r=>r.thread_key===d.thread_key?{...r,unread_count:Math.max(0,Number(r.latest_message_id)>Number(d.last_read_id)?Number(r.unread_count)||0:0)}:r));if(d.read_count)setNotifications(n=>Math.max(0,n-Number(d.read_count)));};
-    const recover=async()=>{if(!alive||window.__CC602_NETWORK_PAUSED__)return;if(running){again=true;return;}running=true;try{const d=await api.get('/api/chat/inbox?preview=1',{cacheTtlMs:0,timeoutMs:12000,retries:0,background:false});if(!alive)return;apply(d.items||[]);for(const m of d.latest_unread||[]){const id=String(m.id);if(!chatSeenRef.current.has(id)){chatSeenRef.current.add(id);window.dispatchEvent(new CustomEvent('career-crox-chat-message',{detail:{...m,recovered:true}}));}}}catch{}finally{running=false;if(again){again=false;clearTimeout(timer);timer=setTimeout(recover,200);}}};
-    const ready=()=>{clearTimeout(timer);timer=setTimeout(recover,120);};
-    const receive=e=>{const m=e.detail;if(!m||m.deleted||m.deleted_at||m.sender_username===user?.username)return;const id=String(m.id);if(chatSeenRef.current.has(id)&&!m.recovered)return;chatSeenRef.current.add(id);if(chatSeenRef.current.size>500)chatSeenRef.current.delete(chatSeenRef.current.values().next().value);if(m.recovered)return;const key=String(m.thread_key||'team');const old=chatRowsRef.current.find(r=>r.thread_key===key)||{thread_key:key,unread_count:0,last_read_id:0};if(Number(m.id)<=Number(old.latest_message_id))return;apply([...chatRowsRef.current.filter(r=>r.thread_key!==key),{...old,latest_message_id:m.id,last_message_at:m.created_at,unread_count:Number(old.unread_count||0)+1}]);};
-    const storage=e=>{if(e.key===storageKey)try{const rows=JSON.parse(e.newValue||'[]');chatRowsRef.current=rows;setChatUnread(rows.reduce((n,r)=>n+Number(r.unread_count||0),0));}catch{}};
-    window.addEventListener('career-crox-chat-message',receive);window.addEventListener('career-crox-chat-ready',ready);window.addEventListener('career-crox-chat-read',read);window.addEventListener('cc790-chat-read',read);window.addEventListener('storage',storage);window.addEventListener('online',ready);window.addEventListener('career-crox-tab-resumed',ready);ready();
-    return()=>{alive=false;clearTimeout(timer);window.removeEventListener('career-crox-chat-message',receive);window.removeEventListener('career-crox-chat-ready',ready);window.removeEventListener('career-crox-chat-read',read);window.removeEventListener('cc790-chat-read',read);window.removeEventListener('storage',storage);window.removeEventListener('online',ready);window.removeEventListener('career-crox-tab-resumed',ready);};
-  },[user?.user_id]);
-  useEffect(()=>{document.querySelectorAll('.sidebar-nav a[href="/chat"]').forEach(el=>el.classList.toggle('cc790-unread-nav',chatUnread>0));},[chatUnread,location.pathname]);
-  const lastMobileProfileRequestRef = useRef('');
-  const lastMobileNextProfileRef = useRef('');
-  const liveProfileSlotRef = useRef({ opened: {}, slots: {}, lastTouched: 0 });
-  const lastHumanActivityAtRef = useRef(0);
-  const humanActivitySincePingRef = useRef(false);
-  const taskPopupCloseTimerRef = useRef(null);
-  const scheduledReminderTimersRef = useRef(new Map());
-  const hadVisibleTaskPopupRef = useRef(false);
-  const sidebarRef = useRef(null);
-  const pageScrollRef = useRef(null);
-  const officeJoinInFlightRef = useRef(false);
-  const notificationCountRef = useRef(0);
-  const approvalCountRef = useRef(0);
-  const metaReadEpoch=useRef(0);
-  useEffect(()=>{let timer;const counts=e=>{if(!e.detail||!Number.isFinite(Number(e.detail.total??e.detail.ops)))return;metaReadEpoch.current++;approvalCountRef.current=Number(e.detail.total??e.detail.ops);setApprovals(Number(e.detail.total??e.detail.ops));};const dirty=()=>{clearTimeout(timer);timer=setTimeout(()=>loadMeta(true,true),160);};window.addEventListener('career-crox-approval-counts',counts);window.addEventListener('career-crox-approval-changed',dirty);return()=>{clearTimeout(timer);window.removeEventListener('career-crox-approval-counts',counts);window.removeEventListener('career-crox-approval-changed',dirty);};},[user?.user_id]);
-  const approvalPopupSeenRef = useRef('');
-  const followupPopupSeenRef = useRef('');
-  const dailyPopupSeenRef = useRef('');
-  const semiHourlySeenRef = useRef('');
-  const SIDEBAR_SCROLL_KEY = 'career-crox:sidebar-scroll-top';
-  const PAGE_SCROLL_KEY_PREFIX = 'career-crox:page-scroll:';
-  const OFFICE_JOIN_SESSION_KEY = 'careerCroxOfficeJoinedSession';
-
-  function officeSessionMarker() {
-    try { return String(localStorage.getItem('careerCroxSessionLoginAt') || '').trim(); } catch { return ''; }
-  }
-  function officeIdentity() {
-    return String(user?.user_id || user?.recruiter_code || user?.username || '').trim();
-  }
-  function istDay(value = Date.now()) {
-    const ms = new Date(value).getTime();
-    return Number.isFinite(ms) ? new Date(ms + 19800000).toISOString().slice(0, 10) : '';
-  }
-  function hasJoinedThisLogin() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(OFFICE_JOIN_SESSION_KEY) || 'null');
-      return Boolean(saved && saved.identity === officeIdentity() && String(saved.login_marker || '') === officeSessionMarker() && saved.joined_at && saved.manual_confirmed_at && istDay(saved.joined_at) === istDay() && istDay(saved.manual_confirmed_at) === istDay());
-    } catch { return false; }
-  }
-  function rememberOfficeJoin(joinedAt = '') {
-    const stamp = String(joinedAt || '').trim();
-    if (!stamp || istDay(stamp) !== istDay()) return;
-    try {
-      localStorage.setItem(OFFICE_JOIN_SESSION_KEY, JSON.stringify({ identity: officeIdentity(), login_marker: officeSessionMarker(), joined_at: stamp, manual_confirmed_at: stamp, day_key: istDay(stamp), join_version: 726 }));
-      window.dispatchEvent(new CustomEvent('career-crox-office-joined'));
-    } catch {}
-  }
-  function clearOfficeJoin() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(OFFICE_JOIN_SESSION_KEY) || 'null');
-      if (saved && saved.identity === officeIdentity()) localStorage.removeItem(OFFICE_JOIN_SESSION_KEY);
-    } catch {}
-  }
-
-  const currentPath = String(location.pathname || '');
-  const isFocusRoute = useMemo(() => {
-    return currentPath.startsWith('/disabled-archive-section-never');
-  }, [currentPath]);
-
-
-
-  useEffect(() => {
-    const LIVE_PROFILE_AUTO_WATCH = String(import.meta.env?.VITE_LIVE_PROFILE_AUTO_WATCH || 'false').toLowerCase() === 'true';
-    if (!LIVE_PROFILE_AUTO_WATCH) return undefined; // CC26_79: global live-status auto-watch off. Use Auto Dialer / Update Details.
-    if (!user?.user_id) return undefined;
-    let active = true;
-    let timer = null;
-    const tick = async () => {
-      if (!active) return;
-      const hidden = typeof document !== 'undefined' && document.hidden;
-      const leader = getPollingLeaderSnapshot();
-      if (leader?.isLeader || !hidden) {
-        try {
-          const d = await api.get(`/api/dialer/live-status?lite=1&profile_watch=1&mobile_open_watch=1`, { cacheTtlMs: 10000, allowStale: true, timeoutMs: 9000 });
-          const sessions = Array.isArray(d?.sessions) ? d.sessions : [];
-          const allowedSources = new Set(['mobile_button', 'prepare_call', 'next_call_prepare', 'session_start']);
-          const myUserId = String(user?.user_id || '');
-          const myUsername = String(user?.username || user?.name || '').trim().toLowerCase();
-          const belongsToMe = (s) => {
-            const ids = [s?.assigned_user_id, s?.owner_user_id, s?.employee_user_id].map((v) => String(v || ''));
-            const names = [s?.assigned_username, s?.owner_username, s?.employee_username].map((v) => String(v || '').trim().toLowerCase());
-            return (myUserId && ids.includes(myUserId)) || (myUsername && names.includes(myUsername));
-          };
-          const isFresh = (s) => {
-            const raw = String(s?.crm_open_profile_requested_at || s?.updated_at || '');
-            const t = Date.parse(raw);
-            return Number.isFinite(t) && Date.now() - t < 45000;
-          };
-          const isLive = (s) => {
-            const text = `${s?.status || ''} ${s?.live_status || ''} ${s?.mobile_command || ''} ${s?.command_type || ''}`.toLowerCase();
-            return !/(stop|stopped|completed|cancel|queued|wait|table_sync)/.test(text);
-          };
-          const hit = sessions.find((s) => allowedSources.has(String(s?.crm_open_profile_source || '')) && String(s?.crm_open_profile_request_version || '').trim() && belongsToMe(s) && isFresh(s) && isLive(s));
-          const ver = String(hit?.crm_open_profile_request_version || '');
-          const cid = String(hit?.crm_open_profile_candidate_id || '');
-          if (cid && ver && ver !== lastMobileProfileRequestRef.current) {
-            const globalKey = `career_crox_live_profile_opened:${ver}`;
-            let shouldProcess = true;
-            try {
-              shouldProcess = localStorage.getItem(globalKey) !== '1';
-              if (shouldProcess) { try { localStorage.setItem(globalKey, '1'); } catch {} }
-            } catch {}
-            lastMobileProfileRequestRef.current = ver;
-            if (shouldProcess) {
-              const nextCid = String(hit?.next_candidate_id || hit?.next_profile_candidate_id || '');
-              const openedKey = 'career_crox_dialer_opened_profiles_v3_once_per_candidate';
-              const state = liveProfileSlotRef.current || { opened: {}, slots: {}, lastTouched: 0 };
-              try {
-                const stored = JSON.parse(localStorage.getItem(openedKey) || '{}');
-                if (stored && typeof stored === 'object') {
-                  state.opened = stored.opened && typeof stored.opened === 'object' ? stored.opened : state.opened;
-                  state.slots = stored.slots && typeof stored.slots === 'object' ? stored.slots : state.slots;
-                }
-              } catch {}
-              const persist = () => {
-                liveProfileSlotRef.current = state;
-                try { localStorage.setItem(openedKey, JSON.stringify({ opened: state.opened || {}, slots: state.slots || {}, saved_at: Date.now() })); } catch {}
-              };
-              const candidateAlreadyOpen = (candidateId) => {
-                const rec = state.opened?.[candidateId];
-                return Boolean(rec && Date.now() - Number(rec.at || 0) < 8 * 60 * 60 * 1000);
-              };
-              const safeTabName = (candidateId) => `career_crox_profile_${String(candidateId || '').replace(/[^a-z0-9_]/gi, '_').slice(0, 64)}`;
-              const openOnce = (candidateId, mode) => {
-                const id = String(candidateId || '');
-                if (!id || candidateAlreadyOpen(id)) return false;
-                const tabName = safeTabName(id);
-                const url = `/candidate/${encodeURIComponent(id)}?dialer_lock=1&${mode}=1&no_auto_refresh=1`;
-                state.opened[id] = { slot: tabName, at: Date.now(), mode };
-                state.slots[tabName] = id;
-                persist();
-                // Unique candidate tab: never reuses another candidate's tab, so no refresh/data-loss extra flow.
-                window.open(url, tabName);
-                return true;
-              };
-              openOnce(cid, 'mobile_open');
-              const nextVer = `${ver}:${nextCid}`;
-              if (nextCid && nextCid !== cid && nextVer !== lastMobileNextProfileRef.current) {
-                lastMobileNextProfileRef.current = nextVer;
-                openOnce(nextCid, 'next_profile');
-              }
-            }
-          }
-        } catch {}
-      }
-      timer = window.setTimeout(tick, hidden ? 300000 : 30000);
-    };
-    timer = window.setTimeout(tick, 30000);
-    return () => { active = false; if (timer) window.clearTimeout(timer); };
-  }, [user?.user_id]);
-
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.history || !('scrollRestoration' in window.history)) return undefined;
-    const previous = window.history.scrollRestoration;
-    window.history.scrollRestoration = 'manual';
-    return () => {
-      try { window.history.scrollRestoration = previous || 'auto'; } catch {}
-    };
-  }, []);
-
-  useEffect(() => {
-    function handleWriteBusy(event) {
-      setWriteBusy(Boolean(event?.detail?.busy));
-    }
-    window.addEventListener('career-crox-write-busy', handleWriteBusy);
-    return () => window.removeEventListener('career-crox-write-busy', handleWriteBusy);
-  }, []);
-
-  const canShowInterruptPopup = useMemo(() => {
-    const path = currentPath;
-    if (path.startsWith('/candidate/')) return false;
-    if (path.startsWith('/quick-add')) return false;
-    if (path.startsWith('/interviews')) return false;
-    if (path.startsWith('/chat')) return false;
-    if (path.startsWith('/tasks')) return false;
-    if (path.startsWith('/daily-interview-workflow')) return false;
-    return true;
-  }, [currentPath]);
-
-
-  const activeNotificationTune = useMemo(() => {
-    return NOTIFICATION_TUNE_PRESETS.find((item) => item.id === notificationTune) || NOTIFICATION_TUNE_PRESETS[NOTIFICATION_TUNE_PRESETS.length - 1];
-  }, [notificationTune]);
-
-  useEffect(() => {
-    try { localStorage.setItem(NOTIFICATION_TUNE_STORAGE_KEY, notificationTune); } catch {}
-  }, [notificationTune]);
-
-  function selectNotificationTune(tuneId, preview = false) {
-    const next = NOTIFICATION_TUNE_PRESETS.some((item) => item.id === tuneId) ? tuneId : 'office-tone';
-    setNotificationTune(next);
-    if (preview) {
-      setPreviewingTuneId(next);
-      window.setTimeout(() => playTaskReminderSound('preview', next), 20);
-      window.setTimeout(() => setPreviewingTuneId((current) => current === next ? '' : current), 900);
-    }
-  }
-
-
-  const rememberSidebarScroll = () => {
-    if (typeof window === 'undefined') return;
-    const el = sidebarRef.current;
-    if (!el) return;
-    try { window.sessionStorage.setItem(SIDEBAR_SCROLL_KEY, String(el.scrollTop || 0)); } catch {}
+  apply();
+  window.addEventListener('cc787-settings-changed',apply);
+  const storage=e=>{if(!e.key||e.key.startsWith('cc787:preferences:')||['careerCroxTheme','careerCroxCustomTheme','careerCroxCachedUser'].includes(e.key))apply();};
+  window.addEventListener('storage',storage);
+  return()=>{window.removeEventListener('cc787-settings-changed',apply);window.removeEventListener('storage',storage);};
+ },[user,theme]);
+ useLayoutEffect(()=>{
+  setHost(null);
+  if(location.pathname!=='/settings'||!eligible(user))return;
+  let mount=null;
+  const attach=()=>{
+   const panel=document.querySelector('#cc791-panel-interaction .cc787-settings-section');
+   if(!panel){if(mount){mount.remove();mount=null;setHost(null);}return;}
+   if(mount?.isConnected)return;
+   mount=document.createElement('div');panel.appendChild(mount);setHost(mount);
   };
-
-  useLayoutEffect(() => {
-    const el = sidebarRef.current;
-    if (!el || typeof window === 'undefined') return undefined;
-    let raw = null;
-    try { raw = window.sessionStorage.getItem(SIDEBAR_SCROLL_KEY); } catch {}
-    const next = Number(raw || 0);
-    if (Number.isFinite(next) && next > 0) {
-      // Restore immediately, then once more after layout settles. This prevents a
-      // route remount from snapping the sidebar back to the top.
-      el.scrollTop = next;
-      window.requestAnimationFrame(() => {
-        if (sidebarRef.current) sidebarRef.current.scrollTop = next;
-      });
-    }
-    const save = () => {
-      try { window.sessionStorage.setItem(SIDEBAR_SCROLL_KEY, String(el.scrollTop || 0)); } catch {}
-    };
-    el.addEventListener('scroll', save, { passive: true });
-    window.addEventListener('beforeunload', save);
-    return () => {
-      save(); // layout-effect cleanup runs before the next route layout-effect restore
-      el.removeEventListener('scroll', save);
-      window.removeEventListener('beforeunload', save);
-    };
-  }, [location.pathname]);
-
-  useLayoutEffect(() => {
-    const el = pageScrollRef.current;
-    if (!el || typeof window === 'undefined') return;
-    const key = `${PAGE_SCROLL_KEY_PREFIX}${location.pathname}${location.search || ''}`;
-    const fresh = String(location.pathname || '').replace(/\/+$/, '') === '/candidate/new';
-    let stored = 0;
-    try {
-      if (fresh) window.sessionStorage.removeItem(key);
-      else stored = Number(window.sessionStorage.getItem(key) || 0);
-    } catch {}
-    const target = Number.isFinite(stored) && stored > 0 ? stored : 0;
-    let restoring = target > 0;
-    let lastTop = target;
-    let resizeObserver;
-    let mutationObserver;
-    const persist = () => { try { window.sessionStorage.setItem(key, String(lastTop)); } catch {} };
-    const stopRestore = () => {
-      restoring = false;
-      resizeObserver?.disconnect();
-      mutationObserver?.disconnect();
-    };
-    const save = () => { if (!restoring) { lastTop = el.scrollTop || 0; persist(); } };
-    const userIntent = (event) => {
-      if (event.type === 'keydown' && !['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(event.key)) return;
-      stopRestore();
-      save();
-    };
-    const apply = () => {
-      if (!restoring) return;
-      el.scrollTop = Math.min(target, Math.max(0, el.scrollHeight - el.clientHeight));
-      if (Math.abs(el.scrollTop - target) <= 1) { stopRestore(); lastTop = el.scrollTop; }
-    };
-    // One React-owned reset. The user's first scroll always wins over hydration.
-    // Retain the outgoing page's last scroll event, not its already-replaced DOM height.
-    el.style.overflowAnchor = 'none';
-    el.scrollTop = 0;
-    try { window.scrollTo(0, 0); } catch {}
-    if (restoring) {
-      resizeObserver = new ResizeObserver(apply);
-      const observeChildren = () => { for (const child of el.children) resizeObserver.observe(child); apply(); };
-      mutationObserver = new MutationObserver(observeChildren);
-      mutationObserver.observe(el, { childList: true });
-      observeChildren();
-    }
-    el.addEventListener('scroll', save, { passive: true });
-    for (const name of ['wheel', 'touchstart', 'pointerdown', 'keydown']) el.addEventListener(name, userIntent, { passive: true });
-    window.addEventListener('beforeunload', persist);
-    const timer = window.setTimeout(() => { stopRestore(); el.style.removeProperty('overflow-anchor'); }, 4000);
-    return () => {
-      persist();
-      stopRestore();
-      window.clearTimeout(timer);
-      el.removeEventListener('scroll', save);
-      for (const name of ['wheel', 'touchstart', 'pointerdown', 'keydown']) el.removeEventListener(name, userIntent);
-      window.removeEventListener('beforeunload', persist);
-      el.style.removeProperty('overflow-anchor');
-    };
-  }, [location.pathname, location.search]);
-
-  function playTaskReminderSound(kind = 'soft', forcedTuneId = '', eventKey = '') {
-    playNotificationSound(forcedTuneId,kind === 'preview',eventKey).catch(() => {});
-  }
-
-  function clearTaskPopupCloseTimer() {
-    if (taskPopupCloseTimerRef.current) {
-      window.clearTimeout(taskPopupCloseTimerRef.current);
-      taskPopupCloseTimerRef.current = null;
-    }
-  }
-
-  function dismissTaskPopup(afterClose) {
-    if (!taskPopup) {
-      if (typeof afterClose === 'function') afterClose();
-      return;
-    }
-    clearTaskPopupCloseTimer();
-    setTaskPopupAnimatingOut(true);
-    taskPopupCloseTimerRef.current = window.setTimeout(() => {
-      setTaskPopup(null);
-      setTaskPopupAnimatingOut(false);
-      taskPopupCloseTimerRef.current = null;
-      if (typeof afterClose === 'function') afterClose();
-    }, 220);
-  }
-
-  function snoozeTaskPopup(minutes) {
-    if (!taskPopup?.task_id) return;
-    try { localStorage.setItem(`task_snooze_${taskPopup.task_id}`, String(Date.now() + Number(minutes || 0) * 60 * 1000)); } catch {}
-    dismissTaskPopup();
-  }
-
-  function snoozeFollowUpPopup(minutes = 5) {
-    if (!followUpPopup?.candidate_id) return;
-    try { localStorage.setItem(`followup_snooze_${followUpPopup.candidate_id}`, String(Date.now() + Number(minutes || 0) * 60 * 1000)); } catch {}
-    setFollowUpPopup(null);
-  }
-
-  async function completeFollowUpFromPopup() {
-    const active = followUpPopup || {};
-    const candidateId = String(active.candidate_id || '').trim();
-    if (!candidateId) {
-      setFollowUpPopup(null);
-      return;
-    }
-    try {
-      await api.post('/api/followups/action', {
-        candidate_id: candidateId,
-        follow_up_status: 'Done',
-        follow_up_note: active.follow_up_note ? `${active.follow_up_note} • Closed from popup` : 'Closed from popup',
-        follow_up_at: '',
-      });
-      setFollowUpPopup(null);
-    } catch (err) {
-      setToast({
-        title: 'Follow-up not closed',
-        message: err?.message || 'Please open the profile and close the follow-up manually.',
-      });
-
-    }
-  }
-
-  function snoozeDailyWorkflowPopup(kind, dateKey, minutes = DAILY_WORKFLOW_SNOOZE_MINUTES) {
-    if (!user?.user_id || !kind || !dateKey) return;
-    try { localStorage.setItem(dailyWorkflowSnoozeKey(user.user_id, kind, dateKey), String(Date.now() + Number(minutes || 0) * 60 * 1000)); } catch {}
-    setDailyWorkflowPopup(null);
-  }
-
-  function openDailyWorkflowFromPopup() {
-    if (!dailyWorkflowPopup) return;
-    if (['previous', 'tomorrow'].includes(dailyWorkflowPopup.kind)) {
-      snoozeDailyWorkflowPopup(dailyWorkflowPopup.kind, dailyWorkflowPopup.dateKey, DAILY_WORKFLOW_SNOOZE_MINUTES);
-    } else {
-      setDailyWorkflowPopup(null);
-    }
-    const path = dailyWorkflowPopup.kind === 'previous'
-      ? '/daily-interview-workflow?view=previous&tab=pending'
-      : dailyWorkflowPopup.kind === 'tomorrow'
-        ? '/daily-interview-workflow?view=tomorrow'
-        : '/daily-interview-workflow?view=today';
-    window.open(path, '_blank', 'noopener,noreferrer');
-  }
-
-  function currentSemiHourlyKey() {
-    const parts = crmDateParts(Date.now());
-    if (!parts) return '';
-    const minute = Number(parts.minute || 0) >= 30 ? '30' : '00';
-    return `${parts.ymd}T${parts.hour}:${minute}`;
-  }
-
-  function openSemiHourlyReport() {
-    const key = currentSemiHourlyKey();
-    try { localStorage.setItem(`semi_hourly_opened_${user?.user_id}_${key}`, '1'); } catch {}
-    setSemiHourlyPopup(null);
-    const reportId = semiHourlyPopup?.reportId ? `?reportId=${encodeURIComponent(semiHourlyPopup.reportId)}` : '';
-    window.open(`/semi-hourly-report${reportId}`, '_blank', 'noopener,noreferrer');
-  }
-
-  async function loadSemiHourlyPopup() {
-    if (!AUTO_SYSTEM_POPUPS_ENABLED || !AUTO_SEMI_HOURLY_POPUPS_ENABLED) {
-      setSemiHourlyPopup(null);
-      return;
-    }
-    if (String(location.pathname || '').startsWith('/semi-hourly-report')) {
-      setSemiHourlyPopup(null);
-      return;
-    }
-    if (!user?.user_id || !['admin','manager','tl','recruiter'].includes(normalizedRole)) {
-      setSemiHourlyPopup(null);
-      return;
-    }
-    const key = currentSemiHourlyKey();
-    const alreadyOpened = localStorage.getItem(`semi_hourly_opened_${user.user_id}_${key}`) === '1';
-    if (alreadyOpened) {
-      setSemiHourlyPopup(null);
-      return;
-    }
-
-    let reportId = '';
-    const savedMarker = `semi_hourly_saved_${user.user_id}_${key}`;
-    try {
-      if (localStorage.getItem(savedMarker) !== '1') {
-        const snapshot = await api.get('/api/reports/semi-hourly?generate=1&auto=1&window=current', { cacheTtlMs: 0, background: true });
-        reportId = snapshot?.saved_report_id || '';
-        try { localStorage.setItem(savedMarker, '1'); } catch {}
-        if (reportId) { try { localStorage.setItem(`${savedMarker}_id`, reportId); } catch {} }
-        if (snapshot?.summary) { try { localStorage.setItem(`${savedMarker}_summary`, JSON.stringify(snapshot.summary)); } catch {} }
-      } else {
-        reportId = localStorage.getItem(`${savedMarker}_id`) || '';
-      }
-    } catch {
-      reportId = localStorage.getItem(`${savedMarker}_id`) || '';
-    }
-
-    setSemiHourlyPopup({
-      key,
-      reportId,
-      summary: (() => {
-        try {
-          const raw = localStorage.getItem(`${savedMarker}_summary`);
-          return raw ? JSON.parse(raw) : null;
-        } catch {
-          return null;
-        }
-      })(),
-      title: '30-Minute Performance Report',
-      message: 'Open the 30-minute performance snapshot in a new tab.',
-    });
-  }
-
-  async function loadDailyWorkflowPopup() {
-    if (!AUTO_SYSTEM_POPUPS_ENABLED) {
-      setDailyWorkflowPopup(null);
-      return;
-    }
-    if (!user?.user_id || !canShowInterruptPopup) {
-      setDailyWorkflowPopup(null);
-      return;
-    }
-    try {
-      const data = await api.get('/api/interviews', { background: true, cacheTtlMs: 60000, timeoutMs: 12000 });
-      const rows = (data.items || []).filter((row) => !DAILY_TERMINAL_STATUSES.has(lowerText(row?.status)));
-      const now = new Date();
-      const nowParts = crmDateParts(now);
-      const minutesNow = Number(nowParts?.hour || 0) * 60 + Number(nowParts?.minute || 0);
-      const todayKey = crmTodayYmd();
-      const tomorrowKey = crmYmd(Date.now() + 24 * 60 * 60 * 1000);
-      const todayRows = rows.filter((row) => interviewDateKey(row) === todayKey);
-      const previousPending = rows.filter((row) => isPastInterview(row, now) && lowerText(row?.all_details_sent) === 'pending');
-      const previousCompleted = rows.filter((row) => isPastInterview(row, now) && lowerText(row?.all_details_sent) !== 'pending');
-      const tomorrowPending = rows.filter((row) => interviewDateKey(row) === tomorrowKey && !DAILY_RESOLVED_TOMORROW_STATUSES.has(lowerText(row?.status)));
-
-      let nextPopup = null;
-      if (minutesNow >= 17 * 60 && tomorrowPending.length) {
-        nextPopup = {
-          kind: 'tomorrow',
-          dateKey: tomorrowKey,
-          title: 'Next Day Interview Follow-up',
-          message: `${tomorrowPending.length} candidates still need confirmation for tomorrow's interview schedule. Open the list and update the status to All Set For Interview.`,
-          primaryLabel: 'Open Pending',
-          secondaryLabel: 'Later 15m',
-        };
-      } else if (minutesNow >= 13 * 60 && (previousPending.length || previousCompleted.length)) {
-        nextPopup = {
-          kind: 'previous',
-          dateKey: todayKey,
-          title: 'Follow Your Previous Candidate',
-          message: `${previousPending.length} pending-detail rows and ${previousCompleted.length} completed-detail rows are ready for review. Open both workflow tabs to complete the follow-up check.`,
-          primaryLabel: 'Open 2 Tabs',
-          secondaryLabel: 'Later 15m',
-        };
-      } else if (minutesNow < 13 * 60 && todayRows.length) {
-        nextPopup = {
-          kind: 'today',
-          dateKey: todayKey,
-          title: "Today's Interviews",
-          message: `${todayRows.length} interviews are scheduled for today. Open the list and contact every candidate.`,
-          primaryLabel: 'Open List',
-          secondaryLabel: 'Hide',
-        };
-      }
-
-      if (!nextPopup) {
-        setDailyWorkflowPopup(null);
-        return;
-      }
-
-      const snoozeUntil = Number(localStorage.getItem(dailyWorkflowSnoozeKey(user.user_id, nextPopup.kind, nextPopup.dateKey)) || 0);
-      if (Date.now() < snoozeUntil) {
-        setDailyWorkflowPopup(null);
-        return;
-      }
-
-      setDailyWorkflowPopup((current) => {
-        if (current && current.kind === nextPopup.kind && current.dateKey === nextPopup.dateKey && current.message === nextPopup.message) return current;
-        return nextPopup;
-      });
-    } catch {}
-  }
-
-
-  async function loadMeta(silent = false, fresh = false) {
-    const epoch=++metaReadEpoch.current;
-    try {
-      const meta = await api.get('/api/ui/meta'+(fresh?'?fresh=1':''), { cacheTtlMs: fresh?0:30000, timeoutMs: 12000, background: true });
-      if(epoch!==metaReadEpoch.current)return;
-      const nextNotifications = Number(meta.unread_notifications || 0) || 0;
-      const nextApprovals = Number(meta.pending_approvals || 0) || 0;
-      if (!silent && (nextNotifications > notificationCountRef.current || nextApprovals > approvalCountRef.current)) {
-        playTaskReminderSound('notify');
-      }
-      notificationCountRef.current = nextNotifications;
-      approvalCountRef.current = nextApprovals;
-      setNotifications(nextNotifications);
-      setApprovals(nextApprovals);
-      const newest = meta.latest_notification || null;
-      if (newest && newest.notification_id !== lastNotificationId) {
-        if (lastNotificationId && String(newest.status || '').toLowerCase() === 'unread' && !silent && !isUnlockNotice(newest) && !isManagedWorkNotice(newest)) {
-          setToast({ title: newest.title, message: newest.message, item: newest });
-
-        }
-        setLastNotificationId(newest.notification_id);
-      }
-    } catch {}
-  }
-
-  async function loadApprovalReminder() {
-    if (!AUTO_SYSTEM_POPUPS_ENABLED || !user?.user_id || !leadership || isFocusRoute || !canShowInterruptPopup) {
-      setApprovalPopup(null);
-      return;
-    }
-    try {
-      const data = await api.get('/api/approvals', { background: true, cacheTtlMs: 30000, timeoutMs: 12000 });
-      const available = (data.items || []).filter((item) => {
-        if(item.type === 'unlock') return false; // Top-bar presenter only.
-        if(pendingApprovalKeysRef.current.has(item.type+':'+item.id))return false;
-        const snoozeUntil = Number(localStorage.getItem(`approval_snooze_${item.id}`) || 0);
-        return Date.now() > snoozeUntil;
-      });
-      const next = available.find((item) => item.type === 'unlock') || available[0] || null;
-      setApprovalPopup((current) => {
-        if (!next) return null;
-        if (current && current.id === next.id && current.type === next.type && current.requested_at === next.requested_at) return current;
-        return next;
-      });
-    } catch {
-      setApprovalPopup(null);
-    }
-  }
-
-  async function loadRevenueReminder() {
-    if (!user?.user_id) {
-      setRevenuePopup(null);
-      return;
-    }
-    try {
-      if (!canAccessFeature(normalizedRole, 'revenue-hub')) {
-        setRevenuePopup(null);
-        return;
-      }
-      const data = await api.get('/api/revenue-hub/reminders', { background: true, cacheTtlMs: 120000, timeoutMs: 12000 });
-      const item = data.item || null;
-      if (!item) {
-        setRevenuePopup(null);
-        return;
-      }
-      const snoozeUntil = Number(localStorage.getItem(`revenue_snooze_${item.revenue_id}`) || 0);
-      if (Date.now() < snoozeUntil) return;
-      setRevenuePopup(item);
-    } catch {}
-  }
-
-  function snoozeRevenuePopup(minutes = 120) {
-    if (!revenuePopup?.revenue_id) return;
-    try { localStorage.setItem(`revenue_snooze_${revenuePopup.revenue_id}`, String(Date.now() + minutes * 60 * 1000)); } catch {}
-    setRevenuePopup(null);
-  }
-
-
-  function scheduleReminderAtOriginalTime(key, item, dueValue, setter) {
-    const dueAt = Number(dueValue || 0) || new Date(dueValue || 0).getTime() || 0;
-    const now = Date.now();
-    if (!key || !dueAt || !Number.isFinite(dueAt)) return false;
-    if (dueAt <= now + 3000) {
-      const oldTimer = scheduledReminderTimersRef.current.get(key);
-      if (oldTimer) window.clearTimeout(oldTimer);
-      scheduledReminderTimersRef.current.delete(key);
-      return false;
-    }
-    if (!scheduledReminderTimersRef.current.has(key)) {
-      const delayMs = Math.min(dueAt - now, CRM_REMINDER_LOOKAHEAD_MS);
-      const timer = window.setTimeout(() => {
-        scheduledReminderTimersRef.current.delete(key);
-        setter(item);
-      }, delayMs);
-      scheduledReminderTimersRef.current.set(key, timer);
-    }
-    return true;
-  }
-
-  function clearScheduledReminder(key) {
-    const timer = scheduledReminderTimersRef.current.get(key);
-    if (timer) window.clearTimeout(timer);
-    scheduledReminderTimersRef.current.delete(key);
-  }
-
-  async function loadTaskReminder() {
-    if (!user?.user_id || !canShowInterruptPopup) {
-      if (taskPopup) dismissTaskPopup();
-      return;
-    }
-    try {
-      const data = await api.get('/api/tasks/reminders/next', { background: true, cacheTtlMs: 60000, timeoutMs: 12000 });
-      const next = data.item || null;
-      if (next) {
-        const snoozeUntil = Number(localStorage.getItem(`task_snooze_${next.task_id}`) || 0);
-        if (Date.now() <= snoozeUntil) {
-          if (taskPopup) dismissTaskPopup();
-          return;
-        }
-      }
-
-      if (!next) {
-        if (taskPopup) dismissTaskPopup();
-        return;
-      }
-
-      const taskKey = `task:${next.task_id}`;
-      if (scheduleReminderAtOriginalTime(taskKey, next, next.dueAt || next.due_date, (item) => {
-        clearTaskPopupCloseTimer();
-        setTaskPopupAnimatingOut(false);
-        setTaskPopup((current) => {
-          if (!current) return item;
-          return current.task_id === item.task_id ? { ...current, ...item } : item;
-        });
-      })) {
-        return;
-      }
-      clearScheduledReminder(taskKey);
-      clearTaskPopupCloseTimer();
-      setTaskPopupAnimatingOut(false);
-      setTaskPopup((current) => {
-        if (!current) return next;
-        return current.task_id === next.task_id ? { ...current, ...next } : next;
-      });
-    } catch {}
-  }
-
-
-
-  async function loadFollowUpPopup() {
-    if (!user?.user_id) {
-      setFollowUpPopup(null);
-      return;
-    }
-    try {
-      const data = await api.get('/api/followups/reminders/next', { background: true, cacheTtlMs: 60000, timeoutMs: 12000 });
-      const now = Date.now();
-      const next = (() => {
-        const item = data.item || null;
-        if (!item) return null;
-        const snoozeUntil = Number(localStorage.getItem(`followup_snooze_${item.candidate_id}`) || 0);
-        return now > snoozeUntil ? item : null;
-      })();
-      if (!next) {
-        setFollowUpPopup(null);
-        return;
-      }
-      const followupKey = `followup:${next.candidate_id}`;
-      if (scheduleReminderAtOriginalTime(followupKey, next, next.dueAt || next.follow_up_at, (item) => setFollowUpPopup(item))) {
-        return;
-      }
-      clearScheduledReminder(followupKey);
-      setFollowUpPopup(next);
-    } catch {}
-  }
-
-
-  async function loadGlobalSubmissionReminderPopup() {
-    if (!AUTO_SYSTEM_POPUPS_ENABLED || !user?.user_id || !hasJoinedThisLogin()) {
-      setGlobalSubmissionReminderPopup(null);
-      return;
-    }
-    try {
-      const query = new URLSearchParams();
-      query.set('view', 'all_pending');
-      query.set('_global_reminder', String(Date.now()));
-      const data = await api.get(`/api/submissions?${query.toString()}`, { background: true, cacheTtlMs: 0, timeoutMs: 15000, retries: 0, allowStale: false });
-      const rows = data?.items || [];
-      const dueNow = pickGlobalSubmissionReminder(rows);
-      const nearest = pickUpcomingGlobalSubmissionReminder(rows);
-      if (nearest && !dueNow) {
-        const reminderKey = `submission:${globalSubmissionReminderKey(nearest)}`;
-        if (scheduleReminderAtOriginalTime(reminderKey, nearest, globalSubmissionReminderStamp(nearest), (item) => setGlobalSubmissionReminderPopup(item))) {
-          return;
-        }
-        clearScheduledReminder(reminderKey);
-      }
-      setGlobalSubmissionReminderPopup((current) => {
-        if (!dueNow) return null;
-        return current?.submission_id === dueNow.submission_id ? { ...current, ...dueNow } : dueNow;
-      });
-    } catch {
-      setGlobalSubmissionReminderPopup(null);
-    }
-  }
-
-  function snoozeGlobalSubmissionReminderPopup(minutes = 5) {
-    const active = globalSubmissionReminderPopup || {};
-    const key = globalSubmissionReminderKey(active);
-    if (key) {
-      try { localStorage.setItem(`cc_global_submission_reminder_snooze_${key}`, String(Date.now() + Number(minutes || 5) * 60 * 1000)); } catch {}
-    }
-    setGlobalSubmissionReminderPopup(null);
-  }
-
-  async function refreshAttendanceGate(forceFresh = false) {
-    if (!user?.user_id) return null;
-    const sequence=++attendanceReadSequence.current;
-    try {
-      const data = await api.get('/api/attendance?compact=1', {
-        cacheTtlMs: 0,
-        timeoutMs: 8000,
-        retries:0,
-        background: false,
-        allowStale: false,
-      });
-      if(sequence!==attendanceReadSequence.current)return data;
-      const gateStamp=Math.max(...['locked_at','break_started_at','updated_at','last_seen_at'].map(k=>Date.parse(data?.presence?.[k]||'')||0));
-      if(String(data?.presence?.locked||'0')==='1'&&gateStamp<attendanceUnlockedAt.current)return data;
-      setAttendanceGate(data);
-      // The server owns today's join timestamp. Refresh restores it without a second JOIN POST.
-      const claimedJoined = data?.today_stats?.joined_today === true;
-      let confirmed = claimedJoined && data?.today_stats?.manual_join_confirmed === '1' && window.__CC723_OFFICE_RESTORE__?.(data) === true;
-      // A verified server receipt is enough even when the legacy restore hook is not mounted yet.
-      if (!confirmed && claimedJoined && data?.today_stats?.manual_join_confirmed === '1') {
-        const joinedAt = String(data?.today_stats?.manual_confirmed_at || data?.today_stats?.joined_at || '').trim();
-        if (joinedAt && istDay(joinedAt) === istDay()) {
-          rememberOfficeJoin(joinedAt);
-          confirmed = hasJoinedThisLogin();
-        }
-      }
-      if (!claimedJoined) window.__CC722_OFFICE_SERVER_UNJOINED__?.();
-      setShowJoinOffice(String(data?.presence?.locked||'0')!=='1'&&!confirmed&&!hasJoinedThisLogin());
-      return data;
-    } catch {
-      if(sequence!==attendanceReadSequence.current)return null;
-      // Never silently hide Join Office if the first attendance GET times out.
-      // No polling: the employee can click Join Office or manually refresh attendance.
-      setShowJoinOffice(!hasJoinedThisLogin());
-      return null;
-    }
-  }
-
-  useEffect(() => {
-    const hydrate = e => {const p=e.detail?.presence;const stamp=p?Math.max(...['locked_at','break_started_at','updated_at','last_seen_at'].map(k=>Date.parse(p[k]||'')||0)):0;if(p&&!window.__CC602_NETWORK_PAUSED__&&!(String(p.locked)==='1'&&stamp<attendanceUnlockedAt.current))setAttendanceGate(e.detail);};
-    const refresh=()=>refreshAttendanceGate(true).catch(()=>{});
-    window.addEventListener('career-crox-attendance-live',hydrate);
-    window.addEventListener('career-crox-attendance-refresh',refresh);
-    return () => {window.removeEventListener('career-crox-attendance-live',hydrate);window.removeEventListener('career-crox-attendance-refresh',refresh);};
-  }, []);
-
-  async function pingPresence() {
-    if (!hasJoinedThisLogin()) return;
-    try {
-      const hadActivity = humanActivitySincePingRef.current;
-      humanActivitySincePingRef.current = false;
-      const data = await api.post('/api/attendance/ping', {
-        last_page: location.pathname,
-        compact: true,
-        has_activity: hadActivity ? '1' : '0',
-        last_activity_at: lastHumanActivityAtRef.current ? new Date(lastHumanActivityAtRef.current).toISOString() : '',
-      }, { timeoutMs: 8000, background: true });
-      const stamp=Math.max(...['locked_at','break_started_at','updated_at','last_seen_at'].map(k=>Date.parse(data?.presence?.[k]||'')||0));
-      if(String(data?.presence?.locked||'0')==='1'&&stamp<attendanceUnlockedAt.current)return;
-      if (data?.presence || data?.today_stats) setAttendanceGate(data);
-    } catch {}
-  }
-
-
-  // Local countdown only while a break is active; no additional polling or egress.
-  useEffect(() => {
-    if ((String(attendanceGate?.presence?.is_on_break || '0') !== '1' && String(attendanceGate?.presence?.lock_reason || '') !== 'break_exceeded')) return undefined;
-    const id = window.setInterval(() => setBreakCountdownNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, [attendanceGate?.presence?.is_on_break, attendanceGate?.presence?.lock_reason, approvalLockExempt]);
-  // Approval is published after COMMIT; update this user's visible gate even when the lock modal is mounted.
-  useEffect(()=>{const handle=event=>{const data=event.detail||{};if(String(data.status).toLowerCase()!=='approved'||String(data.requester_user_id)!==String(user?.user_id)||window.__CC602_NETWORK_PAUSED__)return;const key=[data.id,data.status,data.unlocked_at,data.review_only].join(':');if(lastUnlockEvent.current===key)return;lastUnlockEvent.current=key;if(!data.review_only){window.__CC840_RESUME_APPROVED__?.(data);attendanceUnlockedAt.current=Date.parse(data.unlocked_at||'')||Date.now();attendanceReadSequence.current++;setAttendanceGate(current=>({...current,presence:{...current?.presence,locked:'0',lock_reason:'',lock_message:'',locked_at:''}}));}refreshAttendanceGate(true).catch(()=>{});};let source=null,retry=null,tries=0;const pushed=event=>{try{handle({detail:JSON.parse(event.data||'{}')});}catch{}};const connect=()=>{if(window.__CC602_NETWORK_PAUSED__)return;if(typeof window.__CC819_WORKSPACE_SOURCE__!=='function'){if(tries++<25)retry=setTimeout(connect,80);return;}source=window.__CC819_WORKSPACE_SOURCE__('/api/approvals/stream');source.addEventListener('unlock-resolved',pushed);};connect();window.addEventListener('career-crox-unlock-resolved',handle);window.addEventListener('cc609:unlock-resolved',handle);return()=>{clearTimeout(retry);source?.removeEventListener('unlock-resolved',pushed);source?.close();window.removeEventListener('career-crox-unlock-resolved',handle);window.removeEventListener('cc609:unlock-resolved',handle);};},[user?.user_id]);
-  // Break expiry can lock access, but only the employee's End Break action closes the break.
-  // The API determines break approval locks; managers remain exempt.
-  useEffect(() => {
-    if (isFocusRoute) {
-      setRevenuePopup(null);
-    }
-  }, [user?.user_id, location.pathname, isFocusRoute]);
-  useEffect(() => {
-    if (isFocusRoute) {
-      setDailyWorkflowPopup(null);
-    }
-  }, [user?.user_id, canShowInterruptPopup, location.pathname, isFocusRoute]);
-  useEffect(() => {
-    if (isFocusRoute) {
-      setSemiHourlyPopup(null);
-    }
-  }, [user?.user_id, location.pathname, isFocusRoute]);
-  usePolling(loadRevenueReminder, (!AUTO_SYSTEM_POPUPS_ENABLED || writeBusy) ? 0 : POPUP_POLL_MS, [user?.user_id, location.pathname, isFocusRoute, writeBusy]);
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (quickAddRef.current && !quickAddRef.current.contains(event.target)) setShowAddMenu(false);
-    }
-    function handleEscape(event) {
-      if (event.key === 'Escape') setShowAddMenu(false);
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, []);
-  useEffect(() => { setShowAddMenu(false); setManualDialerOpen(false); }, [location.pathname]);
-
-  useEffect(() => {
-    if (isFocusRoute) {
-      setTaskPopup(null);
-      setFollowUpPopup(null);
-    }
-  }, [user?.user_id, canShowInterruptPopup, location.pathname, isFocusRoute]);
-  usePolling(loadMeta, (!AUTO_SYSTEM_POPUPS_ENABLED || writeBusy) ? 0 : META_POLL_MS, [user?.user_id, isFocusRoute, writeBusy]);
-  usePolling(loadApprovalReminder, (!AUTO_SYSTEM_POPUPS_ENABLED || writeBusy) ? 0 : APPROVAL_POLL_MS, [user?.user_id, canShowInterruptPopup, location.pathname, isFocusRoute, writeBusy]);
-  usePolling(loadTaskReminder, (!AUTO_SYSTEM_POPUPS_ENABLED || writeBusy) ? 0 : POPUP_POLL_MS, [user?.user_id, canShowInterruptPopup, location.pathname, isFocusRoute, writeBusy]);
-  usePolling(loadFollowUpPopup, (!AUTO_SYSTEM_POPUPS_ENABLED || writeBusy) ? 0 : POPUP_POLL_MS, [user?.user_id, location.pathname, isFocusRoute, writeBusy]);
-  usePolling(loadGlobalSubmissionReminderPopup, (!AUTO_SYSTEM_POPUPS_ENABLED || writeBusy || showJoinOffice || !hasJoinedThisLogin()) ? 0 : POPUP_POLL_MS, [user?.user_id, location.pathname, writeBusy, showJoinOffice]);
-  usePolling(loadDailyWorkflowPopup, (!AUTO_SYSTEM_POPUPS_ENABLED || writeBusy) ? 0 : POPUP_POLL_MS, [user?.user_id, canShowInterruptPopup, location.pathname, isFocusRoute, writeBusy]);
-  usePolling(loadSemiHourlyPopup, (AUTO_SYSTEM_POPUPS_ENABLED && AUTO_SEMI_HOURLY_POPUPS_ENABLED) ? POPUP_POLL_MS : 0, [user?.user_id, location.pathname, isFocusRoute, writeBusy]);
-  usePolling(pingPresence, writeBusy ? 0 : PRESENCE_POLL_MS, [user?.user_id, location.pathname, isFocusRoute, writeBusy]);
-  usePolling(refreshAttendanceGate, (!AUTO_SYSTEM_POPUPS_ENABLED || writeBusy) ? 0 : ATTENDANCE_GATE_POLL_MS, [user?.user_id, location.pathname, isFocusRoute, writeBusy]);
-
-  useEffect(() => {
-    if (!user?.user_id) return;
-    // CC26_451: login -> Join Office once -> timer/attendance/presence begin.
-    // The same login marker survives route changes and refreshes, so the gate does not repeat.
-    // Draw the Join Office gate immediately; the one server check can dismiss it
-    // if this login already has a verified manual-join receipt.
-    setShowJoinOffice(!hasJoinedThisLogin());
-    refreshAttendanceGate(true);
-  }, [user?.user_id]); // CC815_JOIN_GATE_IMMEDIATE_NO_POLL
-
-  useEffect(() => {
-    if (!taskPopup) {
-      hadVisibleTaskPopupRef.current = false;
-      return undefined;
-    }
-    if (!hadVisibleTaskPopupRef.current) {
-      hadVisibleTaskPopupRef.current = true;
-      playTaskReminderSound('popup', '', `task:${taskPopup.task_id}:${taskPopup.due_at || taskPopup.due_date || ''}`);
-    }
-    return undefined;
-  }, [taskPopup]);
-
-  useEffect(() => {
-    const key = `${approvalPopup?.type || ''}:${approvalPopup?.id || ''}`;
-    if (!String(key).replace(':', '')) {
-      approvalPopupSeenRef.current = '';
-      return;
-    }
-    if (approvalPopupSeenRef.current !== key) {
-      approvalPopupSeenRef.current = key;
-      playTaskReminderSound('soft', '', `approval:${key}`);
-    }
-  }, [approvalPopup]);
-
-  useEffect(() => {
-    if (!approvalPopup) {
-      setApprovalReminderForm({ exact_time: '' });
-    }
-  }, [approvalPopup]);
-
-  useEffect(() => {
-    const key = String(followUpPopup?.candidate_id || '');
-    if (!key) {
-      followupPopupSeenRef.current = '';
-      return;
-    }
-    if (followupPopupSeenRef.current !== key) {
-      followupPopupSeenRef.current = key;
-      playTaskReminderSound('popup', '', `followup:${key}:${followUpPopup.follow_up_at || ''}`);
-    }
-  }, [followUpPopup]);
-
-  useEffect(() => {
-    const key = `${dailyWorkflowPopup?.kind || ''}:${dailyWorkflowPopup?.dateKey || ''}`;
-    if (!String(key).replace(':', '')) {
-      dailyPopupSeenRef.current = '';
-      return;
-    }
-    if (dailyPopupSeenRef.current !== key) {
-      dailyPopupSeenRef.current = key;
-      playTaskReminderSound('soft', '', `workflow:${key}`);
-    }
-  }, [dailyWorkflowPopup]);
-
-  useEffect(() => {
-    const key = String(semiHourlyPopup?.summary || semiHourlyPopup?.generated_at || '');
-    if (!key) {
-      semiHourlySeenRef.current = '';
-      return;
-    }
-    if (semiHourlySeenRef.current !== key) {
-      semiHourlySeenRef.current = key;
-      playTaskReminderSound('soft', '', `report:${key}`);
-    }
-  }, [semiHourlyPopup]);
-
-  useEffect(() => () => {
-    clearTaskPopupCloseTimer();
-    for (const timer of scheduledReminderTimersRef.current.values()) window.clearTimeout(timer);
-    scheduledReminderTimersRef.current.clear();
-  }, []);
-
-  const canRenderTaskPopup = useMemo(() => Boolean(taskPopup) && !approvalPopup && !followUpPopup && !dailyWorkflowPopup && !revenuePopup && !goalPostReminderPopup, [taskPopup, approvalPopup, followUpPopup, dailyWorkflowPopup, revenuePopup, goalPostReminderPopup]);
-
-  const baseNav = useMemo(() => {
-    const items = [
-      { key: 'candidates', label: 'Candidates', href: '/candidates' },
-      ...(import.meta.env.VITE_QUICK_UPDATE_MODE ? [] : [{ key: 'securelink', label: 'SecureLink', href: '/securelink' }]),
-      { key: 'hot-leads', label: 'Hot Leads', href: '/hot-leads' },
-      { key: 'submissions', label: 'Submissions', href: '/submissions' },
-      { key: 'interviews', label: 'Interviews', href: '/interviews' },
-      { key: 'followups', label: 'FollowUps', href: '/followups' },
-      { key: 'tasks', label: 'Tasks', href: '/tasks' },
-      { key: 'flowchart', label: 'Flowchart', href: '/flowchart' },
-      { key: 'live-dialing', label: 'Call Assistant', href: '/live-dialing' },
-      { key: 'bucket', label: 'Bucket', href: '/bucket-out' },
-      { key: 'client-pipeline', label: 'Client Pipeline', href: '/client-pipeline' },
-      { key: 'data-extractor', label: 'Data Extractor', href: '/data-extractor' },
-      { key: 'quality-analyst', label: 'Quality Analyst', href: '/quality-analyst' },
-      { key: 'hr-head', label: 'HR Head', href: '/hr-head' },
-      { key: 'revenue-hub', label: 'Pipeline Hub', href: '/revenue-hub' },
-      { key: 'bda', label: 'BDA', href: '/bda' },
-      { key: 'duplicate-profiles', label: 'Duplicate Profiles', href: '/duplicate-profiles' },
-      { key: 'goal-post', label: 'Goal Post', href: '/goal-post' },
-      { key: 'reports', label: 'Reports Hub', href: '/reports' },
-      { key: 'mail-centre', label: 'Mail Centre', href: '/mail-centre' },
-      { key: 'jd-centre', label: 'JD Centre', href: '/jds' },
-      { key: 'learning-hub', label: 'YT Hub', href: '/learning-hub' },
-      { key: 'admin-control', label: 'Admin Control', href: '/admin' },
-      { key: 'data-backup', label: 'CRM Transfer', href: '/data-backup' },
-      { key: 'settings', label: 'Settings', href: '/settings' },
-    ];
-    return items.filter((item) => canAccessFeature(normalizedRole, item.key));
-  }, [normalizedRole]);
-
-  const navStorageKey = `careerCroxSidebarOrder:cc837:${normalizedRole || 'guest'}`;
-  const [navOrder, setNavOrder] = useState([]);
-  const [dragKey, setDragKey] = useState('');
-
-  useEffect(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(navStorageKey) || '[]');
-      setNavOrder(Array.isArray(saved) ? saved : []);
-    } catch {
-      setNavOrder([]);
-    }
-  }, [navStorageKey]);
-
-  const nav = useMemo(() => {
-    if (!baseNav.length) return [];
-    const byKey = new Map(baseNav.map((item) => [item.key, item]));
-    const ordered = [];
-    for (const key of navOrder) {
-      if (byKey.has(key)) ordered.push(byKey.get(key));
-    }
-    for (const item of baseNav) {
-      if (!ordered.find((row) => row.key === item.key)) ordered.push(item);
-    }
-    if(navOrder.length)return ordered.filter(x=>x.key!=='securelink'&&x.key!=='settings').concat(ordered.filter(x=>x.key==='settings'),ordered.filter(x=>x.key==='securelink'));
-    const first=['candidates','submissions','interviews','live-dialing','revenue-hub','bucket'];
-    return first.map(key=>ordered.find(x=>x.key===key)).filter(Boolean).concat(ordered.filter(x=>!first.includes(x.key)&&!['settings','securelink'].includes(x.key)),ordered.filter(x=>x.key==='settings'),ordered.filter(x=>x.key==='securelink'));
-  }, [baseNav, navOrder]);
-
-  useEffect(() => {
-    if (!nav.length) return;
-    try { localStorage.setItem(navStorageKey, JSON.stringify(nav.map((item) => item.key))); } catch {}
-  }, [nav, navStorageKey]);
-
-  function reorderNav(targetKey) {
-    if (!dragKey || !targetKey || dragKey === targetKey) return;
-    setNavOrder((current) => {
-      const currentOrder = current.length ? current.filter((key) => nav.some((item) => item.key === key)) : nav.map((item) => item.key);
-      const filtered = currentOrder.filter((key) => key !== dragKey);
-      const targetIndex = filtered.indexOf(targetKey);
-      if (targetIndex < 0) return [...filtered, dragKey];
-      filtered.splice(targetIndex, 0, dragKey);
-      return filtered;
-    });
-  }
-
-  async function applyTheme(nextTheme) {
-    if ((nextTheme === 'burgundy' || nextTheme === 'crimson-noir') && normalizedRole !== 'manager') return;
-    // CC26_522: a preset is a complete CRM look. Clear old custom overrides so
-    // the selected gradient/theme is visible across every slice immediately.
-    setTheme(nextTheme);
-    setCustomTheme(null);
-    try { await persistTheme(nextTheme, null); } catch {}
-    setToast({ title: 'Theme applied', message: `${themes.find(([key]) => key === nextTheme)?.[1] || 'Theme'} is now active across the CRM.` });
-  }
-
-  async function fetchGoldReminder() {
-    try {
-      const data = await api.get('/api/goal-post/reminders', { background: true, cacheTtlMs: 120000, retries: 0, timeoutMs: 12000 });
-      setGoalPostReminderPopup(data?.popup || null);
-    } catch {}
-  }
-
-  usePolling(fetchGoldReminder, AUTO_SYSTEM_POPUPS_ENABLED ? GOLD_REMINDER_POLL_MS : 0, [user?.user_id, currentPath]);
-
-  useEffect(() => {
-    if (!user?.user_id) return undefined;
-    const markHumanActivity = (event) => {
-      if(event?.isTrusted===false || window.__CC602_NETWORK_PAUSED__)return;
-      lastHumanActivityAtRef.current = Date.now();
-      humanActivitySincePingRef.current = true;
-    };
-    const events = ['mousedown', 'keydown', 'touchstart', 'click', 'wheel', 'scroll']; // CC26_455: cursor movement alone is not meaningful work
-    events.forEach((name) => window.addEventListener(name, markHumanActivity, { passive: true }));
-    return () => events.forEach((name) => window.removeEventListener(name, markHumanActivity));
-  }, [user?.user_id]);
-
-  async function openLogoutSummaryOrLogout() {
-    try {
-      const data = await api.get('/api/attendance/logout-summary', { cacheTtlMs: 0, retries: 0, timeoutMs: 12000 });
-      setLogoutSummary(data.summary || null);
-      setShowLogoutSummary(true);
-    } catch {
-      await logout();
-      navigate('/login', { replace: true });
-    }
-  }
-
-  async function logoutWithoutGoalPostUpdate() {
-    setGoalPostLogoutChoice(null);
-    await openLogoutSummaryOrLogout();
-  }
-
-  async function onLogout() {
-    const shouldRunManagerLogoutChecks = ['admin', 'manager'].includes(normalizedRole);
-    if (shouldRunManagerLogoutChecks) {
-      try {
-        const goalPostCheck = await api.get('/api/goal-post/logout-check', { cacheTtlMs: 0, retries: 0, timeoutMs: 12000 });
-        if (goalPostCheck?.blocked) {
-          setGoalPostLogoutChoice(goalPostCheck || {});
-          setToast({ title: 'Goal Post Reminder', message: 'You can update Goal Post now or continue logout without updating it.', item: null, category: 'goal-post' });
-          return;
-        }
-        const revenueCheck = await api.get('/api/revenue-hub/logout-check', { cacheTtlMs: 0, retries: 0, timeoutMs: 12000 });
-        if (revenueCheck?.blocked) {
-          setToast({ title: 'Pipeline Hub update required', message: `${revenueCheck.count} interview items still need status update before logout.`, item: null });
-          window.open('/revenue-hub','_blank','noopener,noreferrer');
-          return;
-        }
-      } catch {}
-    }
-    await openLogoutSummaryOrLogout();
-  }
-
-  async function sendReportAndLogout() {
-    setSendingReport(true);
-    try {
-      try {
-        await api.post('/api/attendance/send-report', { notes: logoutReportNotes }, { cacheTtlMs: 0, retries: 0, timeoutMs: 12000 });
-      } catch {}
-      await logout();
-      navigate('/login', { replace: true });
-    } finally {
-      setSendingReport(false);
-      setShowLogoutSummary(false);
-      setLogoutReportNotes('');
-    }
-  }
-
-  async function sendManualDialerCall() {
-    const phone = String(manualDialerPhone || '').replace(/\D+/g, '').slice(-10);
-    if (phone.length !== 10) {
-      setManualDialerMessage('Enter a valid 10 digit phone number. Even CRM needs basic survival rules.');
-      return;
-    }
-    setManualDialerBusy(true);
-    setManualDialerMessage('Sending call command to mobile app...');
-    try {
-      await api.post('/api/dialer/manual-call', { phone, candidate_name: manualDialerName, command_source: 'global_manual_dialer', next_call_gap_seconds: 1, instant_start: '1' }, { timeoutMs: 18000 });
-      setManualDialerMessage('Mobile app call command sent. This call will count in daily performance.');
-      setManualDialerPhone('');
-      setManualDialerName('');
-      window.setTimeout(() => setManualDialerOpen(false), 900);
-    } catch (error) {
-      setManualDialerMessage(error?.message || 'Manual dialer failed. Mobile pairing or session may be missing.');
-    } finally {
-      setManualDialerBusy(false);
-    }
-  }
-
-  function updateCustomTheme(patch) {
-    const next = { ...effectiveCustomTheme, ...patch };
-    setCustomTheme(next);
-    persistTheme(theme, next).catch(() => {});
-  }
-
-  function saveCurrentLook() {
-    persistTheme(theme, effectiveCustomTheme).catch(() => {});
-    setToast({ title: 'Theme saved', message: 'Current colours and background strength were saved for this user.' });
-  }
-
-  async function handleResetTheme() {
-    const originalTheme = 'peach-sky';
-    resetCustomTheme();
-    setTheme(originalTheme);
-    setCustomTheme(null);
-    try {
-      localStorage.setItem('careerCroxTheme', originalTheme);
-      localStorage.removeItem('careerCroxApprovedV12Theme');
-      localStorage.removeItem('careerCroxCustomTheme');
-    } catch {}
-    try { await persistTheme(originalTheme, null); } catch {}
-    setToast({ title: 'CC26_526 theme restored', message: 'Original CC26_526 CRM theme restored. Layout, cards, buttons and sizes stay unchanged.' });
-  }
-
-  async function openNotification(item) {
-    const target=notificationTarget(item);if(target)window.open(target,'_blank','noopener,noreferrer');
-    dismissToast();void api.post(`/api/notifications/${item.notification_id}/read`,{}).catch(()=>{});
-  }
-
-  const selectedKey=item=>item.type+':'+item.id;
-  async function resolveApprovalFromPopup(action) {
-    if (!approvalPopup || savingApproval || (action==='reject' && !rejectReason.trim())) return;
-    const selected={...approvalPopup},note=rejectReason.trim(),key=selectedKey(approvalPopup);
-    if(pendingApprovalKeysRef.current.has(key))return;
-    pendingApprovalKeysRef.current.add(key);
-    setSavingApproval(true);setApprovalPopup(null);setRejectReason('');
-    setToast({title:action==='approve'?'Approval queued':'Rejection queued',message:'Saving your decision. You can keep working.'});
-    try {
-      const result=await api.post('/api/approvals/'+action,{type:selected.type,id:selected.id,...(action==='reject'?{reason:note}:{})},{detachedWrite:true});
-      if(result?.ok!==true)throw new Error('Decision was not confirmed. Please retry.');
-      setToast({title:action==='approve'?'Approved':'Rejected',message:selected.title||'Decision saved'});
-      loadMeta().catch(()=>{});
-    } catch(error) {
-      setApprovalPopup(selected);setRejectReason(note);
-      setToast({title:'Decision not saved',message:error.message||'Please retry this decision.'});
-    } finally {pendingApprovalKeysRef.current.delete(key);setSavingApproval(false);}
-  }
-  function approveFromPopup(){return resolveApprovalFromPopup('approve');}
-  function rejectFromPopup(){return resolveApprovalFromPopup('reject');}
-
-  function snoozeApprovalPopup(minutes = 15) {
-    if (!approvalPopup) return;
-    try { localStorage.setItem(`approval_snooze_${approvalPopup.id}`, String(Date.now() + Number(minutes || 0) * 60 * 1000)); } catch {}
-    setApprovalPopup(null);
-    setRejectReason('');
-    setApprovalReminderForm({ exact_time: '' });
-  }
-
-  function saveApprovalExactTime() {
-    if (!approvalPopup || !approvalReminderForm.exact_time) return;
-    const at = parseDateInput(approvalReminderForm.exact_time)?.getTime();
-    if (!Number.isFinite(at) || at <= Date.now()) {
-      setToast({ title: 'Choose a future time', message: 'Approval reminder time must be later than the current time.', item: null, category: 'general' });
-
-      return;
-    }
-    try { localStorage.setItem(`approval_snooze_${approvalPopup.id}`, String(internalReminderStartMs(at))); } catch {}
-    setApprovalPopup(null);
-    setRejectReason('');
-    setApprovalReminderForm({ exact_time: '' });
-  }
-
-  function remindLater() {
-    snoozeApprovalPopup(15);
-  }
-
-  function openProfileNewTab() {
-    if (!approvalPopup?.candidate_id) return;
-    setApprovalPopup(null);
-    openCandidateProfileInPopupTab(approvalPopup.candidate_id);
-  }
-
-  function openApprovalCenterFromPopup() {
-    setApprovalPopup(null);
-    setRejectReason('');
-    window.open('/approvals', '_blank', 'noopener,noreferrer');
-  }
-
-  function openTaskFromPopup(event) {
-    if (event?.stopPropagation) event.stopPropagation();
-    if (!taskPopup?.task_id) return;
-    const taskId = taskPopup.task_id;
-    window.open(`/tasks?task_id=${encodeURIComponent(taskId)}`, '_blank', 'noopener,noreferrer');
-    dismissTaskPopup();
-  }
-
-  async function handleJoinOffice(event) {
-    if (!event?.nativeEvent?.isTrusted || officeJoinInFlightRef.current || sendingJoin) return;
-    officeJoinInFlightRef.current = true;
-    setOfficeJoinError('');
-    setSendingJoin(true);
-    // Render the screen immediately but never claim Join Office until the API confirms.
-    try {
-      const data = await api.post('/api/attendance/join', {
-        last_page: location.pathname || '/candidates',
-        compact: true,
-        session_login_at: officeSessionMarker(),
-        manual_confirmed: true,
-        join_source: 'user_button',
-      }, { timeoutMs: 24000, retries: 0, background: false });
-      let joinedToday = window.__CC723_OFFICE_RESTORE__?.(data, true) === true;
-      if (!joinedToday) {
-        const stamp = String(data?.today_stats?.joined_at || data?.presence?.work_started_at || '').trim();
-        const explicitLegacyReceipt = data?.today_stats?.joined_today === true && stamp && istDay(stamp) === istDay();
-        if (explicitLegacyReceipt) {
-          rememberOfficeJoin(stamp);
-          joinedToday = hasJoinedThisLogin();
-        }
-      }
-      if (!joinedToday) throw new Error('Join Office could not be confirmed. Please try again.');
-      setShowJoinOffice(false);
-      setAttendanceGate(data || null);
-      lastHumanActivityAtRef.current = 0;
-      humanActivitySincePingRef.current = false;
-    } catch (error) {
-      setOfficeJoinError(String(error?.message || 'Attendance could not be saved. Please try again.'));
-      if (!hasJoinedThisLogin()) setShowJoinOffice(true);
-    } finally {
-      officeJoinInFlightRef.current = false;
-      setSendingJoin(false);
-    }
-  }
-
-  return (
-    <div id="cc838-shell" className={`app-shell ${mobileNavOpen ? 'cc783-nav-open' : ''}`}><MultipleCrmGate/><ExcelBackupReminderGate/>
-      {mobileNavOpen ? <button type="button" className="cc783-nav-backdrop" aria-label="Close navigation" onClick={() => setMobileNavOpen(false)}/> : null}
-      {showJoinOffice && !hasJoinedThisLogin() && String(attendanceGate?.presence?.locked||'0')!=='1' && <div className="crm-modal-backdrop cc724-office-overlay" style={{ zIndex: 100004 }}>
-        <div className="crm-premium-modal join-office-modal cc724-office-panel" onClick={(event) => event.stopPropagation()}>
-          <div className="cc724-office-brand"><span className="cc724-office-mark"><img src="/assets/img/career-crox-brand-icon.png" alt="" /></span><span><strong className="cc724-brand-title">CAREER CROX</strong><small className="cc724-brand-sub">Employee workspace</small></span></div>
-          <span className="cc724-join-kicker">Daily attendance</span>
-          <div className="cc724-office-title">Join <span>Office</span></div>
-          <p className="cc724-office-description">Begin your shift with one click. Your attendance and work time will be recorded from the moment you join.</p>
-          <div className="cc724-office-detail"><span className="cc724-office-detail-icon">✓</span><span>Refresh will not restart your confirmed office session.</span></div>
-          <button className="cc724-join-button" type="button" disabled={sendingJoin} onClick={handleJoinOffice}>{sendingJoin ? 'Joining Office…' : 'Join Office →'}</button>
-          {officeJoinError && <p className="cc451-join-msg" role="alert">{officeJoinError}</p>}
-        </div>
-      </div>}
-      <aside className="sidebar" ref={sidebarRef}>
-        <div className="brand-box glassy-card compact-brand-box clean-brand-box">
-          <div className="compact-brand-row clean-brand-row">
-            <img className="sidebar-brand-full-logo" src="/assets/img/career-crox-logo.svg?v=CC821_VECTOR_BRAND" alt="Career Crox" />
-          </div>
-        </div>
-        <nav className="sidebar-nav">
-          {nav.map((item, index) => (
-            item.disabled || DISABLED_ARCHIVE_FEATURES.has(item.key) ? (
-              <div
-                key={item.href}
-                className="nav-item nav-item-disabled"
-                aria-disabled="true"
-                title="Disabled to stop unnecessary Supabase network load"
-                style={{ cursor: 'not-allowed', opacity: 0.58 }}
-              >
-                <span className="nav-serial">{pad2(index + 1)}</span><span>{item.label}</span>
-              </div>
-            ) : (
-              item.key === 'securelink' ? <a key={item.href} className="nav-item bounceable cc-securelink-slice" href="/securelink" aria-label="SecureLink — Remote Support" title="SecureLink — Remote Support"><span className="nav-serial">{pad2(index + 1)}</span><span className="cc837-securelink-label"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 2 21 6v6c0 5-9 10-9 10S3 17 3 12V6Z M8 12l3 3 5-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"/></svg>SecureLink</span></a> : <NavLink
-                key={item.href}
-                to={item.href}
-                draggable
-                onPointerDown={rememberSidebarScroll}
-                onClick={() => setMobileNavOpen(false)}
-                onMouseDown={rememberSidebarScroll}
-                onDragStart={() => setDragKey(item.key)}
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={() => reorderNav(item.key)}
-                onDragEnd={() => setDragKey('')}
-                className={({ isActive }) => `nav-item bounceable ${isActive ? 'active' : ''} ${dragKey === item.key ? 'dragging' : ''}`}
-              >
-                <span className="nav-serial">{pad2(index + 1)}</span><span>{item.label}</span>
-              </NavLink>
-            )
-          ))}
-        </nav>
-
-      </aside>
-      <main className="main-wrap">
-        <header className="topbar" data-cc886-header="true">
-          <button type="button" className="cc783-mobile-nav-toggle" aria-label="Open navigation" aria-expanded={mobileNavOpen} onClick={() => setMobileNavOpen((v) => !v)}>☰</button>
-          <div className="topbar-left"><div className="topbar-title topbar-brand-title"><img className="topbar-logo" src="/assets/img/career-crox-brand-icon.png" alt="Career Crox" /><span>{title}</span></div><DashboardSwitcher/></div>
-          <div className="topbar-center"><HeaderSearch /></div>
-          <div className="cc781-header-session">
-            <div className="user-chip glassy-card user-chip-menu" title={`${user?.full_name || ''} ${user?.designation || ''}`.trim()}>
-              <div className="user-chip-copy">
-                <div className="user-name" title={user?.full_name || user?.username || ''}>{user?.full_name || user?.username || 'Team member'}</div>
-                <div className="user-role" title={user?.designation || user?.role || ''}>{user?.designation || ({tl:'Team Leader',manager:'Manager',recruiter:'Recruiter',admin:'Admin'})[normalizedRole] || 'Team member'}</div>
-              </div>
-              <div className="user-chip-actions"><button className="mini-btn edit bounceable logout-mini" type="button" onClick={onLogout}>Logout</button></div>
-            </div>
-          </div>
-          <div className="topbar-right"><PopupMinimizeControl/>
-            <button ref={quickPairButtonRef} type="button" className="cc813-pair-shortcut cc815-gloss-pair-button" onClick={showQuickPair} title="Pair Call Assistant">▦ Pair Phone</button>
-            {quickPair && <div ref={quickPairRef} role="dialog" aria-label="Connect your phone" className="cc813-pair-popup cc815-premium-pair-popup">
-              <button className="cc815-pair-close" type="button" aria-label="Close pair code" onClick={closeQuickPair}>×</button>
-              <span className="cc815-pair-eyebrow">CAREER CROX • SECURE CONNECTION</span>
-              <strong>Connect your phone</strong>
-              {quickPair.pairing_code ? <b className="cc815-pair-code">{quickPair.pairing_code}</b> : <b className="cc815-pair-code-error">Try again</b>}
-              <span className="cc815-pair-status" role="status">{quickPair.error || (quickPair.loading ? 'Verifying code with CRM… wait before entering.' : '✓ Code ready. Enter it in Career Crox Call Assistant.')}</span>
-              {quickPair.error && <button type="button" className="cc815-pair-retry" onClick={showQuickPair}>Generate new code ↻</button>}
-              <small>Tap anywhere outside this box to close.</small>
-            </div>}
-            {blockedProfile&&<button type="button" className="cc813-popup-fallback" onClick={()=>{if(openDialerProfile(blockedProfile.row,blockedProfile.requestId,true))setBlockedProfile(null);}}>Open {blockedProfile.row?.full_name||'calling profile'} ↗</button>}
-            <button className="manual-dialer-top-icon bounceable" type="button" onClick={() => { setManualDialerOpen(true); setManualDialerMessage(''); }} title="Manual Dialer" aria-label="Manual Dialer"><span className="manual-dialer-symbol manual-dialer-symbol-gold" aria-hidden="true"><ActionGlyph/></span><span className="manual-dialer-text sr-only">Manual Dialer</span></button>
-            <button type="button" className="cc844-new-candidate" aria-label="Add new candidate" title="New candidate" onClick={() => navigate(freshCandidateUrl())}>+</button>
-            <div className="top-action-wrap" ref={quickAddRef}>
-              <button className="add-profile-btn bounceable" type="button" onClick={() => setShowAddMenu((s) => !s)}>Quick Action</button>
-              {showAddMenu && <div className="add-menu show glassy-card professional-add-menu"><Link onClick={() => setShowAddMenu(false)} to={freshCandidateUrl()}>Add Candidate</Link><button className="cc-distance-menu-item cc-distance-menu-item-green" type="button" title="Distance Tracker" onClick={() => { setShowAddMenu(false); window.dispatchEvent(new CustomEvent('career-crox-open-distance-tracker')); }}>Distance Tracker</button><Link onClick={() => setShowAddMenu(false)} to="/tasks?create=1">Add Task</Link><Link onClick={() => setShowAddMenu(false)} to="/candidates?add-note=1">Add Note</Link>{leadership && <Link onClick={() => setShowAddMenu(false)} to="/jds?create=1">Add JD</Link>}<Link onClick={() => setShowAddMenu(false)} to="/interviews?create=1">Add Interview</Link><Link onClick={() => setShowAddMenu(false)} to="/submissions">Open Submissions</Link>{canAccessFeature(normalizedRole, 'attendance') && <Link onClick={() => setShowAddMenu(false)} to="/attendance">Attendance & Break Time</Link>}{canAccessFeature(normalizedRole, 'bda') && <Link onClick={() => setShowAddMenu(false)} to="/bda">Open BDA</Link>}{canAccessFeature(normalizedRole, 'learning-hub') && <Link onClick={() => setShowAddMenu(false)} to="/learning-hub">YT Hub</Link>}</div>}
-            </div>
-            {leadership && <Link className="top-pill bounceable" data-pill="approvals" to="/approvals">Approvals <span className="pill-count">{approvals}</span></Link>}
-            <Link id="cc120-notifications-trigger" className="cc911-break-trigger cc120-notice-trigger" to="/notifications" aria-label={`Notifications, ${notifications} unread`} title="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4M9 3l-1-1m7 1 1-1"/></svg><b>{notifications>99?'99+':notifications}</b></Link>
-            <style>{`.cc120-notice-trigger{background:linear-gradient(135deg,#e9f5ff,#9bc6ff)!important;border-color:#9cbce8!important;color:#214d84!important;-webkit-text-fill-color:#214d84!important;text-decoration:none!important}.cc120-notice-trigger b{background:#355eae!important;border-color:#dbeaff!important}.cc120-bell-bounce svg{animation:cc120-bell-wiggle .75s ease-in-out!important}@keyframes cc120-bell-wiggle{0%,100%{transform:rotate(0)}25%{transform:rotate(-18deg)}50%{transform:rotate(14deg)}75%{transform:rotate(-6deg)}}@media(prefers-reduced-motion:reduce){.cc120-bell-bounce svg{animation:none!important}}`}</style><BreakRoster/><Link className="top-pill bounceable break-top-pill" data-pill="break" to="/attendance" title="Break Timer & Attendance">⏱ Break</Link>
-            <Link className="top-pill bounceable" data-pill="team-chat" to="/chat">Team Chat {chatUnread>0?<span className="pill-count cc930-chat-count">{chatUnread>99?'99+':chatUnread}</span>:null}</Link>
-            <Link className="top-pill bounceable" data-pill="aaria" to="/aaria">Aaria</Link>
-
-          </div>
-        </header>
-        {manualDialerOpen && <div className="crm-modal-backdrop" style={{ zIndex: 100000 }}>
-          <div className="crm-premium-modal cc787-dialer-modal" style={{ maxWidth: 460 }}>
-            <div className="cc791-dialog-hero"><span className="cc791-dialog-symbol"><ActionGlyph size={27}/></span><div><small>MOBILE CONNECT</small><h2 className="panel-title">Manual Mobile Dialer</h2></div></div>
-            <div className="helper-text top-gap-small">Paste a number to start the call through your paired mobile app.</div>
-            <div className="field top-gap"><label htmlFor="cc791-dial-phone">Phone Number</label><div className="cc791-dial-input"><span>+91</span><input id="cc791-dial-phone" type="tel" inputMode="tel" value={manualDialerPhone} onChange={(e) => setManualDialerPhone(e.target.value)} placeholder="Paste 10 digit number" autoFocus /></div></div>
-            <div className="field top-gap-small"><label>Candidate Name optional</label><input value={manualDialerName} onChange={(e) => setManualDialerName(e.target.value)} placeholder="Optional name" /></div>
-            {manualDialerMessage ? <div className="helper-text top-gap-small">{manualDialerMessage}</div> : null}
-            <div className="row-actions top-gap">
-              <button className="add-profile-btn bounceable" type="button" disabled={manualDialerBusy} onClick={sendManualDialerCall}>{manualDialerBusy ? 'Sending...' : 'Call on Mobile'}</button>
-              <button className="ghost-btn bounceable" type="button" onClick={() => setManualDialerOpen(false)}>Close</button>
-            </div>
-          </div>
-        </div>}
-        <style>{`.manual-dialer-top-icon{border:0;border-radius:13px;padding:0;font-weight:1000;color:#fff!important;-webkit-text-fill-color:#fff!important;background:linear-gradient(135deg,#0f8f76,#22bb63,#78d63f);box-shadow:0 10px 22px rgba(34,197,94,.2);white-space:nowrap;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:0;min-height:38px;height:38px;width:40px;min-width:40px;max-width:40px;line-height:1;flex:0 0 40px}.manual-dialer-top-icon *{color:#fff!important;-webkit-text-fill-color:#fff!important}.manual-dialer-symbol{display:inline-grid;place-items:center}.manual-dialer-symbol-gold{width:25px;height:25px;border-radius:999px;background:radial-gradient(circle at 30% 30%,#ffe46b 0%,#ffd24f 35%,#ffb327 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 5px 12px rgba(255,179,39,.32);flex:0 0 25px}.manual-dialer-symbol svg{display:block;fill:#fff!important;width:15px!important;height:15px!important}.manual-dialer-text{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}.break-top-pill,.topbar-right a[data-pill="break"]{background:linear-gradient(135deg,#ffb020 0%,#ff6a3d 56%,#ef4444 100%)!important;color:#111827!important;-webkit-text-fill-color:#111827!important;text-shadow:none!important;font-weight:1000!important}.topbar-right .break-top-pill *,.topbar-right a[data-pill="break"] *{color:#111827!important;-webkit-text-fill-color:#111827!important}.break-overdue-modal{border:2px solid rgba(239,68,68,.65)!important;box-shadow:0 0 0 6px rgba(239,68,68,.12),0 24px 80px rgba(185,28,28,.38)!important}.overdue-blink{color:#fff!important;background:linear-gradient(135deg,#dc2626,#991b1b)!important;animation:ccBreakBlink .75s infinite alternate}@keyframes ccBreakBlink{from{filter:brightness(1);transform:scale(1)}to{filter:brightness(1.35);transform:scale(1.025)}}
-/* CC26_225_TOPBAR_NAME_EMPLOYEE_SPACE_FIX */
-body:not(.login-body) .main-wrap>.topbar{height:64px!important;min-height:64px!important;max-height:64px!important;display:flex!important;flex-wrap:nowrap!important;align-items:center!important;justify-content:flex-start!important;overflow:visible!important;padding:7px 9px!important;gap:7px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-left{flex:1 1 auto!important;min-width:250px!important;max-width:none!important;width:auto!important;overflow:hidden!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-title,body:not(.login-body) .main-wrap>.topbar .topbar-brand-title,body:not(.login-body) .main-wrap>.topbar .candidate-top-title-wrap{display:flex!important;align-items:center!important;gap:7px!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;white-space:nowrap!important;flex-wrap:nowrap!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-logo{width:30px!important;height:30px!important;flex:0 0 30px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-title span{font-size:16px!important;font-weight:1000!important;color:var(--cc549-top-title,#102a4f)!important;-webkit-text-fill-color:var(--cc549-top-title,#102a4f)!important;opacity:1!important;line-height:1!important;min-width:0!important;text-shadow:0 1px 0 rgba(255,255,255,.42)!important}
-body:not(.login-body) .main-wrap>.topbar .candidate-top-title-kicker{font-size:13px!important;line-height:1!important;flex:0 0 auto!important;white-space:nowrap!important;color:#102a4f!important;font-weight:1000!important}
-body:not(.login-body) .main-wrap>.topbar .candidate-top-title-name{font-size:15px!important;line-height:1!important;padding:5px 10px!important;max-width:220px!important;min-width:0!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;border-radius:12px!important;display:inline-block!important;background:#ffe448!important;color:#0d2b55!important;font-weight:1000!important;box-shadow:0 6px 14px rgba(241,196,15,.2)!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-center{flex:0 0 218px!important;min-width:218px!important;max-width:218px!important;width:218px!important;margin:0!important}
-body:not(.login-body) .main-wrap>.topbar .search-box{width:100%!important;max-width:218px!important;min-height:38px!important;height:38px!important;border-radius:13px!important;gap:4px!important;padding:4px!important;display:flex!important;align-items:center!important;overflow:hidden!important}
-body:not(.login-body) .main-wrap>.topbar .search-box input{height:30px!important;font-size:12px!important;font-weight:800!important;padding:0 8px!important;min-width:0!important;flex:1 1 auto!important;color:#17365f!important}
-body:not(.login-body) .main-wrap>.topbar .search-box input::placeholder{font-size:12px!important;font-weight:800!important;color:#476385!important;opacity:1!important}
-body:not(.login-body) .main-wrap>.topbar .search-box .ghost-btn{min-height:30px!important;height:30px!important;padding:0 12px!important;font-size:11.5px!important;font-weight:1000!important;border-radius:10px!important;flex:0 0 auto!important;color:#12335e!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right{flex:0 0 auto!important;min-width:0!important;max-width:none!important;display:flex!important;flex-wrap:nowrap!important;align-items:center!important;justify-content:flex-end!important;gap:5px!important;position:relative!important;z-index:6!important;overflow:visible!important;margin-left:0!important}
-body:not(.login-body) .main-wrap>.topbar .manual-dialer-top-icon{width:40px!important;min-width:40px!important;max-width:40px!important;flex:0 0 40px!important;height:38px!important;min-height:38px!important;padding:0!important;border-radius:13px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .add-profile-btn{min-height:38px!important;height:38px!important;width:78px!important;min-width:78px!important;max-width:78px!important;padding:0 7px!important;font-size:11.3px!important;font-weight:1000!important;line-height:1!important;border-radius:12px!important;gap:4px!important;white-space:nowrap!important;flex:0 0 78px!important;overflow:hidden!important;text-overflow:ellipsis!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill{min-height:38px!important;height:38px!important;padding:0 8px!important;font-size:11.3px!important;font-weight:1000!important;line-height:1!important;border-radius:12px!important;gap:4px!important;white-space:nowrap!important;flex:0 0 auto!important;display:inline-flex!important;align-items:center!important;justify-content:center!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="approvals"]{width:82px!important;min-width:82px!important;max-width:82px!important;padding-left:7px!important;padding-right:7px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="notifications"]{width:96px!important;min-width:96px!important;max-width:96px!important;padding-left:7px!important;padding-right:7px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="break"]{width:60px!important;min-width:60px!important;max-width:60px!important;padding-left:6px!important;padding-right:6px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="team-chat"]{width:100px!important;min-width:100px!important;max-width:100px!important;padding-left:7px!important;padding-right:7px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="aaria"]{width:52px!important;min-width:52px!important;max-width:52px!important;padding-left:6px!important;padding-right:6px!important}
-body:not(.login-body) .main-wrap>.topbar .pill-count{min-width:16px!important;height:16px!important;padding:0 3px!important;font-size:9.5px!important;font-weight:1000!important;line-height:16px!important}
-body:not(.login-body) .main-wrap>.topbar .user-chip-menu{flex:0 0 158px!important;max-width:158px!important;min-width:158px!important;width:158px!important;min-height:46px!important;height:46px!important;padding:5px 6px!important;gap:5px!important;border-radius:14px!important;display:flex!important;align-items:center!important;overflow:hidden!important}
-body:not(.login-body) .main-wrap>.topbar .user-chip-copy{min-width:0!important;overflow:hidden!important;line-height:1.08!important;flex:1 1 auto!important;display:flex!important;flex-direction:column!important;justify-content:center!important;gap:1px!important}
-body:not(.login-body) .main-wrap>.topbar .user-name,body:not(.login-body) .main-wrap>.topbar .user-role,body:not(.login-body) .main-wrap>.topbar .user-code{display:block!important;max-width:94px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;color:#14345d!important}.topbar .user-name{font-weight:1000!important}
-body:not(.login-body) .main-wrap>.topbar .user-name{font-size:11.3px!important;font-weight:1000!important}
-body:not(.login-body) .main-wrap>.topbar .user-role{font-size:10.3px!important;font-weight:800!important}
-body:not(.login-body) .main-wrap>.topbar .user-code{font-size:11px!important;font-weight:1000!important;letter-spacing:.01em!important;color:#16406f!important}
-body:not(.login-body) .main-wrap>.topbar .user-chip-actions{display:flex!important;align-items:center!important;justify-content:flex-end!important;flex:0 0 auto!important}
-body:not(.login-body) .main-wrap>.topbar .logout-mini{min-height:30px!important;height:30px!important;padding:0 8px!important;font-size:10.8px!important;font-weight:1000!important;border-radius:10px!important;flex:0 0 auto!important}
-@media(max-width:1240px){body:not(.login-body) .main-wrap>.topbar{height:auto!important;max-height:none!important;flex-wrap:wrap!important}body:not(.login-body) .main-wrap>.topbar .topbar-left{flex-basis:100%!important;min-width:0!important}body:not(.login-body) .main-wrap>.topbar .topbar-center{flex:1 1 260px!important;max-width:none!important;width:auto!important}body:not(.login-body) .main-wrap>.topbar .topbar-right{flex-basis:100%!important;flex-wrap:wrap!important;justify-content:flex-start!important}}
-.goalpost-logout-choice-modal,.join-office-modal.premium-join-office-v2{background:radial-gradient(circle at top left,rgba(59,130,246,.16),transparent 34%),linear-gradient(135deg,#ffffff 0%,#eef6ff 58%,#fff7ed 100%)!important;border:1px solid rgba(59,130,246,.24)!important;box-shadow:0 34px 90px rgba(15,23,42,.24)!important;border-radius:28px!important}
-.join-office-modal.premium-join-office-v2 .panel-title,.goalpost-logout-choice-modal .panel-title{font-size:24px!important;font-weight:1000!important;letter-spacing:-.02em!important;color:#10233f!important}
-.premium-modal-kicker{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff!important;font-size:11px;font-weight:1000;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
-.premium-modal-points{display:grid;gap:8px;margin-top:14px}
-.premium-modal-point{display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:14px;background:rgba(255,255,255,.72);border:1px solid rgba(148,163,184,.22);font-size:12px;font-weight:850;color:#334155}
-.premium-modal-point::before{content:"";width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,#22c55e,#2563eb);box-shadow:0 0 0 4px rgba(37,99,235,.10)}
-.goalpost-logout-choice-modal .danger-choice{background:linear-gradient(135deg,#ef4444,#f97316)!important;color:#fff!important;border:0!important}
-.premium-attendance-report-modal.cc350-daily-report-modal{width:min(96vw,760px)!important;max-width:760px!important;background:radial-gradient(circle at top left,rgba(59,130,246,.16),transparent 34%),linear-gradient(135deg,#ffffff 0%,#eef6ff 58%,#fff7ed 100%)!important;border:1px solid rgba(59,130,246,.24)!important;box-shadow:0 34px 90px rgba(15,23,42,.28)!important;border-radius:28px!important}.premium-attendance-report-modal .logout-report-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}.premium-attendance-report-modal .presence-stat{min-height:76px!important}@media(max-width:760px){.premium-attendance-report-modal .logout-report-grid{grid-template-columns:1fr!important}}
-.daily-attendance-report-table-wrap{margin-top:14px;border-radius:20px;overflow:hidden;border:1px solid rgba(148,163,184,.26);background:rgba(255,255,255,.82);box-shadow:0 18px 44px rgba(15,23,42,.10)}
-.daily-attendance-report-table{width:100%;border-collapse:collapse}
-.daily-attendance-report-table th,.daily-attendance-report-table td{padding:11px 13px;border-bottom:1px solid rgba(226,232,240,.84);text-align:left;font-size:12px;vertical-align:middle}
-.daily-attendance-report-table th{font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:#64748b;background:linear-gradient(180deg,#f8fbff,#eef6ff);font-weight:1000}
-.daily-attendance-report-table td:first-child{font-weight:1000;color:#10233f}
-.daily-attendance-report-table .status-good{display:inline-flex;padding:5px 9px;border-radius:999px;background:rgba(34,197,94,.13);color:#15803d;font-weight:1000}
-.daily-attendance-report-table .status-warn{display:inline-flex;padding:5px 9px;border-radius:999px;background:rgba(239,68,68,.12);color:#b91c1c;font-weight:1000}
-
-/* CC26_372_LIGHT_GRADIENT_ATTENDANCE_LOGOUT_UI */
-.join-office-modal.premium-join-office-v2{
-  width:min(94vw,560px)!important;
-  max-width:560px!important;
-  padding:26px!important;
-  border-radius:32px!important;
-  background:
-    radial-gradient(circle at 4% 0%,rgba(59,130,246,.24),transparent 34%),
-    radial-gradient(circle at 100% 10%,rgba(16,185,129,.16),transparent 30%),
-    linear-gradient(135deg,#ffffff 0%,#eff6ff 46%,#f5f3ff 72%,#fff7ed 100%)!important;
-  border:1px solid rgba(96,165,250,.34)!important;
-  box-shadow:0 36px 110px rgba(15,23,42,.28)!important;
-  overflow:hidden!important;
-}
-.join-office-modal.premium-join-office-v2::after{
-  content:"";
-  position:absolute;
-  right:-58px;
-  top:-78px;
-  width:190px;
-  height:190px;
-  border-radius:999px;
-  background:linear-gradient(135deg,rgba(37,99,235,.16),rgba(16,185,129,.14),rgba(249,115,22,.14));
-  pointer-events:none;
-}
-.join-office-modal.premium-join-office-v2 .premium-modal-kicker,
-.logout-report-modal .premium-modal-kicker,
-.premium-attendance-report-modal .premium-modal-kicker{
-  background:linear-gradient(135deg,#2563eb,#14b8a6,#f97316)!important;
-  box-shadow:0 14px 32px rgba(37,99,235,.22)!important;
-  color:#fff!important;
-}
-.join-office-modal.premium-join-office-v2 .panel-title{
-  font-size:30px!important;
-  line-height:1.05!important;
-  color:#0f2a4f!important;
-  letter-spacing:-.045em!important;
-}
-.join-office-modal.premium-join-office-v2 .helper-text{
-  font-size:13.5px!important;
-  line-height:1.6!important;
-  color:#506782!important;
-  font-weight:850!important;
-}
-.join-office-modal.premium-join-office-v2 .premium-modal-points{
-  grid-template-columns:1fr 1fr!important;
-  gap:10px!important;
-}
-.join-office-modal.premium-join-office-v2 .premium-modal-point{
-  padding:13px 13px!important;
-  border-radius:18px!important;
-  background:linear-gradient(135deg,rgba(255,255,255,.88),rgba(239,246,255,.88))!important;
-  border:1px solid rgba(147,197,253,.38)!important;
-  box-shadow:0 14px 28px rgba(37,99,235,.08)!important;
-  color:#1d3b63!important;
-  font-size:12.5px!important;
-  font-weight:950!important;
-}
-.join-office-modal.premium-join-office-v2 .add-profile-btn{
-  min-height:48px!important;
-  padding:0 20px!important;
-  border-radius:16px!important;
-  background:linear-gradient(135deg,#2563eb,#14b8a6,#f97316)!important;
-  color:#fff!important;
-  -webkit-text-fill-color:#fff!important;
-  text-shadow:0 1px 1px rgba(0,0,0,.18)!important;
-  box-shadow:0 18px 38px rgba(37,99,235,.26)!important;
-  font-size:13px!important;
+  const observer=new MutationObserver(attach);
+  observer.observe(document.getElementById('root')||document.body,{childList:true,subtree:true});attach();
+  return()=>{observer.disconnect();mount?.remove();};
+ },[location.pathname,user?.user_id,user?.role]);
+ return <>
+  <style>{`
+   html#cc787-workspace#cc787-workspace[data-cc923-precision]{--cc922-cursor:var(--cc923-arrow)!important;--cc922-pointer:var(--cc923-point)!important}
+   html#cc787-workspace#cc787-workspace[data-cc923-precision] body:not(.login-body),
+   html#cc787-workspace#cc787-workspace[data-cc923-precision] body:not(.login-body) *:not(input):not(textarea):not([contenteditable="true"]){cursor:var(--cc922-cursor)!important}
+   html#cc787-workspace#cc787-workspace[data-cc923-precision][data-theme][data-cc787-cursor] body :is(button,a,summary,select,[role="button"]),
+   html#cc787-workspace#cc787-workspace[data-cc923-precision][data-theme][data-cc787-cursor] body :is(button,a,summary,[role="button"]) *{cursor:var(--cc922-pointer)!important}
+   html#cc787-workspace#cc787-workspace[data-cc923-precision] body :is(textarea,[contenteditable="true"],input:not([type="color"]):not([type="range"]):not([type="checkbox"]):not([type="radio"])){cursor:text!important}
+  `}</style>
+  {host?createPortal(<CursorControls key={user?.user_id} user={user}/>,host):null}
+ </>;
 }
 
-.logout-report-modal.premium-attendance-report-modal,
-.premium-attendance-report-modal.cc353-table-attendance-report-modal,
-.premium-attendance-report-modal.cc350-daily-report-modal{
-  width:min(96vw,850px)!important;
-  max-width:850px!important;
-  padding:24px!important;
-  border-radius:34px!important;
-  background:
-    radial-gradient(circle at 5% -5%,rgba(37,99,235,.25),transparent 35%),
-    radial-gradient(circle at 105% 0%,rgba(236,72,153,.15),transparent 32%),
-    linear-gradient(135deg,#ffffff 0%,#eff6ff 44%,#f5f3ff 72%,#fff7ed 100%)!important;
-  border:1px solid rgba(96,165,250,.34)!important;
-  box-shadow:0 38px 115px rgba(15,23,42,.30)!important;
-  color:#10233f!important;
-}
-.logout-report-modal .panel-title,
-.premium-attendance-report-modal .panel-title{
-  font-size:30px!important;
-  line-height:1.05!important;
-  color:#0f2a4f!important;
-  letter-spacing:-.045em!important;
-}
-.logout-report-modal .helper-text,
-.premium-attendance-report-modal .helper-text{
-  font-size:13px!important;
-  color:#526b88!important;
-  font-weight:850!important;
-}
-.daily-attendance-report-table-wrap{
-  border-radius:24px!important;
-  border:1px solid rgba(147,197,253,.38)!important;
-  background:rgba(255,255,255,.88)!important;
-  box-shadow:0 22px 55px rgba(15,23,42,.13)!important;
-}
-.daily-attendance-report-table{
-  border-collapse:separate!important;
-  border-spacing:0!important;
-}
-.daily-attendance-report-table th{
-  padding:14px 14px!important;
-  background:linear-gradient(135deg,#dbeafe,#ede9fe 52%,#fff7ed)!important;
-  color:#334a68!important;
-  font-size:11px!important;
-  letter-spacing:.08em!important;
-}
-.daily-attendance-report-table td{
-  padding:13px 14px!important;
-  font-size:13px!important;
-  font-weight:900!important;
-  color:#203a5d!important;
-  border-bottom:1px solid rgba(203,213,225,.80)!important;
-}
-.daily-attendance-report-table tbody tr:nth-child(odd) td{
-  background:linear-gradient(135deg,rgba(239,246,255,.82),rgba(255,255,255,.72))!important;
-}
-.daily-attendance-report-table tbody tr:nth-child(even) td{
-  background:linear-gradient(135deg,rgba(245,243,255,.78),rgba(255,247,237,.58))!important;
-}
-.daily-attendance-report-table tbody tr:hover td{
-  background:linear-gradient(135deg,rgba(219,234,254,.95),rgba(237,233,254,.82))!important;
-}
-.daily-attendance-report-table .status-good{
-  background:linear-gradient(135deg,#dcfce7,#bbf7d0)!important;
-  color:#166534!important;
-  border:1px solid rgba(34,197,94,.24)!important;
-}
-.daily-attendance-report-table .status-warn{
-  background:linear-gradient(135deg,#ffedd5,#fecaca)!important;
-  color:#b45309!important;
-  border:1px solid rgba(249,115,22,.24)!important;
-}
-.logout-report-modal textarea,
-.premium-attendance-report-modal textarea{
-  border-radius:18px!important;
-  border:1px solid rgba(147,197,253,.46)!important;
-  background:linear-gradient(135deg,#ffffff,#f8fbff)!important;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.8),0 12px 28px rgba(37,99,235,.08)!important;
-  color:#10233f!important;
-  font-weight:850!important;
-}
-.logout-report-modal .add-profile-btn,
-.premium-attendance-report-modal .add-profile-btn{
-  min-height:48px!important;
-  padding:0 20px!important;
-  border-radius:16px!important;
-  background:linear-gradient(135deg,#2563eb,#14b8a6,#f97316)!important;
-  color:#fff!important;
-  box-shadow:0 18px 38px rgba(37,99,235,.26)!important;
-  font-size:13px!important;
-}
-.logout-report-modal .ghost-btn,
-.premium-attendance-report-modal .ghost-btn{
-  min-height:46px!important;
-  border-radius:16px!important;
-  background:linear-gradient(135deg,#ffffff,#eff6ff)!important;
-  border:1px solid rgba(147,197,253,.42)!important;
-  color:#1e3a5f!important;
-  font-weight:1000!important;
-}
-@media(max-width:760px){
-  .join-office-modal.premium-join-office-v2 .premium-modal-points{grid-template-columns:1fr!important}
-  .logout-report-modal.premium-attendance-report-modal,.premium-attendance-report-modal.cc353-table-attendance-report-modal{width:96vw!important;padding:18px!important}
+export function GenZMotionLayer(){
+ const location=useLocation();
+ useEffect(()=>{
+  const body=document.body;
+  body.classList.remove('cc-genz-motion-enabled','cc-no-morph-motion');body.classList.add('cc785-premium-motion');
+  return()=>body.classList.remove('cc785-premium-motion');
+ },[]);
+ useEffect(()=>{
+  const page=document.querySelector('.cc785-route-content');
+  if(!page||document.documentElement.dataset.cc787Motion==='reduced'||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const motion=page.animate([{transform:'translateY(3px)'},{transform:'translateY(0)'}],{duration:160,easing:'cubic-bezier(.2,.7,.2,1)'});
+  return()=>motion.cancel();
+ },[location.pathname]);
+ return null;
 }
 
-`}</style>
-        <style>{`/* CC26_229_TOPBAR_SPACING_READABILITY_ONLY */
-body:not(.login-body) .main-wrap>.topbar{height:68px!important;min-height:68px!important;max-height:68px!important;padding:7px 12px!important;gap:9px!important;align-items:center!important;flex-wrap:nowrap!important;overflow:visible!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-left{flex:1 1 auto!important;min-width:220px!important;max-width:none!important;overflow:hidden!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-title,body:not(.login-body) .main-wrap>.topbar .topbar-brand-title,body:not(.login-body) .main-wrap>.topbar .candidate-top-title-wrap{gap:9px!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;white-space:nowrap!important;flex-wrap:nowrap!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-logo{width:32px!important;height:32px!important;flex:0 0 32px!important}
-body:not(.login-body) .main-wrap>.topbar .candidate-top-title-name{font-size:16px!important;max-width:280px!important;padding:6px 12px!important;border-radius:13px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-center{flex:0 0 202px!important;min-width:202px!important;max-width:202px!important;width:202px!important;margin:0!important}
-body:not(.login-body) .main-wrap>.topbar .search-box{height:40px!important;min-height:40px!important;max-width:202px!important;border-radius:14px!important;padding:4px!important;gap:5px!important}
-body:not(.login-body) .main-wrap>.topbar .search-box input{height:32px!important;font-size:12.5px!important;padding:0 8px!important}
-body:not(.login-body) .main-wrap>.topbar .search-box .ghost-btn{height:32px!important;min-height:32px!important;padding:0 13px!important;font-size:12px!important;border-radius:11px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right{gap:8px!important;align-items:center!important;flex-wrap:nowrap!important;justify-content:flex-end!important;margin-left:0!important;overflow:visible!important}
-body:not(.login-body) .main-wrap>.topbar .manual-dialer-top-icon{width:42px!important;min-width:42px!important;max-width:42px!important;flex:0 0 42px!important;height:40px!important;min-height:40px!important;border-radius:14px!important}
-body:not(.login-body) .main-wrap>.topbar .manual-dialer-symbol-gold{width:27px!important;height:27px!important;flex-basis:27px!important}
-body:not(.login-body) .main-wrap>.topbar .manual-dialer-symbol svg{width:16px!important;height:16px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .add-profile-btn{height:40px!important;min-height:40px!important;width:66px!important;min-width:66px!important;max-width:66px!important;font-size:11.5px!important;border-radius:13px!important;padding:0 7px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill{height:40px!important;min-height:40px!important;font-size:11.6px!important;border-radius:13px!important;padding:0 8px!important;gap:5px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="approvals"]{width:84px!important;min-width:84px!important;max-width:84px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="notifications"]{width:98px!important;min-width:98px!important;max-width:98px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="break"]{width:62px!important;min-width:62px!important;max-width:62px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="team-chat"]{width:104px!important;min-width:104px!important;max-width:104px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="aaria"]{width:54px!important;min-width:54px!important;max-width:54px!important}
-body:not(.login-body) .main-wrap>.topbar .pill-count{min-width:17px!important;height:17px!important;font-size:10px!important;line-height:17px!important}
-body:not(.login-body) .main-wrap>.topbar .user-chip-menu{flex:0 0 170px!important;max-width:170px!important;min-width:170px!important;width:170px!important;height:50px!important;min-height:50px!important;padding:6px 7px!important;gap:6px!important;border-radius:15px!important}
-body:not(.login-body) .main-wrap>.topbar .user-name,body:not(.login-body) .main-wrap>.topbar .user-role,body:not(.login-body) .main-wrap>.topbar .user-code{max-width:102px!important}
-body:not(.login-body) .main-wrap>.topbar .user-name{font-size:12px!important}
-body:not(.login-body) .main-wrap>.topbar .user-role{font-size:10.8px!important}
-body:not(.login-body) .main-wrap>.topbar .user-code{font-size:11.5px!important}
-body:not(.login-body) .main-wrap>.topbar .logout-mini{height:32px!important;min-height:32px!important;font-size:11px!important;padding:0 9px!important;border-radius:11px!important}
-@media(max-width:1280px){body:not(.login-body) .main-wrap>.topbar{height:auto!important;max-height:none!important;flex-wrap:wrap!important}body:not(.login-body) .main-wrap>.topbar .topbar-left{flex-basis:100%!important;min-width:0!important}body:not(.login-body) .main-wrap>.topbar .topbar-center{flex:1 1 260px!important;max-width:360px!important;width:auto!important}body:not(.login-body) .main-wrap>.topbar .topbar-right{flex-basis:100%!important;flex-wrap:wrap!important;justify-content:flex-start!important}}`}</style>
 
-        <style>{`/* CC26_231_TOPBAR_SEARCH_BUTTON_READABILITY_ONLY */
-body:not(.login-body) .main-wrap>.topbar{height:68px!important;min-height:68px!important;max-height:68px!important;padding:7px 10px!important;gap:8px!important;align-items:center!important;flex-wrap:nowrap!important;overflow:visible!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-left{flex:0 1 auto!important;min-width:165px!important;max-width:275px!important;width:auto!important;overflow:hidden!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-title,body:not(.login-body) .main-wrap>.topbar .topbar-brand-title,body:not(.login-body) .main-wrap>.topbar .candidate-top-title-wrap{gap:8px!important;min-width:0!important;max-width:100%!important;overflow:hidden!important;white-space:nowrap!important;flex-wrap:nowrap!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-logo{width:32px!important;height:32px!important;flex:0 0 32px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-title span{font-size:16px!important;font-weight:1000!important;line-height:1.05!important;color:var(--cc549-top-title,#0f2e56)!important;-webkit-text-fill-color:var(--cc549-top-title,#0f2e56)!important;opacity:1!important;text-shadow:0 1px 0 rgba(255,255,255,.42)!important}
-body:not(.login-body) .main-wrap>.topbar .candidate-top-title-kicker{font-size:13px!important;font-weight:1000!important;color:#0f2e56!important;flex:0 0 auto!important}
-body:not(.login-body) .main-wrap>.topbar .candidate-top-title-name{font-size:16px!important;font-weight:1000!important;max-width:185px!important;min-width:0!important;padding:6px 12px!important;border-radius:13px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;color:#0d2b55!important;background:#ffe448!important;box-shadow:0 6px 14px rgba(241,196,15,.22)!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-center{flex:0 0 244px!important;min-width:244px!important;max-width:244px!important;width:244px!important;margin:0!important}
-body:not(.login-body) .main-wrap>.topbar .search-box{width:244px!important;max-width:244px!important;min-height:40px!important;height:40px!important;border-radius:14px!important;gap:5px!important;padding:4px!important;display:flex!important;align-items:center!important;overflow:hidden!important;background:linear-gradient(135deg,rgba(255,255,255,.94),rgba(220,237,255,.96))!important;border:1px solid rgba(83,147,230,.38)!important;box-shadow:0 8px 22px rgba(54,104,190,.08)!important}
-body:not(.login-body) .main-wrap>.topbar .search-box input{display:block!important;height:32px!important;font-size:13px!important;font-weight:850!important;padding:0 9px!important;min-width:0!important;flex:1 1 auto!important;color:#163861!important;background:#eef7ff!important;border:1px solid rgba(91,147,221,.35)!important;border-radius:11px!important}
-body:not(.login-body) .main-wrap>.topbar .search-box input::placeholder{font-size:13px!important;font-weight:850!important;color:#476385!important;opacity:1!important}
-body:not(.login-body) .main-wrap>.topbar .search-box .ghost-btn{height:32px!important;min-height:32px!important;min-width:70px!important;padding:0 12px!important;font-size:12px!important;font-weight:1000!important;border-radius:11px!important;flex:0 0 auto!important;color:#12335e!important;-webkit-text-fill-color:#12335e!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right{flex:1 1 auto!important;min-width:0!important;max-width:none!important;display:flex!important;flex-wrap:nowrap!important;align-items:center!important;justify-content:flex-end!important;gap:6px!important;overflow:visible!important;margin-left:0!important}
-body:not(.login-body) .main-wrap>.topbar .manual-dialer-top-icon{width:40px!important;min-width:40px!important;max-width:40px!important;height:40px!important;min-height:40px!important;flex:0 0 40px!important;border-radius:14px!important}
-body:not(.login-body) .main-wrap>.topbar .manual-dialer-symbol-gold{width:27px!important;height:27px!important;flex-basis:27px!important}
-body:not(.login-body) .main-wrap>.topbar .manual-dialer-symbol svg{width:16px!important;height:16px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .add-profile-btn,body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill{height:40px!important;min-height:40px!important;font-size:12px!important;font-weight:1000!important;line-height:1!important;border-radius:13px!important;padding:0 7px!important;gap:5px!important;white-space:nowrap!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;color:#fff!important;-webkit-text-fill-color:#fff!important;text-shadow:0 1px 0 rgba(0,0,0,.12)!important;overflow:visible!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .add-profile-btn{width:72px!important;min-width:72px!important;max-width:72px!important;flex:0 0 72px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="approvals"]{width:88px!important;min-width:88px!important;max-width:88px!important;flex:0 0 88px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="notifications"]{width:104px!important;min-width:104px!important;max-width:104px!important;flex:0 0 104px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="break"]{width:68px!important;min-width:68px!important;max-width:68px!important;flex:0 0 68px!important;color:#fff!important;-webkit-text-fill-color:#fff!important;background:linear-gradient(135deg,#ff9d24 0%,#ff6b3d 55%,#ef4444 100%)!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="team-chat"]{width:108px!important;min-width:108px!important;max-width:108px!important;flex:0 0 108px!important}
-body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="aaria"]{width:58px!important;min-width:58px!important;max-width:58px!important;flex:0 0 58px!important}
-body:not(.login-body) .main-wrap>.topbar .pill-count{min-width:17px!important;height:17px!important;padding:0 4px!important;font-size:10px!important;font-weight:1000!important;line-height:17px!important;color:#fff!important;-webkit-text-fill-color:#fff!important}
-body:not(.login-body) .main-wrap>.topbar .user-chip-menu{flex:0 0 160px!important;max-width:160px!important;min-width:160px!important;width:160px!important;height:50px!important;min-height:50px!important;padding:6px 7px!important;gap:5px!important;border-radius:15px!important;display:flex!important;align-items:center!important;overflow:hidden!important}
-body:not(.login-body) .main-wrap>.topbar .user-chip-copy{min-width:0!important;overflow:hidden!important;line-height:1.08!important;flex:1 1 auto!important;display:flex!important;flex-direction:column!important;justify-content:center!important;gap:1px!important}
-body:not(.login-body) .main-wrap>.topbar .user-name,body:not(.login-body) .main-wrap>.topbar .user-role,body:not(.login-body) .main-wrap>.topbar .user-code{display:block!important;max-width:106px!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;color:#14345d!important;-webkit-text-fill-color:#14345d!important}
-body:not(.login-body) .main-wrap>.topbar .user-name{font-size:11.8px!important;font-weight:1000!important}
-body:not(.login-body) .main-wrap>.topbar .user-role{font-size:10.6px!important;font-weight:850!important}
-body:not(.login-body) .main-wrap>.topbar .user-code{font-size:11.2px!important;font-weight:1000!important;letter-spacing:.01em!important;color:#16406f!important;-webkit-text-fill-color:#16406f!important}
-body:not(.login-body) .main-wrap>.topbar .logout-mini{height:32px!important;min-height:32px!important;min-width:52px!important;padding:0 8px!important;font-size:11px!important;font-weight:1000!important;border-radius:11px!important;flex:0 0 auto!important}
-@media(max-width:1320px){body:not(.login-body) .main-wrap>.topbar .topbar-left{min-width:150px!important;max-width:230px!important}body:not(.login-body) .main-wrap>.topbar .topbar-center{flex-basis:220px!important;min-width:220px!important;max-width:220px!important;width:220px!important}body:not(.login-body) .main-wrap>.topbar .search-box{width:220px!important;max-width:220px!important}body:not(.login-body) .main-wrap>.topbar .topbar-right{gap:5px!important}body:not(.login-body) .main-wrap>.topbar .topbar-right .add-profile-btn{width:68px!important;min-width:68px!important;max-width:68px!important;flex-basis:68px!important}body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill{font-size:11.6px!important}body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="approvals"]{width:84px!important;min-width:84px!important;max-width:84px!important;flex-basis:84px!important}body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="notifications"]{width:98px!important;min-width:98px!important;max-width:98px!important;flex-basis:98px!important}body:not(.login-body) .main-wrap>.topbar .topbar-right .top-pill[data-pill="team-chat"]{width:102px!important;min-width:102px!important;max-width:102px!important;flex-basis:102px!important}body:not(.login-body) .main-wrap>.topbar .user-chip-menu{width:150px!important;min-width:150px!important;max-width:150px!important;flex-basis:150px!important}body:not(.login-body) .main-wrap>.topbar .user-name,body:not(.login-body) .main-wrap>.topbar .user-role,body:not(.login-body) .main-wrap>.topbar .user-code{max-width:98px!important}}
-@media(max-width:1180px){body:not(.login-body) .main-wrap>.topbar{height:auto!important;max-height:none!important;flex-wrap:wrap!important}body:not(.login-body) .main-wrap>.topbar .topbar-left{flex-basis:auto!important;min-width:0!important}body:not(.login-body) .main-wrap>.topbar .topbar-center{flex:1 1 260px!important;max-width:360px!important;width:auto!important}body:not(.login-body) .main-wrap>.topbar .search-box{width:100%!important;max-width:360px!important}body:not(.login-body) .main-wrap>.topbar .topbar-right{flex-basis:100%!important;flex-wrap:wrap!important;justify-content:flex-start!important}}`}</style>
-        {chatToast&&<aside className="cc936-chat-toast" key={chatToast.key} role="status" aria-label="New Team Chat message"><button type="button" className="cc936-chat-open" onClick={()=>{navigate(chatToast.href);setChatToast(null);}}><span className="cc936-chat-avatar" aria-hidden="true">{chatToast.name.split(/\s+/).slice(0,2).map(v=>v[0]).join('')}</span><span className="cc936-chat-copy"><span className="cc936-chat-kicker">{chatToast.thread}<time>Now</time></span><strong>{chatToast.name}</strong><span className="cc936-chat-body">{chatToast.body}</span></span></button><button type="button" className="cc936-chat-close" aria-label="Dismiss chat notification" onClick={()=>setChatToast(null)}>×</button><span className="cc936-chat-progress" aria-hidden="true"/></aside>}
-        <style>{String.raw`
-/* CC145: classic CC923 notice only. Keeps other popups, reminders and Popup Studio unchanged. */
-html#cc787-workspace body .mini-toast.cc145-cc923-classic-notice,
-html body .mini-toast.cc145-cc923-classic-notice {
-  display:flex!important;align-items:flex-start!important;gap:9px!important;
-  position:fixed!important;left:auto!important;right:12px!important;bottom:auto!important;
-  width:min(430px,calc(100vw - 24px))!important;min-width:0!important;
-  box-sizing:border-box!important;border-radius:19px!important;padding:12px!important;
-  text-align:left!important;color:#243148!important;
-  background:linear-gradient(120deg,#fff9e8,#fff 50%,#efeaff)!important;
-  border:1px solid #cfc1ed!important;
-  box-shadow:0 14px 40px #3e28542d!important;
-  transform:none;isolation:isolate;
-  animation:cc145-cc923-in .28s ease-out both!important;
-  z-index:100950!important;
+// Shared table tools stay next to the table, below the dashboard cards.
+const FILTER_BLOCKS=new Set(['cc88-filter-panel','interview-quick-filter-strip','interview-sort-strip','bucket-quick-filter-row','bucket-inline-filter-grid','cc918-filters','notification-filter-strip','goal-filter-panel','cc826-activity-filters','cc434-filter','candidate-recruiter-shell','cc873-sort']);
+const textOf=value=>Children.toArray(value).map(child=>typeof child==='string'||typeof child==='number'?String(child):isValidElement(child)&&!['option','select','svg','style'].includes(child.type)?textOf(child.props.children):'').join(' ').replace(/\s+/g,' ').trim();
+function inspect(node,result,label=''){
+ Children.forEach(node,child=>{
+  if(!isValidElement(child))return;const p=child.props||{},caption=textOf(p.children),name=p.label||p['aria-label']||(child.type==='label'?caption:label)||p.name||'Filter';
+  if(child.type==='button'&&/^(?:reset\s*(?:all|filters)?|clear filters)$/i.test(caption)&&p.onClick)result.reset.add(p.onClick);
+  if(child.type==='button'&&/^more filters\b/i.test(caption)&&p.onClick)result.more.add(p.onClick);
+  if(p.value!==undefined&&p.onChange&&!p.disabled&&!p.readOnly&&!/find a filter|search (?:filter|options)|sort|date type|date based/i.test(name)){
+   const value=Array.isArray(p.value)?p.value.join(', '):String(p.value??'');
+   if(value&&!['all','any','default','interview_date'].includes(value.toLowerCase()))result.values.set(name+'|'+value,{label:name,value});
+  }
+  inspect(p.children,result,name);
+ });
 }
-html body .mini-toast.cc145-cc923-classic-notice::before{
-  content:'';position:absolute;pointer-events:none;right:-15px;top:-28px;
-  width:100px;height:100px;border-radius:50%;z-index:-1;
-  background:linear-gradient(120deg,#ffa94e66,#9d6be866);
-  animation:cc145-cc923-shine 3.8s ease-in-out infinite;
+function originalRef(ref,node){if(typeof ref==='function')ref(node);else if(ref&&typeof ref==='object')ref.current=node;}
+function containsFilterDialog(nodes){return Children.toArray(nodes).some(node=>isValidElement(node)&&(/filter.*modal|modal.*filter|filter.*drawer/i.test(String(node.props.className||''))||/filter/i.test(node.props['aria-label']||'')||containsFilterDialog(node.props.children)));}
+const tableHash=value=>{let hash=2166136261;for(const c of value)hash=Math.imul(hash^c.charCodeAt(0),16777619);return (hash>>>0).toString(16);};
+const SharedTablesContext=React.createContext(null);
+// The Vite JSX transform routes native tables here, including tables inside child components.
+// React still owns every cell; changing order never moves DOM nodes behind React's back.
+export function ManagedWorkspaceTable(props){const shared=React.useContext(SharedTablesContext);const node=React.createElement('table',props);return shared?<SharedTable node={node} {...shared}/>:node;}
+function SharedTable({node,layouts,onSave,manager,query='',ordinal=0}){
+ const head=Children.toArray(node.props.children).find(n=>isValidElement(n)&&n.type==='thead');
+ const headings=Children.toArray(head?.props?.children).filter(n=>isValidElement(n)&&n.type==='tr').at(-1);
+ const cells=Children.toArray(headings?.props?.children),seen=new Map(),labels=cells.map((cell,i)=>{let name=(textOf(cell.props?.children)||('Column '+i)).toLowerCase();if(/^(?:client \/ process|process)$/.test(name))name='process';const n=seen.get(name)||0;seen.set(name,n+1);return name+(n?'#'+n:'');});
+ const tableKey='t-'+tableHash(location.pathname+'|'+(node.props.id||node.props['data-table-key']||String(node.props.className||'').split(/\s+/).filter(Boolean).slice(0,2).join(' ')||'table-'+ordinal));
+ const stored=layouts[tableKey],order=[...(stored?.columns||[]).filter(k=>labels.includes(k)),...labels.filter(k=>!(stored?.columns||[]).includes(k))];
+ const indices=order.map(k=>labels.indexOf(k)),[drag,setDrag]=useState(''),[saving,setSaving]=useState(false);
+ const move=async(from,to)=>{if(saving||!manager||from===to||!order.includes(from)||!order.includes(to))return;const columns=order.filter(k=>k!==from);columns.splice(columns.indexOf(to),0,from);setSaving(true);try{await onSave(tableKey,columns,stored?.revision||0);}finally{setSaving(false);setDrag('');}};
+ function transform(nodes){return Children.map(nodes,child=>{
+  if(!isValidElement(child))return child;
+  if(child.type==='tr'){
+   const row=Children.toArray(child.props.children),plain=row.length===labels.length&&row.every(c=>isValidElement(c)&&Number(c.props.colSpan||1)===1&&Number(c.props.rowSpan||1)===1);
+   if(query&&row.some(c=>c.type==='td')&&!textOf(child.props.children).toLocaleLowerCase().includes(query.toLocaleLowerCase()))return null;
+   if(!plain)return child;
+   return cloneElement(child,undefined,indices.map(index=>{const cell=row[index],id=labels[index];return cell.type==='th'?cloneElement(cell,{key:id,'data-column-key':id,draggable:manager&&!saving,tabIndex:manager?0:cell.props.tabIndex,title:manager?'Drag to arrange columns for everyone. Alt + Left/Right also moves this column.':cell.props.title,onDragStart:e=>{e.stopPropagation();e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/cc929-column',id);setDrag(id);},onDragOver:e=>{if(manager&&drag){e.preventDefault();e.dataTransfer.dropEffect='move';}},onDrop:e=>{e.preventDefault();e.stopPropagation();move(e.dataTransfer.getData('text/cc929-column')||drag,id);},onDragEnd:()=>setDrag(''),onKeyDown:e=>{if(manager&&e.altKey&&['ArrowLeft','ArrowRight'].includes(e.key)){e.preventDefault();const target=order[order.indexOf(id)+(e.key==='ArrowLeft'?-1:1)];if(target)move(id,target);}else cell.props.onKeyDown?.(e);}}):cloneElement(cell,{key:id});}));
+  }
+  if(child.type==='colgroup'){const cols=Children.toArray(child.props.children);return cols.length===indices.length?cloneElement(child,undefined,indices.map(i=>cols[i])):child;}
+  return child.props.children===undefined?child:cloneElement(child,undefined,transform(child.props.children));
+ });}
+ return cloneElement(node,{'data-cc929-table':tableKey,'aria-busy':saving||undefined},transform(node.props.children));
 }
-html body .mini-toast.cc145-cc923-classic-notice .cc835-notice-open{
-  background:transparent!important;border:0!important;padding:2px 0!important;
-  box-shadow:none!important;color:#243148!important;text-align:left!important;
-  flex:1!important;min-width:0!important;cursor:pointer!important;
-  position:relative!important;font:inherit!important;
+export default function CompactFilters({children}){
+ const {user}=useAuth(),route=useLocation(),[open,setOpen]=useState(false),[searchOpen,setSearchOpen]=useState(false),[query,setQuery]=useState(''),[bound,setBound]=useState(false),[layouts,setLayouts]=useState({}),[layoutNotice,setLayoutNotice]=useState('');
+ const searchTimer=useRef(),uid=useId(),blocks=[],openers=[],summary={values:new Map(),declared:0,reset:new Set(),more:new Set()};let advancedVisible=false,tableOrdinal=0;
+ useEffect(()=>{const read=()=>{const b=window.__CC929_SLICE_SEARCH__;setBound(b?.path===route.pathname);if(b?.path===route.pathname)setQuery(b.query||'');};read();window.addEventListener('cc929-slice-search-ready',read);return()=>window.removeEventListener('cc929-slice-search-ready',read);},[route.pathname]);
+ useEffect(()=>{if(!user?.user_id)return;let live=true;const load=(force=false)=>api.get('/api/ui/table-layouts',{cacheTtlMs:force?0:300000,allowStale:false,retries:0}).then(r=>{if(live)setLayouts(previous=>{const next={...previous};for(const [key,value] of Object.entries(r.layouts||{}))if(Number(value.revision||0)>=Number(next[key]?.revision||0))next[key]=value;return next;});}).catch(()=>{});load();const changed=e=>{if((e.detail?.source||e.detail?.path)==='/ui/table-layouts')load(true);};window.addEventListener('career-crox-workspace-change',changed);return()=>{live=false;window.removeEventListener('career-crox-workspace-change',changed);};},[user?.user_id]);
+ useEffect(()=>()=>clearTimeout(searchTimer.current),[]);
+ function search(value){setQuery(value);clearTimeout(searchTimer.current);const b=window.__CC929_SLICE_SEARCH__;if(b?.path===route.pathname){if(!value)b.set(value);else searchTimer.current=setTimeout(()=>b.set(value),180);}}
+ async function saveColumns(key,columns,revision){try{const r=await api.post('/api/ui/table-layouts',{key,columns,expected_revision:revision},{retries:0});if(!r.ok||!r.item)throw Error('Column order was not confirmed.');setLayouts(p=>({...p,[key]:r.item}));setLayoutNotice('Column order saved for everyone');window.dispatchEvent(new CustomEvent('career-crox-workspace-change',{detail:{source:'/ui/table-layouts',key}}));}catch(e){setLayoutNotice('Column order was not saved: '+e.message);reportWriteFailure(e,{force:true,path:'/api/ui/table-layouts'});}}
+ function conceal(node,key){const id=node.props.id||uid+'-block-'+blocks.length;blocks.push(id);inspect(node,summary);if(typeof node.type!=='string')return <div key={key} id={id} data-cc926-filter-block="" hidden={!open} style={{display:open?'contents':'none'}}>{node}</div>;const ref=node.ref,display=node.props.style?.display;return cloneElement(node,{id,'data-cc926-filter-block':'',hidden:!open,ref:el=>{originalRef(ref,el);if(el){if(!open)el.style.setProperty('display','none','important');else if(display)el.style.setProperty('display',display);else el.style.removeProperty('display');}}});}
+ function walk(nodes,path='root'){return Children.map(nodes,(node,index)=>{
+  if(node?.$$typeof===Symbol.for('react.portal'))return createPortal(walk(node.children,path+'.portal'),node.containerInfo,node.key);
+  if(!isValidElement(node))return node;const p=node.props||{},type=node.type,classes=String(p.className||'').split(/\s+/),key=path+'.'+index;
+  if(p.role==='dialog'||p['aria-modal']||classes.some(c=>/modal|backdrop|overlay/.test(c))){if(classes.some(c=>/filter/.test(c))||/filter/i.test(p['aria-label']||'')||containsFilterDialog(p.children)){advancedVisible=true;inspect(node,summary);}return node;}
+  if(type==='table')return <SharedTable key={node.key||key} node={node} ordinal={tableOrdinal++} layouts={layouts} onSave={saveColumns} manager={['manager','admin'].includes(String(user?.role).toLowerCase())} query={bound?'':query}/>;
+  if(p['data-cc926-keep']||['thead','tbody','tr','form'].includes(type))return node;
+  if(type===CrmSortSelect||classes.some(c=>FILTER_BLOCKS.has(c)))return conceal(node,key);
+  const caption=type==='button'?textOf(p.children):'';
+  if(type==='button'&&/^(?:filters?|reset\s*(?:all|filters)?|clear filters)$/i.test(caption)){if(/^filters?$/i.test(caption)&&p.onClick)openers.push(p.onClick);return conceal(/^filters?$/i.test(caption)?cloneElement(node,{children:'Advanced filters'}):node,key);}
+  if(classes.includes('filters')&&/^\d+\s+filters$/i.test(textOf(p.children))){summary.declared=Math.max(summary.declared,parseInt(textOf(p.children),10)||0);return null;}
+  return p.children===undefined?node:cloneElement(node,undefined,walk(p.children,key));
+ });}
+ let content=walk(children);if(query)summary.values.set('slice-query',{label:'Search',value:query});const active=Math.max(summary.values.size,summary.declared),expanded=open||advancedVisible;
+ const chips=<div className="cc929-active-filters" role="status" aria-label="Applied filters">{summary.values.size?[...summary.values.values()].map((f,i)=><span key={i}><b>{f.label}</b>: {f.value}</span>):<span>{active?active+' filters applied - current selections are shown below':'No additional filters applied'}</span>}</div>;
+ function toggle(event){if(open){setOpen(false);return;}if(openers.length){openers[0](event);return;}for(const more of summary.more)more(event);setOpen(true);}
+ const tools=<div className="cc926-filter-tools" role="group" aria-label="Page filters and search"><button type="button" className={'cc926-filter-toggle cc929-search-toggle'+(searchOpen?' is-open':'')} aria-label="Search this slice" aria-expanded={searchOpen} onClick={()=>setSearchOpen(v=>!v)}><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.8"/><path d="m15 15 5 5" stroke="currentColor" strokeWidth="1.8"/></svg></button>{searchOpen?<label className="cc929-slice-search"><input autoFocus aria-label="Search in this slice" placeholder={bound?'Name, phone or profile ID…':'Search shown records…'} value={query} onChange={e=>search(e.target.value)}/>{query&&<button type="button" aria-label="Clear slice search" onClick={()=>search('')}>×</button>}</label>:null}{blocks.length>0?<><button type="button" className={'cc926-filter-toggle '+(expanded?'is-open ':'')+(active?'has-active':'')} aria-label={expanded?'Hide page filters':'Show page filters'} aria-expanded={expanded} aria-controls={openers.length?undefined:blocks.join(' ')} onClick={toggle}><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 5h16l-6.5 7.5V19l-3-1.5v-5z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"/></svg>{active>0&&<b className="cc929-filter-count">{active}</b>}</button><span className="cc926-filter-summary">{active?active+' active':'Filters'}</span>{active>0&&summary.reset.size>0?<button type="button" className="cc926-clear" onClick={e=>{for(const reset of summary.reset)reset(e);search('');}}>Clear</button>:null}</>:null}{layoutNotice?<small role="status">{layoutNotice}</small>:null}{expanded&&!advancedVisible?chips:null}</div>;
+ let inserted=false;const hasMarker=nodes=>Children.toArray(nodes).some(n=>isValidElement(n)&&(n.props['data-cc929-tools']||hasMarker(n.props.children)));const marked=hasMarker(content);
+ function inject(nodes){return Children.map(nodes,n=>{if(n?.$$typeof===Symbol.for('react.portal'))return createPortal(inject(n.children),n.containerInfo,n.key);if(!isValidElement(n))return n;const p=n.props||{},classes=String(p.className||'');if(!inserted&&(marked?p['data-cc929-tools']:/table-toolbar|cc814-stage-pills|cc814-toolbar/.test(classes))){inserted=true;return cloneElement(n,undefined,p.children,tools);}if(n.type===SharedTable||n.type===ManagedWorkspaceTable){if(inserted)return n;inserted=true;return <Fragment key={n.key}>{tools}{n}</Fragment>;}/* Advanced dialogs own their header, summary and grid rows. */return p.children===undefined?n:cloneElement(n,undefined,inject(p.children));});}
+ content=inject(content);return <SharedTablesContext.Provider value={{layouts,onSave:saveColumns,manager:['manager','admin'].includes(String(user?.role).toLowerCase()),query:bound?'':query}}><style>{styles}</style>{content}{!inserted&&(blocks.length||bound)?tools:null}</SharedTablesContext.Provider>;
 }
-html body .mini-toast.cc145-cc923-classic-notice .mini-toast-title{
-  color:#30224a!important;-webkit-text-fill-color:#30224a!important;
-  font-size:14px!important;line-height:1.4!important;font-weight:700!important;
-  margin-bottom:4px!important;
+const styles=`
+html#cc787-workspace body .cc926-filter-tools{display:flex!important;align-items:center;justify-content:flex-end;gap:7px;min-height:34px;margin-left:auto;padding:2px;color:#58677d;font:400 11px/1.4 "Segoe UI",Arial,sans-serif;flex-wrap:wrap}
+html#cc787-workspace body .cc926-filter-tools .cc926-filter-toggle{position:relative;display:inline-flex!important;align-items:center;justify-content:center;width:32px!important;height:32px!important;min-width:32px!important;min-height:32px!important;padding:6px!important;border:1px solid #c9d5eb!important;border-radius:10px!important;background:linear-gradient(135deg,#f9fcff,#e7eefe)!important;color:#435bb2!important;box-shadow:0 2px 7px #6272a316!important;cursor:pointer;flex:none}
+html#cc787-workspace body .cc926-filter-toggle.has-active{background:linear-gradient(135deg,#ffe8d9,#f8d3e5)!important;border-color:#d66d98!important;animation:cc929-filter-bounce 2.7s ease-in-out infinite}
+html#cc787-workspace body .cc926-filter-toggle:is(:hover,:focus-visible,.is-open){animation:none;outline-offset:2px}
+.cc929-filter-count{position:absolute;right:-4px;top:-6px;background:#ac2851;color:white;border-radius:10px;min-width:15px;padding:1px 3px;font-size:9px}
+.cc929-active-filters{display:flex;gap:6px;flex-wrap:wrap;flex-basis:100%;padding:8px 2px}.cc929-active-filters>span{font:400 12px/1.5 "Segoe UI",sans-serif!important;background:#e8f4eb!important;color:#245a45!important;border:1px solid #b5d6c4;border-radius:9px;padding:5px 9px;max-width:100%;overflow-wrap:anywhere}.cc929-active-filters b{font-weight:600}
+.cc929-slice-search{display:flex!important;align-items:center;gap:3px;background:white;border:1px solid #b7c9df;border-radius:10px;padding:3px 7px!important;margin:0!important}.cc929-slice-search input{width:210px!important;max-width:35vw;border:0!important;background:white!important;font:400 13px "Segoe UI",sans-serif!important;padding:5px!important}.cc929-slice-search button{border:0;background:white;color:#914258;padding:3px}
+html#cc787-workspace body .cc926-filter-summary{font:400 11px/1.4 "Segoe UI",Arial,sans-serif!important;white-space:nowrap;color:#58677d!important}.cc926-clear{padding:4px 8px!important;border-radius:8px!important;background:white!important;border:1px solid #d9e1ef!important;font-size:11px!important}
+[data-cc926-filter-block][hidden]{display:none!important}th[draggable=true]{cursor:grab!important}th[draggable=true]:active{cursor:grabbing!important}table[aria-busy=true]{opacity:.7}
+@keyframes cc929-filter-bounce{0%,65%,100%{transform:translateY(0) rotate(0)}72%{transform:translateY(-3px) rotate(-7deg)}80%{transform:translateY(0) rotate(7deg)}88%{transform:translateY(-1px) rotate(0)}}
+@media(prefers-reduced-motion:reduce){.cc926-filter-toggle{animation:none!important}}
+`;
+
+
+export function LostProfilesCard(){
+ const scope=useDashboardScope();
+ const {user}=useAuth(),route=useLocation(),manager=['manager','admin'].includes(String(user?.role).toLowerCase());
+ const [open,setOpen]=useState(()=>new URLSearchParams(location.search).get('lost')==='1'),[data,setData]=useState({items:[],total:0,counts:{}}),[query,setQuery]=useState(''),[group,setGroup]=useState('all'),[page,setPage]=useState(1),[busy,setBusy]=useState(false),[asking,setAsking]=useState(''),[message,setMessage]=useState(''),[reason,setReason]=useState({}),[history,setHistory]=useState({}),[expanded,setExpanded]=useState({});
+ const sequence=useRef(0),loadRef=useRef(null);
+ const date=value=>{if(!value)return 'Not set';let raw=String(value);if(/^\d{4}-\d\d-\d\d$/.test(raw))raw+='T00:00:00+05:30';else if(!/(Z|[+-]\d\d:?\d\d)$/.test(raw))raw=raw.replace(' ','T')+'+05:30';const d=new Date(raw);return Number.isFinite(d.getTime())?d.toLocaleString('en-IN',{timeZone:'Asia/Kolkata',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}):value;};
+ useEffect(()=>{if(new URLSearchParams(route.search).get('lost')==='1')setOpen(true);},[route.search]);
+ useEffect(()=>{window.dispatchEvent(new Event('cc922-reminder-pauses-changed'));return()=>window.dispatchEvent(new Event('cc922-reminder-pauses-changed'));},[open]);
+ async function load(){
+  const ticket=++sequence.current;setBusy(true);setMessage('');
+  try{const result=await api.get('/api/workspace/lost-profiles?'+new URLSearchParams({...(open?{}:{count_only:'1'}),q:query,group,page:String(page)}),{cacheTtlMs:0,allowStale:false,retries:1,background:true});if(ticket===sequence.current)setData(current=>({...result,items:open?result.items||[]:current.items||[]}));}
+  catch(e){if(ticket===sequence.current)setMessage(e.message||'Lost profiles could not load. Tap Refresh.');}finally{if(ticket===sequence.current)setBusy(false);}
+ }
+ loadRef.current=load;
+ useEffect(()=>{const timer=setTimeout(()=>load(),query?160:0);return()=>{clearTimeout(timer);sequence.current++;};},[open,query,page,group,user?.user_id,scope]);
+ useEffect(()=>{setData({items:[],total:0,counts:{}});setHistory({});setExpanded({});},[user?.user_id,scope]);
+ useEffect(()=>{
+  let timer;const refresh=()=>{clearTimeout(timer);timer=setTimeout(()=>loadRef.current?.(),80);},changed=event=>{if(/candidate|access|ownership|profile|interview/.test(event.detail?.source||event.detail?.path||''))refresh();};
+  window.addEventListener('career-crox-access-changed',refresh);window.addEventListener('career-crox-workspace-change',changed);window.addEventListener('career-crox-data-written',changed);window.addEventListener('focus',refresh);
+  return()=>{clearTimeout(timer);window.removeEventListener('career-crox-access-changed',refresh);window.removeEventListener('career-crox-workspace-change',changed);window.removeEventListener('career-crox-data-written',changed);window.removeEventListener('focus',refresh);};
+ },[user?.user_id]);
+ useEffect(()=>{const at=Date.parse(data.next_expiry_at);if(!Number.isFinite(at)||at<=Date.now())return;const timer=setTimeout(()=>loadRef.current?.(),Math.min(2147480000,at-Date.now()+100));return()=>clearTimeout(timer);},[data.next_expiry_at]);
+ async function ask(row){setAsking(row.candidate_id);setMessage('');try{const result=await api.post('/api/workspace/lost-profiles/'+encodeURIComponent(row.candidate_id)+'/request',{note:reason[row.candidate_id]||''},{retries:0,headers:{'X-CC-Dashboard-User':'global'}});if(!result.ok)throw Error('Access request was not confirmed.');await load();setMessage('Request sent. Your manager will review it in Approvals.');}catch(e){setMessage(e.message);}finally{setAsking('');}}
+ async function notes(row,more=false){const cid=row.candidate_id,prior=history[cid];if(!more)setExpanded(value=>({...value,[cid]:!value[cid]}));if(!more&&prior)return;try{const result=await api.get('/api/workspace/lost-profiles/'+encodeURIComponent(cid)+'/notes'+(more&&prior?.next_before?'?before='+encodeURIComponent(prior.next_before):''),{cacheTtlMs:0,retries:0,headers:{'X-CC-Dashboard-User':'global'}});setHistory(value=>({...value,[cid]:{items:more?[...(value[cid]?.items||[]),...(result.items||[])]:result.items||[],next_before:result.next_before}}));}catch(e){setMessage(e.message);}}
+ const names=[['all','All profiles'],['upcoming','Upcoming interview'],['missed','Missed interview'],['no_date','No interview date'],['completed','Updated / completed']];
+ return <><button type="button" className="stat-card bucket-click-card purple cc929-lost-card" data-cc926-keep="true" onClick={()=>{setOpen(true);setPage(1);}} style={{background:'linear-gradient(135deg,#eee6ff,#e9f0ff)',border:'1px solid #cfc2e5',borderRadius:14,padding:12,textAlign:'left',color:'#503969'}}><strong style={{display:'block',fontSize:25}}>{data.counts?.all??data.total??0}</strong><span>Lost Profiles</span><small style={{display:'block',fontSize:12}}>Dates · notes · access requests</small></button>{open?createPortal(<div id="cc929-lost" className="crm-modal-backdrop" data-cc926-keep="true"><section role="dialog" aria-modal="true" aria-labelledby="cc929-lost-title"><header><div><h2 id="cc929-lost-title">Lost Profiles</h2><p>Interview dates, submission dates and notes stay available here.</p></div><button type="button" aria-label="Close Lost Profiles" onClick={()=>setOpen(false)}>×</button></header><nav className="cc123-lost-slices" aria-label="Lost profile categories">{names.map(([key,label])=><button type="button" key={key} aria-pressed={group===key} onClick={()=>{setGroup(key);setPage(1);}}><strong>{data.counts?.[key]||0}</strong><span>{label}</span></button>)}</nav><div className="cc929-lost-tools"><input aria-label="Search lost profiles" placeholder="Name or candidate ID…" value={query} onChange={e=>{setQuery(e.target.value);setPage(1);}}/><button type="button" disabled={busy} onClick={load}>{busy?'Updating…':'↻ Refresh'}</button>{manager?<a href="/approvals">Access requests → Approvals</a>:null}<small>Latest interview date first</small></div>{message?<p role="status" className="cc123-lost-message">{message}</p>:null}<div className="cc129-table-wrap"><table className="cc129-profile-table cc129-lost-table"><thead><tr><th>#</th><th>Candidate / status</th><th>Location / process</th><th>Interview · IST</th><th>Submission / lost on · IST</th><th>Phone</th><th>Latest note</th><th>Action</th></tr></thead><tbody>{(data.items||[]).map((row,index)=><React.Fragment key={row.loss_id}><tr data-locked={row.locked}><td>{(page-1)*30+index+1}</td><td><strong>{row.full_name||row.candidate_id}</strong><small>{row.candidate_id} · {row.status||'Not set'}</small><span className={'cc129-stage '+row.interview_group}>{row.interview_group==='missed'?'Missed':row.interview_group==='upcoming'?'Upcoming':'History'}</span></td><td>{row.location||'—'}<small>{row.process||'—'}</small></td><td>{date(row.interview_date)}</td><td>{date(row.submission_date)}<small>Lost: {date(row.lost_at)}</small></td><td>{manager?row.phone||'Not set':'Hidden until approved'}</td><td className="cc129-note-cell"><p>{row.last_note||'No saved note.'}</p>{row.loss_note&&row.loss_note!==row.last_note?<details><summary>Note at loss</summary><p>{row.loss_note}</p></details>:null}<button type="button" onClick={()=>notes(row)}>{expanded[row.candidate_id]?'Hide history':'Notes history'}</button></td><td>{row.locked?row.request_status==='Pending'?<span className="cc929-pending">Pending in Approvals</span>:<div className="cc123-lost-request"><textarea aria-label={'Reason for '+row.candidate_id} placeholder="Reason for access…" rows="2" maxLength={1000} value={reason[row.candidate_id]||''} onChange={e=>setReason(value=>({...value,[row.candidate_id]:e.target.value}))}/><button type="button" disabled={!!asking||!(reason[row.candidate_id]||'').trim()} onClick={()=>ask(row)}>{asking===row.candidate_id?'Sending…':'Request access'}</button></div>:<a href={'/candidate/'+encodeURIComponent(row.candidate_id)} target="_blank" rel="noopener noreferrer">Open profile ↗</a>}</td></tr>{expanded[row.candidate_id]?<tr><td colSpan="8"><div className="cc123-lost-history">{(history[row.candidate_id]?.items||row.notes||[]).map(note=><div key={note.id}><small>{note.username} · {date(note.created_at)}</small><p>{note.body}</p></div>)}{history[row.candidate_id]?.next_before?<button type="button" onClick={()=>notes(row,true)}>More notes</button>:null}</div></td></tr>:null}</React.Fragment>)}{!data.items?.length?<tr><td colSpan="8">{busy?'Loading lost profiles…':'No profiles in this category.'}</td></tr>:null}</tbody></table></div><footer><button type="button" disabled={page<=1||busy} onClick={()=>setPage(value=>value-1)}>Previous</button><span>{data.total||0} matching · Page {page}</span><button type="button" disabled={!data.has_more||busy} onClick={()=>setPage(value=>value+1)}>Next</button></footer></section><style>{lostStyles}</style></div>,document.body):null}</>;
 }
-html body .mini-toast.cc145-cc923-classic-notice .mini-toast-body{
-  color:#42506a!important;-webkit-text-fill-color:#42506a!important;
-  font-size:12px!important;line-height:1.45!important;white-space:normal!important;
-  overflow-wrap:anywhere!important;
+const lostStyles='body:has(#cc929-lost) :is(.cc730-direct-reminder-deck,.cc803-review-popup,.task-reminder-wrap,.cc808-task-toast){visibility:hidden!important;pointer-events:none!important}#cc929-lost{z-index:100180!important;background:#20304455!important;padding:16px!important;display:grid!important;place-items:center!important}#cc929-lost>section{box-sizing:border-box;width:min(1500px,97vw);max-height:92dvh;overflow:auto;background:#f8faff;color:#283d58;border:1px solid #cdd9ea;border-radius:18px;padding:18px;font:14px/1.5 "Segoe UI",sans-serif}#cc929-lost header,#cc929-lost footer,.cc929-lost-tools{display:flex;align-items:center;gap:10px;justify-content:space-between}#cc929-lost h2{font-size:22px;margin:0}#cc929-lost p{margin:5px 0 10px;overflow-wrap:anywhere}#cc929-lost button,#cc929-lost a{padding:7px 10px;border-radius:8px;border:1px solid #c6d2e5;background:#f0f4ff;color:#3e5785;font:13px/1.4 "Segoe UI",sans-serif;cursor:pointer}#cc929-lost button:disabled{opacity:.5}#cc929-lost input,#cc929-lost textarea{box-sizing:border-box;max-width:100%;background:white;color:#29415e;border:1px solid #c1cee2;padding:8px 30px 8px 9px;border-radius:8px;font:13px/1.5 "Segoe UI",sans-serif}.cc123-lost-slices{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.cc123-lost-slices button{flex:1;min-width:120px;text-align:left!important;background:#fff!important}.cc123-lost-slices button[aria-pressed=true]{border-color:#7b8cd0!important;background:#edf0ff!important}.cc123-lost-slices strong{font-size:21px;display:block}.cc123-lost-slices span{font-size:12px}.cc929-lost-tools{flex-wrap:wrap}.cc929-lost-tools input{flex:1;min-width:180px}.cc929-lost-tools small{color:#61748e}.cc929-lost-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(310px,1fr));gap:12px;margin:14px 0}.cc929-lost-grid>article{background:#fff;border:1px solid #d7e0ed;border-radius:13px;padding:13px}.cc123-lost-name{display:flex;align-items:center;gap:8px}.cc123-lost-name>span{background:#edf0fa;border-radius:7px;padding:3px 6px;font-size:12px}.cc123-lost-name>div{flex:1;min-width:0}.cc123-lost-name strong{font-size:16px;display:block}.cc123-lost-name small{font-size:12px;color:#65768d}.cc123-lost-name>b{font-size:11px;background:#e7f3ef;color:#347258;padding:3px 7px;border-radius:6px}.cc123-lost-missed .cc123-lost-name>b{background:#fff0e9;color:#a35636}.cc929-lost-grid dl{margin:9px 0}.cc929-lost-grid dl>div{display:flex;gap:7px;margin:4px 0}.cc929-lost-grid dt{font-size:12px;color:#6c7f96;width:80px;flex:none}.cc929-lost-grid dd{font-size:13px;color:#344e6b;margin:0}.cc123-lost-note{background:#f5f2fc;border:1px solid #e4def1;border-radius:9px;padding:9px;margin:10px 0}.cc123-lost-note>b{font-size:12px;color:#74628d}.cc123-lost-note p{font-size:13px;white-space:pre-wrap;max-height:100px;overflow:auto;margin:4px 0!important}.cc123-lost-request textarea{width:100%;margin:10px 0 6px}.cc929-pending{color:#8d692f;font-size:13px;padding-top:8px}.cc123-lost-history{margin-top:8px;max-height:270px;overflow:auto;border:1px solid #dce4f0;border-radius:8px;padding:8px}.cc123-lost-history>div{padding:7px 0;border-bottom:1px solid #e8edf6}.cc123-lost-history small{color:#6b7e96;font-size:11px}.cc123-lost-history p{white-space:pre-wrap;font-size:13px}.cc123-lost-open{display:block;margin-top:10px;text-align:center}.cc123-lost-message{padding:8px;background:#edf3ff;border-radius:8px}@media(max-width:700px){#cc929-lost{padding:6px!important}#cc929-lost>section{padding:12px}.cc929-lost-grid{grid-template-columns:1fr}.cc123-lost-slices button{min-width:100px}}';
+
+// popupStudio - consolidated to retain the 100-file frontend upload limit.
+
+export const POPUP_FONTS={system:'"Segoe UI",Arial,sans-serif',inter:'Inter,"Segoe UI",sans-serif',jakarta:'"Plus Jakarta Sans","Segoe UI",sans-serif',rounded:'"Trebuchet MS","Segoe UI",sans-serif',editorial:'Georgia,"Times New Roman",serif',mono:'Consolas,"Cascadia Code",monospace'};
+export const POPUP_TYPES=[['notification','Notifications'],['submission','Submission reminders'],['task','Task reminders'],['reminder','Other reminders']];
+const defaults={notification:{x:.66,y:.14,w:.32,h:.24,bg:'#ffffff',ink:'#1f3550',accent:'#6276d8',seconds:10},submission:{x:.02,y:.60,w:.30,h:.36,bg:'#f0f7ff',ink:'#173b57',accent:'#4b87d8',seconds:0},task:{x:.66,y:.52,w:.32,h:.44,bg:'#effcf5',ink:'#183e35',accent:'#168860',seconds:0},reminder:{x:.66,y:.24,w:.32,h:.40,bg:'#fff8eb',ink:'#4d3b22',accent:'#ce8c30',seconds:0}};
+const clamp=(n,min,max,fallback)=>Math.max(min,Math.min(max,Number.isFinite(Number(n))?Number(n):fallback));
+export const popupKind=value=>['notification','submission','task'].includes(value)?value:/submission|approval/.test(String(value))?'submission':/task/.test(String(value))?'task':'reminder';
+export function defaultPopupProfile(kind){return {...defaults[popupKind(kind)],enabled:false,styleEnabled:false,font:'system',fontSize:14,radius:18};}
+export function sanitizePopupProfile(value={},kind='notification'){
+ const fallback=defaultPopupProfile(kind),next={...fallback,...value};
+ for(const key of ['x','y'])next[key]=clamp(next[key],0,.98,fallback[key]);
+ for(const key of ['w','h'])next[key]=clamp(next[key],.10,.98,fallback[key]);
+ for(const key of ['bg','ink','accent'])next[key]=/^#[a-f0-9]{6}$/i.test(next[key])?next[key]:fallback[key];
+ next.font=Object.hasOwn(POPUP_FONTS,next.font)?next.font:'system';next.fontSize=clamp(next.fontSize,12,26,14);
+ next.radius=clamp(next.radius,0,32,18);next.seconds=clamp(next.seconds,0,600,fallback.seconds);next.enabled=next.enabled===true;next.styleEnabled=next.styleEnabled===true;
+ return Object.fromEntries(Object.keys(fallback).map(key=>[key,next[key]]));
 }
-html body .mini-toast.cc145-cc923-classic-notice .cc835-notice-close{
-  flex:0 0 30px!important;width:30px!important;height:30px!important;min-height:0!important;
-  border-radius:10px!important;border:1px solid #d8c9eb!important;
-  background:#fff!important;color:#4b335e!important;-webkit-text-fill-color:#4b335e!important;
-  font-size:23px!important;line-height:1!important;cursor:pointer!important;
-  padding:0!important;box-shadow:none!important;position:relative!important;
+const settingsKey=()=>`cc927:popup-studio:${accountPrincipal().split('|')[0]}`;
+export function readPopupStudio(){let raw={};try{raw=JSON.parse(localStorage.getItem(settingsKey())||'{}');}catch{}return Object.fromEntries(POPUP_TYPES.map(([kind])=>[kind,sanitizePopupProfile(raw[kind],kind)]));}
+export function writePopupStudio(kind,profile){
+ const next={...readPopupStudio(),[kind]:sanitizePopupProfile(profile,kind)},encoded=JSON.stringify(next);
+ try{localStorage.setItem(settingsKey(),encoded);if(localStorage.getItem(settingsKey())!==encoded)throw Error();}
+ catch{throw Object.assign(new Error('Popup settings could not be saved in this browser.'),{code:'LOCAL_SETTINGS_NOT_SAVED',payload:{committed:false}});}
+ window.dispatchEvent(new Event('cc927-popup-settings-changed'));return next;
 }
-html body .mini-toast.cc145-cc923-classic-notice .cc898-reminder-context{
-  background:rgba(255,255,255,.80)!important;border:1px solid #d6d6eb!important;
-  border-radius:10px!important;padding:8px 9px!important;
-  font-size:11px!important;line-height:1.55!important;
-  overflow-wrap:anywhere!important;
+// CC144: Keep the original CC923 notification popup independent of Popup Studio.
+export const isPopupStudioEnabled=kind=>popupKind(kind)==='notification'?false:readPopupStudio()[popupKind(kind)]?.enabled===true;
+export function popupBounds(profile,width=innerWidth,height=innerHeight){
+ const p=sanitizePopupProfile(profile),margin=8,availableW=Math.max(1,width-margin*2),availableH=Math.max(1,height-margin*2);
+ const w=Math.min(availableW,Math.max(Math.min(240,availableW),p.w*width)),h=Math.min(availableH,Math.max(Math.min(110,availableH),p.h*height));
+ return {left:Math.max(margin,Math.min(p.x*width,width-margin-w)),top:Math.max(margin,Math.min(p.y*height,height-margin-h)),width:w,height:h};
 }
-html body .mini-toast.cc145-cc923-classic-notice.cc835-notice-out{
-  animation:cc145-cc923-out .22s ease-in both!important;pointer-events:none!important;
-}
-@keyframes cc145-cc923-in{from{opacity:0;transform:translate3d(24px,-14px,0) scale(.96)}to{opacity:1;transform:translate3d(0,0,0) scale(1)}}
-@keyframes cc145-cc923-out{to{opacity:0;transform:translate3d(24px,-10px,0) scale(.97)}}
-@keyframes cc145-cc923-shine{0%,100%{opacity:.35;transform:scale(.8)}50%{opacity:.8;transform:scale(1.2)}}
-@media(max-width:600px){html body .mini-toast.cc145-cc923-classic-notice{right:10px!important;width:calc(100vw - 20px)!important;max-width:calc(100vw - 20px)!important}}
-@media(prefers-reduced-motion:reduce){html body .mini-toast.cc145-cc923-classic-notice,html body .mini-toast.cc145-cc923-classic-notice::before{animation:none!important}}
-`}</style>
-        {toast && <aside ref={node=>{if(node){node.style.setProperty('left','auto','important');node.style.setProperty('right','12px','important');const task=document.querySelector('.cc808-task-toast');const top=task?Math.max(112,task.getBoundingClientRect().bottom+12):112;for(const [key,value]of Object.entries({top:top+'px',bottom:'auto',zIndex:'100950',background:'linear-gradient(120deg,#fff9e8,#fff 50%,#efeaff)',border:'1px solid #cfc1ed',width:'430px',maxWidth:'calc(100vw - 24px)',maxHeight:'calc(100dvh - '+(top+16)+'px)',overflow:'auto'}))node.style.setProperty(key.replace(/[A-Z]/g,m=>'-'+m.toLowerCase()),value,'important');}}} data-reminder-kind={reminderKind(toast)} role="status" aria-live="polite" className={`mini-toast cc145-cc923-classic-notice ${toastClosing?'cc835-notice-out':''} toast-${String(toast.item?.category || toast.category || 'general').toLowerCase()}`}><button type="button" className="cc835-notice-open" onClick={() => { if (toast.href) { window.open(toast.href, '_blank', 'noopener,noreferrer'); dismissToast(); } else if (toast.item) { openNotification(toast.item); } else { dismissToast(); } }}><div className="mini-toast-title">{toast.title}</div>{toast.item?.category!=='candidate_update'&&<div className="mini-toast-body">{toast.message}</div>}<ProfileNoticeContext notification={toast.item}/></button><button type="button" className="cc835-notice-close" aria-label="Dismiss notification" title="Dismiss notification" onClick={dismissToast}>×</button></aside>}
-        {approvalPopup && <div ref={node=>{if(!node)return;const r=document.querySelector('[data-pill="approvals"]')?.getBoundingClientRect(),width=Math.min(340,innerWidth-24),top=Math.min(innerHeight-140,(r?.bottom||60)+9);for(const [key,value]of Object.entries({position:'fixed',left:Math.max(12,Math.min(innerWidth-width-12,(r?.left||innerWidth-width)-width/3))+'px',top:top+'px',right:'auto',bottom:'auto',width:width+'px',maxHeight:(innerHeight-top-12)+'px',zIndex:'100980'}))node.style.setProperty(key.replace(/[A-Z]/g,m=>'-'+m.toLowerCase()),value,'important');}} className="cc841-approval-center" style={{ position: 'fixed', right: 14, bottom: 14, width: 'min(390px, calc(100vw - 28px))', maxHeight: 'calc(100dvh - 28px)', zIndex: 60 }}>
-          <div data-reminder-kind="approval" className="panel approval-popup-panel cc604-approval-popup" role="dialog" aria-label="Approval request" style={{ maxWidth: 'min(390px, calc(100vw - 28px))' }}>
-            <div className="cc604-approval-eyebrow">ACTION REQUIRED</div><div className="panel-title">{approvalPopup.manager_review?'TL Self-unlock Review':approvalPopup.type === 'allocation' ? 'Allocation Approval' : approvalPopup.type === 'profile_access' ? 'Profile Access Approval' : approvalPopup.type === 'youtube' ? 'YouTube Access Approval' : approvalPopup.type === 'unlock' ? 'Employee Unlock Approval' : 'Pending Submission Approval'}</div>
-            <div className="helper-text">{approvalPopup.type === 'unlock' ? `${approvalPopup.title}${approvalPopup.process ? ` • ${approvalPopup.process}` : ''}` : `${approvalPopup.title} • ${approvalPopup.recruiter_name || '-'} • ${approvalPopup.process || '-'}`}</div>
-            <div className="helper-text top-gap-small">{approvalPopup.manager_review?'This TL resumed work. Approve the review or flag and suspend the session.':approvalPopup.type === 'unlock' ? 'Employee CRM is locked. Approve to restore access immediately.' : 'Approve here or jump to the Approval Center.'}</div>
-            <div className="row-actions top-gap">
-              {approvalPopup.type === 'candidate' && <button className="mini-btn view bounceable highlight-choice highlight-strong" type="button" onClick={openProfileNewTab}>Open Profile</button>}
-              {['manager','admin'].includes(normalizedRole)&&approvalPopup.type==='unlock'&&(approvalPopup.manager_review||String(approvalPopup.title||'').includes('self-unlocked'))&&<button type="button" className="cc837-danger-action" disabled={savingApproval} onClick={async()=>{const reason=window.prompt('Why are you flagging this self-unlock?');if(!reason?.trim())return;setSavingApproval(true);try{await api.post('/api/approvals/reject',{type:'unlock',id:approvalPopup.id,reason:reason.trim(),flag_session:true});setApprovalPopup(null);}catch(e){window.alert(e.message);}finally{setSavingApproval(false)}}}>Flag & suspend session</button>}
-              <button className="mini-btn call bounceable highlight-choice highlight-strong" type="button" disabled={savingApproval} onClick={approveFromPopup}>{approvalPopup.manager_review?'Approve Review':approvalPopup.type === 'youtube' ? 'Approve Access' : approvalPopup.type === 'unlock' ? 'Approve Unlock' : 'Approve'}</button>
-              <button className="mini-btn edit bounceable highlight-choice highlight-strong" type="button" disabled={savingApproval} onClick={rejectFromPopup}>Reject</button>
-              <button className="ghost-btn bounceable" type="button" onClick={openApprovalCenterFromPopup}>Open Center</button>
-            </div>
-            <div className="compact-chip-row compact-chip-wrap top-gap-small">
-              {APPROVAL_SNOOZE_OPTIONS.map((option) => (
-                <button key={`approval-${option.minutes}`} className="ghost-btn bounceable" type="button" onClick={() => snoozeApprovalPopup(option.minutes)}>
-                  {option.label}
-                </button>
-              ))}
-            </div>
-            <div className="task-modal-grid top-gap-small compact-reminder-modal-grid">
-              <div className="field field-span-2"><label>Set Exact Time</label><CrmDateTimeInput className="inline-input" type="datetime-local" value={approvalReminderForm.exact_time} onChange={(e) => setApprovalReminderForm({ exact_time: e.target.value })} /></div>
-            </div>
-            <div className="row-actions top-gap">
-              <button className="add-profile-btn bounceable" type="button" onClick={saveApprovalExactTime} disabled={!approvalReminderForm.exact_time}>Save Time</button>
-            </div>
-            <div className="field top-gap-small"><label>Reject Note (required for reject)</label><textarea rows="3" value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Reason is added to the profile audit trail."></textarea></div>
-          </div>
-        </div>}
-        {AUTO_SYSTEM_POPUPS_ENABLED && AUTO_SEMI_HOURLY_POPUPS_ENABLED && semiHourlyPopup && <div className="revenue-reminder-wrap" style={{ bottom: revenuePopup ? 232 : 24 }}>
-          <div data-reminder-kind="report" className="panel approval-popup-panel revenue-reminder-popup glassy-card popup-info popup-dock-right" role="button" tabIndex={0} title="Open 30-minute report in a new tab" onClick={openSemiHourlyReport} onKeyDown={(event) => { if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) { event.preventDefault(); openSemiHourlyReport(); } }}>
-            <div className="task-reminder-head">
-              <div>
-                <div className="panel-title">{semiHourlyPopup.title}</div>
-                <div className="helper-text">Performance Summary</div>
-              </div>
-            </div>
-            <div className="task-reminder-title">{semiHourlyPopup.message}</div>
-            {semiHourlyPopup.summary ? <div className="top-gap-small" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              <span className="mini-chip">Submissions: {semiHourlyPopup.summary.submissions || semiHourlyPopup.summary.submissions_30 || 0}</span>
-              <span className="mini-chip">Calls: {semiHourlyPopup.summary.dialed_calls || semiHourlyPopup.summary.calls_30 || 0}</span>
-              <span className="mini-chip">Breaks: {semiHourlyPopup.summary.break_count || semiHourlyPopup.summary.break_count_30 || 0}</span>
-              <span className="mini-chip">Break mins: {semiHourlyPopup.summary.break_minutes || semiHourlyPopup.summary.break_minutes_30 || 0}</span>
-              <span className="mini-chip">Idle mins: {semiHourlyPopup.summary.idle_minutes || semiHourlyPopup.summary.idle_minutes_30 || 0}</span>
-              <span className="mini-chip">Connected: {semiHourlyPopup.summary.connected_calls || 0}</span>
-            </div> : null}
-            <div className="helper-text top-gap-small"></div>
-            <div className="row-actions top-gap">
-              <button className="mini-btn view bounceable highlight-choice highlight-strong" type="button" onClick={(event) => { event.stopPropagation(); openSemiHourlyReport(); }}>Open Report</button>
-            </div>
-          </div>
-        </div>}
-        {AUTO_SYSTEM_POPUPS_ENABLED && revenuePopup && <div className="revenue-reminder-wrap">
-          <div data-reminder-kind={reminderKind(revenuePopup, 'revenue')} className="panel approval-popup-panel revenue-reminder-popup glassy-card popup-info popup-dock-left">
-            <div className="task-reminder-head">
-              <div>
-                <div className="panel-title">{revenuePopup.title || 'Pipeline follow-up due'}</div>
-                <div className="helper-text">{revenuePopup.full_name || '-'} • {revenuePopup.candidate_id || '-'}</div>
-              </div>
-              <button className="task-reminder-close" type="button" onClick={() => setRevenuePopup(null)} aria-label="Close pipeline reminder">×</button>
-            </div>
-            <div className="task-reminder-body">
-              <div className="revenue-reminder-title">{revenuePopup.message || 'Update candidate journey in Pipeline Hub.'}</div>
-              <div className="helper-text top-gap-small">Status: {String(revenuePopup.status || '').replaceAll('_', ' ')}{revenuePopup.joining_date ? ` • Joining: ${revenuePopup.joining_date}` : ''}</div>
-            </div>
-            <div className="row-actions top-gap task-reminder-actions">
-              <button className="mini-btn view bounceable" type="button" onClick={() => { setRevenuePopup(null); window.open('/revenue-hub', '_blank', 'noopener,noreferrer'); }}>Open Pipeline Hub</button>
-              <button className="ghost-btn bounceable" type="button" onClick={() => snoozeRevenuePopup(120)}>Remind Later</button>
-            </div>
-          </div>
-        </div>}
-        {AUTO_SYSTEM_POPUPS_ENABLED && dailyWorkflowPopup && <div className="daily-workflow-wrap">
-          <div data-reminder-kind={reminderKind(dailyWorkflowPopup, 'interview')} className="panel approval-popup-panel daily-workflow-popup glassy-card popup-info popup-dock-left">
-            <div className="task-reminder-head">
-              <div>
-                <div className="panel-title">📌 {dailyWorkflowPopup.title}</div>
-                <div className="helper-text">Daily Workflow</div>
-              </div>
-              <button className="task-reminder-close" type="button" onClick={() => snoozeDailyWorkflowPopup(dailyWorkflowPopup.kind, dailyWorkflowPopup.dateKey, dailyWorkflowPopup.kind === 'today' ? 180 : DAILY_WORKFLOW_SNOOZE_MINUTES)} aria-label="Close daily workflow popup">×</button>
-            </div>
-            <div className="task-reminder-body">
-              <div className="task-reminder-title">{dailyWorkflowPopup.message}</div>
-              <div className="helper-text top-gap-small">Your scheduled interview and follow-up queue is ready.</div>
-            </div>
-            <div className="row-actions top-gap task-reminder-actions">
-              <button className="mini-btn view bounceable highlight-choice highlight-strong" type="button" onClick={openDailyWorkflowFromPopup}>{dailyWorkflowPopup.primaryLabel}</button>
-              <button className="ghost-btn bounceable" type="button" onClick={() => snoozeDailyWorkflowPopup(dailyWorkflowPopup.kind, dailyWorkflowPopup.dateKey, dailyWorkflowPopup.kind === 'today' ? 180 : DAILY_WORKFLOW_SNOOZE_MINUTES)}>{dailyWorkflowPopup.secondaryLabel}</button>
-            </div>
-          </div>
-        </div>}
-        {hasJoinedThisLogin() && globalSubmissionReminderPopup && <div className="global-submission-reminder-wrap cc-global-source-wrap">
-          <div data-reminder-kind="submission" className="panel approval-popup-panel global-submission-reminder-card cc-global-source-card">
-            <div className="task-reminder-head cc-global-source-head">
-              <div className="cc-global-source-titlebox">
-                <div className="panel-title">Submission Reminder</div>
-                <div className="helper-text cc-global-source-subtitle">{globalSubmissionReminderPopup.full_name || '-'} • {globalSubmissionReminderPopup.recruiter_name || 'Team member'}</div>
-              </div>
-              <div className="cc-global-source-window-actions"><button className="task-reminder-close cc-global-source-minimize" type="button" onClick={() => setGlobalSubmissionReminderPopup((current) => current ? { ...current, __minimized: !current.__minimized } : current)} aria-label="Minimize submission reminder">−</button><button className="task-reminder-close" type="button" onClick={() => setGlobalSubmissionReminderPopup(null)} aria-label="Close submission reminder">×</button></div>
-            </div>
-            <div className="task-reminder-body cc-global-source-body">
-              <div className="task-reminder-title">Submission ready for your next move.</div>
-              {globalSubmissionReminderNote(globalSubmissionReminderPopup) ? <div className="cc-global-source-note"><strong>Last Notes:</strong> {globalSubmissionReminderNote(globalSubmissionReminderPopup)}</div> : null}
-              <div className="helper-text cc-global-source-time">Reminder: {globalSubmissionReminderStamp(globalSubmissionReminderPopup) ? new Date(globalSubmissionReminderStamp(globalSubmissionReminderPopup)).toLocaleString() : '-'}</div>
-            </div>
-            <div className="row-actions task-reminder-actions cc-global-source-actions">
-              <button className="mini-btn view bounceable highlight-choice highlight-strong" type="button" onClick={() => { if (globalSubmissionReminderPopup?.candidate_id) openCandidateProfileInPopupTab(globalSubmissionReminderPopup.candidate_id); setGlobalSubmissionReminderPopup(null); }}>Open Profile</button>
-              <button className="mini-btn call bounceable" type="button" onClick={() => { window.open(`/submissions?submission_id=${encodeURIComponent(globalSubmissionReminderPopup?.submission_id || '')}`, '_blank', 'noopener,noreferrer'); setGlobalSubmissionReminderPopup(null); }}>Open Queue</button>
-              {SUBMISSION_REMINDER_SNOOZE_OPTIONS.map((option) => (
-                <button key={`global-submission-${option.minutes}`} className="ghost-btn bounceable task-snooze-btn" type="button" onClick={() => snoozeGlobalSubmissionReminderPopup(option.minutes)}>
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>}
-        {followUpPopup && <div className="task-reminder-wrap is-entering">
-          <div data-reminder-kind="followup" className="panel approval-popup-panel task-reminder-popup glassy-card popup-warning popup-dock-left">
-            <div className="task-reminder-head">
-              <div>
-                <div className="panel-title">📌 FollowUp Reminder</div>
-                <div className="helper-text">{followUpPopup.full_name || '-'} • {followUpPopup.candidate_id || '-'}</div>
-              </div>
-              <button className="task-reminder-close" type="button" onClick={() => setFollowUpPopup(null)} aria-label="Close followup reminder">×</button>
-            </div>
-            <div className="task-reminder-body">
-              <div className="task-reminder-title">Follow-up is due — reconnect while the lead is warm.</div>
-              <div className="helper-text">Time: {followUpPopup.follow_up_at ? new Date(followUpPopup.follow_up_at).toLocaleString() : '-'}</div>
-              {String(followUpPopup.follow_up_note || followUpPopup.followup_note || followUpPopup.callback_note || '').trim() ? <div className="task-reminder-note-card top-gap-small"><strong>Follow-up note:</strong> {followUpPopup.follow_up_note || followUpPopup.followup_note || followUpPopup.callback_note}</div> : null}
-            </div>
-            <div className="row-actions top-gap task-reminder-actions">
-              <button className="mini-btn view bounceable highlight-choice highlight-strong" type="button" onClick={() => { if (followUpPopup?.candidate_id) openCandidateProfileInPopupTab(followUpPopup.candidate_id); setFollowUpPopup(null); }}>Open Profile</button>
-              <button className="mini-btn call bounceable" type="button" onClick={completeFollowUpFromPopup}>Done</button>
-            </div>
-            <div className="task-snooze-row top-gap-small">
-              {FOLLOWUP_SNOOZE_OPTIONS.map((option) => (
-                <button key={option.minutes} className="ghost-btn bounceable task-snooze-btn" type="button" onClick={() => snoozeFollowUpPopup(option.minutes)}>
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>}
-        {taskChangeToast ? <aside ref={node=>{if(node){node.style.setProperty('background','#fff','important');node.style.setProperty('color','#274b47','important');node.style.setProperty('border','1px solid #abd8c8','important');node.style.setProperty('font-weight','500','important');}}} data-reminder-kind="task" className="cc808-task-toast" role="status" aria-live="polite">
-          <span className="cc808-task-toast-icon">✓</span><div><small>{taskChangeToast.kind==='assigned'?'NEW TASK':'TASK UPDATED'}</small><strong>{taskChangeToast.task.title||'Task'}</strong><span>{taskChangeToast.task.status||'Open'} · {taskChangeToast.task.priority||'Normal'}</span></div>
-          <button type="button" onClick={()=>{window.open('/tasks?task_id='+encodeURIComponent(taskChangeToast.task.task_id),'_blank','noopener,noreferrer');closeTaskChangeToast();}}>View task ↗</button><button type="button" aria-label="Close task notification" onClick={closeTaskChangeToast}>×</button>
-        </aside> : null}
-        {canRenderTaskPopup && taskPopup && <div className={`task-reminder-wrap ${taskPopupAnimatingOut ? 'is-leaving' : 'is-entering'}`}>
-          <div data-reminder-kind="task" className="panel approval-popup-panel task-reminder-popup task-popup-dock-left glassy-card popup-warning popup-dock-left" role="button" tabIndex={0} style={{ cursor: 'pointer' }} onClick={(e) => openTaskFromPopup(e)} onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              openTaskFromPopup(e);
-            }
-          }}>
-            <div className="task-reminder-head">
-              <div>
-                <div className="panel-title">⏰ Task Reminder</div>
-                <div className="helper-text">Action ready.</div>
-              </div>
-              <button className="task-reminder-close" type="button" onClick={(e) => { e.stopPropagation(); dismissTaskPopup(); }} aria-label="Close task reminder">×</button>
-            </div>
-            <div className="task-reminder-body">
-              <div className="task-reminder-title">{taskPopup.title}</div>
-              {String(taskPopup.task_note || taskPopup.description || taskPopup.notes || '').trim() ? <div className="task-reminder-note-card top-gap-small"><strong>Task note:</strong> {taskPopup.task_note || taskPopup.description || taskPopup.notes}</div> : null}
-              <div className="helper-text">{taskPopup.assigned_to_name || '-'} • {taskPopup.priority || '-'}</div>
-              <div className="helper-text top-gap-small">Due: {taskPopup.due_date ? new Date(taskPopup.due_date).toLocaleString() : '-'}</div>
-            </div>
-            <div className="row-actions top-gap task-reminder-actions">
-              <button className="mini-btn view bounceable highlight-choice highlight-strong" type="button" onClick={(e) => openTaskFromPopup(e)}>Open Task</button>
-            </div>
-            <div className="task-snooze-row top-gap-small">
-              {TASK_SNOOZE_OPTIONS.map((option) => (
-                <button key={option.minutes} className="ghost-btn bounceable task-snooze-btn" type="button" onClick={(e) => { e.stopPropagation(); snoozeTaskPopup(option.minutes); }}>
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>}
-        {(() => {
-          const presence = attendanceGate?.presence;
-          const joined = Boolean(attendanceGate?.today_stats?.joined_today);
-          const onBreak = String(presence?.is_on_break || '0') === '1';
-          const locked = String(presence?.locked || '0') === '1';
-          const approvalLocked = locked && String(presence?.lock_reason || '') !== 'break';
-          const endAt = presence?.break_expected_end_at ? new Date(presence.break_expected_end_at).getTime() : 0;
-          const diff = endAt ? endAt - breakCountdownNow : 0;
-          const abs = Math.abs(diff);
-          const hrs = String(Math.floor(abs / 3600000)).padStart(2, '0');
-          const mins = String(Math.floor((abs % 3600000) / 60000)).padStart(2, '0');
-          const secs = String(Math.floor((abs % 60000) / 1000)).padStart(2, '0');
-          const timerText = `${hrs}:${mins}:${secs}`;
-          const overdue = onBreak && endAt && diff < 0;
-          if (approvalLockExempt || !locked) return null;
-          if(onBreak&&!overdue&&!approvalLocked&&location.pathname==='/learning-hub')return null;
-          if (onBreak && !approvalLocked && overdue) {
-            return <LockedRequestModal role={normalizedRole} managerSuspended={presence?.lock_reason==='manager_flag'} reasonDefault={presence?.lock_message || 'Break time exceeded'} refreshAttendanceGate={refreshAttendanceGate} navigate={navigate} breakExpiryAt={endAt} overrunText="00:00:00" />;
-          }
-          if (onBreak && !approvalLocked) {
-            const breakMeter = breakMeterSnapshot(presence || {});
-            return <div className="crm-modal-backdrop crm-lock-backdrop"><div className={`crm-premium-modal crm-lock-modal ${overdue ? 'break-overdue-modal' : ''}`}><div className="lock-premium-chip">{overdue ? 'Break Exceeded' : 'Break Mode'}</div><div className="panel-title">{overdue ? 'Break Time Exceeded' : 'Break In Progress'}</div><div className="helper-text top-gap-small">{overdue ? 'Break time expired. Request for Access and wait for manager approval.' : 'Join Office opens your workspace. Your break keeps running until you choose End Break.'}</div><div className={`lock-overlay-timer ${overdue ? 'overdue-blink' : diff <= 60000 ? 'cc555-break-warning' : ''}`}>{overdue ? `-${timerText}` : timerText}</div><div className={`premium-break-lock-meter ${breakMeter.level}`}><div className="premium-break-lock-track"><div className="premium-break-lock-fill" style={{ width: `${Math.min(100, breakMeter.percent)}%` }} /></div><div className="helper-text top-gap-small">Break used: {breakMeter.percent}% {breakMeter.level === 'exceeded' ? `• Lock in ${breakMeter.leftText}` : ''}</div></div><div className="helper-text top-gap-small">{presence?.break_reason || 'Break'} {overdue ? 'over time' : 'running'}</div><div className="row-actions top-gap"><button className="add-profile-btn bounceable" type="button" onClick={async () => { try { const data = await api.post('/api/attendance/join', { compact: true, manual_confirmed:true, join_source:'user_button', last_page:location.pathname }, { timeoutMs: 20000 }); setAttendanceGate(data || null); window.__CC723_OFFICE_RESTORE__?.(data,true); setShowJoinOffice(false); } catch(error) { setToast({title:'Join Office',message:error.message}); } }}>Join Office</button><button className="ghost-btn" type="button" onClick={async()=>{try{const data=await api.post('/api/attendance/end-break',{compact:true});setAttendanceGate(data);setShowJoinOffice(false);}catch(error){setToast({title:'End Break',message:error.message});}}}>End Break</button>{!overdue?<button className="ghost-btn" onClick={()=>navigate('/learning-hub')}>YouTube access</button>:null}</div></div></div>;
-          }
-          return <LockedRequestModal role={normalizedRole} managerSuspended={presence?.lock_reason==='manager_flag'} reasonDefault={presence?.lock_message || presence?.break_reason || 'Please contact your reporting lead and request CRM unlock approval.'} refreshAttendanceGate={refreshAttendanceGate} navigate={navigate} breakExpiryAt={String(presence?.lock_reason || '') === 'break_exceeded' && endAt && diff <= 0 ? endAt : 0} overrunText={String(presence?.lock_reason || '') === 'break_exceeded' && endAt && diff <= 0 ? '00:00:00' : ''} />;
-        })()}
-        {goalPostLogoutChoice && <div className="crm-modal-backdrop" style={{ zIndex: 100002 }} onClick={() => setGoalPostLogoutChoice(null)}><div className="crm-premium-modal goalpost-logout-choice-modal" style={{ maxWidth: 520 }} onClick={(e) => e.stopPropagation()}><div className="premium-modal-kicker">Logout Choice</div><div className="panel-title">Goal Post Update Pending</div><div className="helper-text top-gap-small">Goal Post is still pending for this session. Update now or continue logout.</div><div className="premium-modal-points"><div className="premium-modal-point">Your existing Goal Post data stays untouched.</div><div className="premium-modal-point">The reminder returns next session until updated.</div></div><div className="row-actions top-gap"><button className="add-profile-btn bounceable" type="button" onClick={() => { const nextPage = goalPostLogoutChoice?.page || '/goal-post'; setGoalPostLogoutChoice(null); navigate(nextPage); }}>Update Goal Post</button><button className="mini-btn edit bounceable danger-choice" type="button" onClick={logoutWithoutGoalPostUpdate}>Logout Without Update</button><button className="ghost-btn bounceable" type="button" onClick={() => setGoalPostLogoutChoice(null)}>Cancel</button></div></div></div>}
-        {goalPostReminderPopup && <div style={{ position: 'fixed', right: 22, bottom: 24, width: 360, zIndex: 60 }}>
-          <div data-reminder-kind="report" className="panel approval-popup-panel goalpost-reminder-panel goalpost-logout-choice-modal" style={{ boxShadow: '0 28px 70px rgba(15,23,42,0.24)', maxWidth: '380px' }}>
-            <div className="premium-modal-kicker">Goal Post</div><div className="panel-title">{goalPostReminderPopup.title}</div>
-            <div className="helper-text">{goalPostReminderPopup.message}</div>
-            <div className="row-actions top-gap">
-              <button className="add-profile-btn bounceable" type="button" onClick={() => { setGoalPostReminderPopup(null); window.open('/goal-post','_blank','noopener,noreferrer'); }}>Open Goal Post</button>
-              <button className="ghost-btn bounceable" type="button" onClick={() => setGoalPostReminderPopup(null)}>Dismiss</button>
-            </div>
-          </div>
-        </div>}
-        {showLogoutSummary && <div className="crm-modal-backdrop" onClick={() => !sendingReport && setShowLogoutSummary(false)}><div className="crm-premium-modal logout-report-modal premium-attendance-report-modal cc353-table-attendance-report-modal" onClick={(e) => e.stopPropagation()}><div className="premium-modal-kicker">Daily Attendance Report</div><div className="panel-title">Session Summary</div><div className="helper-text top-gap-small">Review your day before logout. The report moves to leadership approval.</div><div className="daily-attendance-report-table-wrap"><table className="daily-attendance-report-table"><thead><tr><th>Metric</th><th>Actual / Target</th><th>Status</th></tr></thead><tbody><tr><td>Work Time</td><td>{formatMinutes(logoutSummary?.productive_work_minutes)} / {formatMinutes(logoutWorkTarget)}</td><td><span className={(Number(logoutSummary?.productive_work_minutes || 0) >= logoutWorkTarget) ? 'status-good' : 'status-warn'}>{Number(logoutSummary?.productive_work_minutes || 0) >= logoutWorkTarget ? 'Clear' : 'Below target'}</span></td></tr><tr><td>Idle Time</td><td>{formatMinutes(logoutSummary?.idle_minutes)}</td><td><span className={Number(logoutSummary?.idle_minutes || 0) ? 'status-warn' : 'status-good'}>{Number(logoutSummary?.idle_minutes || 0) ? 'Review' : 'Clear'}</span></td></tr><tr><td>Break Time</td><td>{formatMinutes(logoutSummary?.total_break_minutes)}</td><td><span className="status-good">Tracked</span></td></tr><tr><td>Dialed Calls</td><td>{logoutSummary?.outgoing_calls_count || logoutSummary?.dialed_calls_count || 0} / {logoutDialedTarget}</td><td><span className={(Number(logoutSummary?.outgoing_calls_count || logoutSummary?.dialed_calls_count || 0) >= logoutDialedTarget) ? 'status-good' : 'status-warn'}>{Number(logoutSummary?.outgoing_calls_count || logoutSummary?.dialed_calls_count || 0) >= logoutDialedTarget ? 'Clear' : 'Below target'}</span></td></tr><tr><td>Connected Calls</td><td>{logoutSummary?.connected_calls_count || 0} / {logoutConnectedTarget}</td><td><span className={(Number(logoutSummary?.connected_calls_count || 0) >= logoutConnectedTarget) ? 'status-good' : 'status-warn'}>{Number(logoutSummary?.connected_calls_count || 0) >= logoutConnectedTarget ? 'Clear' : 'Below target'}</span></td></tr><tr><td>Talk Time</td><td>{formatMinutes(logoutSummary?.talktime_minutes)} / {formatMinutes(logoutTalkTarget)}</td><td><span className={(Number(logoutSummary?.talktime_minutes || 0) >= logoutTalkTarget) ? 'status-good' : 'status-warn'}>{Number(logoutSummary?.talktime_minutes || 0) >= logoutTalkTarget ? 'Clear' : 'Below target'}</span></td></tr><tr><td>Submissions</td><td>{logoutSummary?.submissions_count || 0} / {logoutSubmissionTarget}</td><td><span className={(Number(logoutSummary?.submissions_count || 0) >= logoutSubmissionTarget) ? 'status-good' : 'status-warn'}>{Number(logoutSummary?.submissions_count || 0) >= logoutSubmissionTarget ? 'Clear' : 'Below target'}</span></td></tr><tr><td>Missed Interviews</td><td>{logoutSummary?.missed_interviews_today || 0} / 0</td><td><span className={(Number(logoutSummary?.missed_interviews_today || 0) === 0) ? 'status-good' : 'status-warn'}>{Number(logoutSummary?.missed_interviews_today || 0) === 0 ? 'Clear' : 'Needs action'}</span></td></tr><tr><td>Productivity</td><td>{logoutSummary?.attendance_report?.productivity_status || logoutSummary?.day_status || '-'}</td><td><span className={(logoutSummary?.attendance_report?.productivity_status === 'Up to the mark') ? 'status-good' : 'status-warn'}>Manager review</span></td></tr></tbody></table></div><div className="field top-gap"><label>Employee Notes</label><textarea rows="3" value={logoutReportNotes} onChange={(e) => setLogoutReportNotes(e.target.value)} placeholder="Add context for low calls, missed interviews, meetings, technical issues, or approved delays." /></div><div className="row-actions top-gap"><button className="add-profile-btn bounceable" type="button" disabled={sendingReport} onClick={sendReportAndLogout}>{sendingReport ? 'Sending...' : 'Send Report'}</button><button className="ghost-btn bounceable" type="button" disabled={sendingReport} onClick={() => setShowLogoutSummary(false)}>Back</button></div></div></div>}
-        <WorkspaceEnhancements/><RunningBreak presence={attendanceGate?.presence} onEnd={async()=>{const result=await api.post('/api/attendance/end-break',{compact:true},{retries:0});if(String(result?.presence?.is_on_break)!=='0')throw Error('End Break was not confirmed. Please retry.');setAttendanceGate(result);window.dispatchEvent(new CustomEvent('career-crox-attendance-live',{detail:result}));setShowJoinOffice(false);}}/>
-        <PopupStudioRuntime userId={user?.user_id}/>
-        <section className="page-scroll" ref={pageScrollRef}><DashboardViewBanner/><div className="cc785-route-content" data-route-content={location.pathname} key={location.pathname+dashboardScope}>{children}</div></section>
-      </main>
-    </div>
-  );
+export function readablePopupInk(bg){const c=bg.slice(1).match(/../g).map(x=>parseInt(x,16));return c[0]*.299+c[1]*.587+c[2]*.114>155?'#17324d':'#ffffff';}
+export function describeWriteFailure(record){
+ const action=record.action==='submit'?'Submission':'Save',code=record.code||'',raw=record.message||'';
+ const rejected=record.committed===false||record.localRejected||/no changes were saved|no records were changed|not sent|not submitted|was not saved/i.test(raw);
+ const uncertain=!rejected&&(!record.status||record.status>=500||/acknowledg|confirm|timed out|network|fetch/i.test(raw));
+ let reason=uncertain?"The server hasn't confirmed this update yet. Check the latest saved record before moving on.":"The server couldn't accept this update. Review the details, then try saving again.";
+ if(/IDENTITY_LOCKED|CANDIDATE_ID_LOCKED/.test(code)||/saved .* differs from this form/i.test(raw))reason="This profile's name or phone number doesn't match the saved record. Use the saved details or ask your manager to make a correction.";
+ else if(/PROFILE.*CONFLICT/.test(code))reason='This profile was updated elsewhere. Open the latest version, review your changes, then save again.';
+ else if(/NOTE_REQUIRED/.test(code)||/note.*required|required.*note/i.test(raw))reason='A note is required. Add one, then save or submit again.';
+ else if(/LOCAL_VALIDATION|PROFILE_NAME_REQUIRED/.test(code))reason='Required details need attention. Complete the highlighted fields, then save or submit again.';
+ else if(record.status===401)reason='Your session has expired. Keep your entered details, sign in again, then check the saved record.';
+ else if(record.status===403)reason="Your account isn't allowed to make this change. Contact your TL or manager for access.";
+ else if(record.status===423)reason='This CRM is locked or in read-only mode. Use the active CRM or contact your manager to continue.';
+ else if(record.status===409)reason='This form differs from the saved record. Check the latest version and review your changes before retrying.';
+ else if([400,422].includes(record.status))reason='Some details are missing or invalid. Review the fields, make the corrections, then save again.';
+ return {title:uncertain?`${action} status unconfirmed`:rejected?`${action} needs a quick fix`:`${action} needs attention`,reason,uncertain};
 }
 
-/* CC26_350_SOURCE_LOGOUT_REPORT_HARD_APPLIED */
+const targets='.mini-toast.cc835-notice,.cc808-task-toast,#cc917-task-reminder,.cc803-review-popup,.cc730-direct-reminder-deck,.task-reminder-wrap,.followup-reminder-wrap,.revenue-reminder-wrap,.global-submission-reminder-wrap';
+function kindFor(node){if(node.matches('.mini-toast,.cc808-task-toast'))return'notification';if(node.matches('#cc917-task-reminder,.task-reminder-wrap')||node.querySelector('.cc388-card.task'))return'task';if(node.matches('.cc803-review-popup,.global-submission-reminder-wrap')||node.querySelector('.cc388-card.submission,.cc388-card.submissions'))return'submission';return popupKind(node.querySelector('[data-reminder-kind]')?.dataset.reminderKind||'reminder');}
+function occurrence(node){return node.dataset.cc927Occurrence||node.shadowRoot?.querySelector('h2')?.textContent||node.querySelector('[data-key]')?.dataset.key||node.querySelector('.cc803-review-title,.cc388-title')?.textContent||node.textContent.slice(0,180);}
+const rules=`
+[data-cc927-styled]{box-sizing:border-box!important;box-shadow:0 15px 48px #13294130!important;transform:none!important}
+html body [data-cc927-styled],html body [data-cc927-styled] *{font-family:var(--cc927-font)!important;color:var(--cc927-ink)!important;-webkit-text-fill-color:var(--cc927-ink)!important;letter-spacing:normal!important}
+html body [data-cc927-styled] :is(.panel,.cc388-card,section,.cc835-notice-open){background:var(--cc927-bg)!important;min-width:0!important;max-width:100%!important;width:100%!important;max-height:none!important;height:auto!important;border-radius:var(--cc927-radius)!important}
+html body [data-cc927-styled] :is(p,span,small,strong,div,label,button,input,textarea){font-size:var(--cc927-size)!important;line-height:1.4!important;font-weight:500!important;overflow-wrap:anywhere}
+html body [data-cc927-styled] :is(h1,h2,h3,.cc388-title,.cc803-review-title,.mini-toast-title){font-size:calc(var(--cc927-size) * 1.15)!important;line-height:1.35!important;font-weight:600!important}
+html body [data-cc927-styled] button{border-color:var(--cc927-accent)!important;background:var(--cc927-bg)!important}
+html body [data-cc927-popup][data-cc927-collapsed="true"]{visibility:hidden!important;pointer-events:none!important}
+html body [data-cc927-popup][data-cc927-suspended="true"]{visibility:hidden!important;pointer-events:none!important}
+#cc927-popup-dock{position:fixed;right:12px;bottom:12px;z-index:2147481100;display:flex;gap:6px;flex-wrap:wrap;max-width:calc(100vw - 24px)}
+#cc927-popup-dock[hidden]{display:none!important}
+#cc927-popup-dock button{font:500 12px/1.4 "Segoe UI",sans-serif!important;color:#244c69!important;background:#fff!important;border:1px solid #8db1c8!important;border-radius:10px!important;padding:8px 11px!important;box-shadow:0 4px 14px #12334d25!important}
+`;
+const shadowRules=`:host([data-cc927-styled]){color:var(--cc927-ink)!important;font-family:var(--cc927-font)!important} :host([data-cc927-styled]) section{background:var(--cc927-bg)!important;border-color:var(--cc927-accent)!important;border-radius:var(--cc927-radius)!important;max-height:none!important;height:100%!important;overflow:auto} :host([data-cc927-styled]) *{font-family:var(--cc927-font)!important;font-size:var(--cc927-size)!important;color:var(--cc927-ink)!important;line-height:1.4!important;font-weight:500!important} :host([data-cc927-styled]) button,:host([data-cc927-styled]) .note{background:var(--cc927-bg)!important;border-color:var(--cc927-accent)!important} :host([data-cc927-styled]) h2{font-size:calc(var(--cc927-size) * 1.15)!important;font-weight:600!important}`;
+export function installPopupStudioDriver(){
+ const owner=accountPrincipal(),states=new Map(),style=document.createElement('style'),dock=document.createElement('div');style.textContent=rules.replaceAll('html body ','html#cc787-workspace#cc787-workspace#cc787-workspace body ');document.head.append(style);dock.id='cc927-popup-dock';document.body.append(dock);
+ let stopped=false,frame=0,config=readPopupStudio(),badgeSignature='';
+ function restore(node,state){clearTimeout(state.timer);for(const[key,[value,priority]]of state.before){if(value)node.style.setProperty(key,value,priority);else node.style.removeProperty(key);}node.removeAttribute('data-cc927-popup');node.removeAttribute('data-cc927-styled');node.removeAttribute('data-cc927-collapsed');node.removeAttribute('data-cc927-suspended');states.delete(node);}
+ function put(node,state,key,value){if(!state.before.has(key))state.before.set(key,[node.style.getPropertyValue(key),node.style.getPropertyPriority(key)]);if(state.desired.get(key)!==value||node.style.getPropertyValue(key)!==state.applied.get(key)||node.style.getPropertyPriority(key)!=='important'){node.style.setProperty(key,value,'important');state.desired.set(key,value);state.applied.set(key,node.style.getPropertyValue(key));}}
+ const minimized=kind=>[...states].filter(([node,state])=>state.kind===kind&&node.isConnected&&node.dataset.cc927Collapsed==='true');
+ function badges(){const entries=POPUP_TYPES.map(([kind,label])=>[kind,label,minimized(kind).length]).filter(x=>x[2]),signature=JSON.stringify(entries);if(signature===badgeSignature)return;badgeSignature=signature;dock.replaceChildren();for(const[kind,label,count]of entries){const button=document.createElement('button');button.textContent=`Show ${label.toLowerCase()} (${count})`;button.onclick=()=>{for(const[node,state]of minimized(kind)){node.removeAttribute('data-cc927-collapsed');state.expired=false;arm(node,state,config[kind]);}badges();};dock.append(button);}}
+ function arm(node,state,p){clearTimeout(state.timer);if(!p.seconds)return;state.timer=setTimeout(function finish(){if(stopped||!node.isConnected)return;if(node.contains(document.activeElement)||node.shadowRoot?.contains(node.shadowRoot.activeElement)||node.matches(':hover')||window.__CC922_PAUSE_DIALOG_OPEN__){state.timer=setTimeout(finish,1000);return;}state.expired=true;node.dataset.cc927Collapsed='true';badges();},p.seconds*1000);}
+ function apply(){frame=0;if(stopped)return;if(accountPrincipal()!==owner){for(const[node,state]of states)restore(node,state);badges();return;}
+  const groups=new Map(),blocked=Boolean(document.querySelector('#cc497-unlock-approval,#cc498-tl-lock,.cc604-locked-request-modal')||document.body.classList.contains('cc451-await-join'));
+  dock.hidden=blocked;
+  for(const node of document.querySelectorAll(targets)){
+   if(node.hidden||getComputedStyle(node).display==='none'||(!node.dataset.cc927Popup&&getComputedStyle(node).visibility==='hidden'))continue;
+   // CC144: Never change the position, colours, dimensions or lifecycle of the classic CC923 notification toast.
+   if(node.matches('.mini-toast.cc835-notice'))continue;
+   const kind=kindFor(node),p=config[kind];if(!p?.enabled)continue;
+   if(node.parentElement?.closest(targets))continue;
+   if(!groups.has(kind))groups.set(kind,[]);groups.get(kind).push(node);
+  }
+  for(const[node,state]of states)if(!node.isConnected||!config[state.kind]?.enabled)restore(node,state);
+  for(const[kind,nodes]of groups){const p=config[kind],rect=popupBounds(p),slot=rect.height/nodes.length;
+   nodes.forEach((node,index)=>{
+    let state=states.get(node);const id=occurrence(node),version=JSON.stringify(p);
+    if(!state){state={kind,before:new Map(),applied:new Map(),desired:new Map(),id,version};states.set(node,state);arm(node,state,p);}
+    else if(state.id!==id||state.version!==version){state.id=id;state.version=version;node.removeAttribute('data-cc927-collapsed');arm(node,state,p);}
+    if(node.getAttribute('data-cc927-popup')!==kind)node.setAttribute('data-cc927-popup',kind);
+    if(p.styleEnabled)node.setAttribute('data-cc927-styled',kind);else node.removeAttribute('data-cc927-styled');
+    if(node.dataset.cc927Suspended!==String(blocked))node.dataset.cc927Suspended=String(blocked);
+    const values={position:'fixed',left:rect.left+'px',top:(rect.top+index*slot)+'px',right:'auto',bottom:'auto',width:rect.width+'px',height:'auto','max-width':rect.width+'px','max-height':slot+'px','min-width':'0','min-height':'0',margin:'0',overflow:'auto','z-index':'2147480000',background:p.bg,color:p.ink,border:'2px solid '+p.accent,'border-radius':p.radius+'px','font-family':POPUP_FONTS[p.font],'font-size':p.fontSize+'px','--cc927-font':POPUP_FONTS[p.font],'--cc927-size':p.fontSize+'px','--cc927-ink':p.ink,'--cc927-bg':p.bg,'--cc927-accent':p.accent,'--cc927-radius':p.radius+'px'};
+    const appearance=new Set(['background','color','border','border-radius','font-family','font-size']);
+    for(const[key,value]of Object.entries(values)){if(!p.styleEnabled&&(appearance.has(key)||key.startsWith('--cc927-'))){if(state.before.has(key)){const [original,priority]=state.before.get(key);if(original)node.style.setProperty(key,original,priority);else node.style.removeProperty(key);state.before.delete(key);state.applied.delete(key);state.desired.delete(key);}continue;}put(node,state,key,value);}
+    if(node.shadowRoot&&!node.shadowRoot.querySelector('[data-cc927-style]')){const s=document.createElement('style');s.dataset.cc927Style='';s.textContent=shadowRules;node.shadowRoot.append(s);}
+   });
+  }badges();
+ }
+ function schedule(){if(!frame&&!stopped)frame=requestAnimationFrame(apply);}
+ const observer=new MutationObserver(records=>{if(records.some(r=>!dock.contains(r.target)))schedule();});observer.observe(document.body,{subtree:true,childList:true,attributes:true,attributeFilter:['class','style','hidden','data-cc927-occurrence']});
+ function changed(){config=readPopupStudio();schedule();}
+ function storage(event){if(event.key===settingsKey())changed();}
+ window.addEventListener('cc927-popup-settings-changed',changed);window.addEventListener('resize',schedule);window.addEventListener('storage',storage);schedule();
+ const oldBridge=window.__CC927_POPUP_CUSTOM__;window.__CC927_POPUP_CUSTOM__=isPopupStudioEnabled;
+ return()=>{stopped=true;observer.disconnect();cancelAnimationFrame(frame);for(const[node,state]of states)restore(node,state);style.remove();dock.remove();window.removeEventListener('cc927-popup-settings-changed',changed);window.removeEventListener('resize',schedule);window.removeEventListener('storage',storage);if(window.__CC927_POPUP_CUSTOM__===isPopupStudioEnabled)window.__CC927_POPUP_CUSTOM__=oldBridge;};
+}
 
-// CC783: one authenticated shell survives lazy route changes. Page wrappers publish
-// metadata and render their content; timers, alerts and the sidebar never remount.
-const WorkspaceContext = createContext(null);
-function RecoveryLayout({children}){const {logout}=useAuth();return <div className="app-shell cc874-recovery-shell"><main className="app-main"><header className="cc877-backup-topbar"><div className="cc877-backup-brand"><strong>Career Crox · CRM Backup</strong></div><a className="ghost-btn" href="/candidates">Open workspace</a><button className="ghost-btn" onClick={()=>logout()}>Sign out</button></header><MultipleCrmGate/><ExcelBackupReminderGate/><section className="page-scroll"><CompactFilters>{children}</CompactFilters></section></main></div>;}
-export function PersistentWorkspaceShell({ children }) {
-  const location = useLocation();
-  const [meta, setMeta] = useState({ pathname: '', title: '', subtitle: '' });
-  const publish = useCallback((next) => setMeta((prev) => prev.pathname === next.pathname && prev.title === next.title && prev.subtitle === next.subtitle ? prev : next), []);
-  const context = useMemo(() => ({ pathname: location.pathname, publish }), [location.pathname, publish]);
-  const fallbackTitle = location.pathname.startsWith('/candidate/') ? 'Candidate' : ({ '/bda': 'Lead Studio', '/bda-head': 'Lead Studio', '/goal-post': 'Goal Post', '/learning-hub': 'Learning Hub', '/chat': 'Team Chat', '/performance-centre': 'Performance', '/mail-centre': 'Mail Centre' }[location.pathname] || location.pathname.slice(1).split('-').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' '));
-  if(location.pathname==='/data-backup')return <WorkspaceContext.Provider value={context}><RecoveryLayout>{children}</RecoveryLayout></WorkspaceContext.Provider>;
-  return <WorkspaceContext.Provider value={context}><WorkspaceLayout title={meta.pathname === location.pathname ? meta.title : fallbackTitle} subtitle={meta.pathname === location.pathname ? meta.subtitle : ''}>{children}</WorkspaceLayout></WorkspaceContext.Provider>;
+
+// PopupStudio - consolidated to retain the 100-file frontend upload limit.
+
+const samples={notification:['Notification','RNS updated · Feedback changed','Updated details and who changed them appear here.'],submission:['SUBMISSION REMINDER','Candidate follow-up','This profile is still pending. Choose Review, Later or + to set the next reminder.'],task:['TASK REMINDER','Agenda meeting','Mark completed when the task is done, or choose Later to reschedule.'],reminder:['REMINDER','Interview follow-up','Your due date and next steps appear here.']};
+function Sample({kind,profile}){const text=samples[kind];return <div className="cc927-sample" style={{'--sample-bg':profile.bg,'--sample-ink':profile.ink,'--sample-accent':profile.accent,'--sample-font':POPUP_FONTS[profile.font],'--sample-size':profile.fontSize+'px',borderRadius:profile.radius}}><small>{text[0]}</small><h3>{text[1]}</h3><p>{text[2]}</p><div className="cc927-sample-actions"><span>Open</span><span>Later</span></div></div>;}
+
+function PlacementEditor({kind,profile,onDone,onClose}){
+ const [rect,setRect]=useState(profile),[viewport,setViewport]=useState({width:innerWidth,height:innerHeight}),gesture=useRef(null),doneRef=useRef(null);
+ useEffect(()=>{const old=document.activeElement;doneRef.current?.focus();const resize=()=>setViewport({width:innerWidth,height:innerHeight});const key=e=>{if(e.key==='Escape')onClose();if(e.key==='Tab'){const nodes=[...document.querySelectorAll('#cc927-placement button')],index=nodes.indexOf(document.activeElement);if(e.shiftKey&&index<=0){e.preventDefault();nodes.at(-1)?.focus();}else if(!e.shiftKey&&index===nodes.length-1){e.preventDefault();nodes[0]?.focus();}}};document.addEventListener('keydown',key);window.addEventListener('resize',resize);return()=>{document.removeEventListener('keydown',key);window.removeEventListener('resize',resize);if(old?.isConnected)old.focus();};},[]);
+ const bounds=popupBounds(rect,viewport.width,viewport.height),normal=b=>({...rect,x:b.left/innerWidth,y:b.top/innerHeight,w:b.width/innerWidth,h:b.height/innerHeight});
+ function begin(event,mode){if(event.button!==0)return;event.preventDefault();event.stopPropagation();gesture.current={mode,x:event.clientX,y:event.clientY,b:popupBounds(rect)};event.currentTarget.setPointerCapture(event.pointerId);}
+ function move(event){const g=gesture.current;if(!g)return;const dx=event.clientX-g.x,dy=event.clientY-g.y;let b={...g.b};if(g.mode==='move'){b.left+=dx;b.top+=dy;}else if(g.mode==='resize'){b.width=Math.max(240,b.width+dx);b.height=Math.max(110,b.height+dy);}else{b={left:Math.min(g.x,event.clientX),top:Math.min(g.y,event.clientY),width:Math.max(240,Math.abs(dx)),height:Math.max(110,Math.abs(dy))};}setRect(normal(b));}
+ function keys(event,resize=false){if(!/^Arrow/.test(event.key))return;event.preventDefault();const step=event.shiftKey?20:5,b=popupBounds(rect);if(event.key==='ArrowLeft')b[resize?'width':'left']-=step;if(event.key==='ArrowRight')b[resize?'width':'left']+=step;if(event.key==='ArrowUp')b[resize?'height':'top']-=step;if(event.key==='ArrowDown')b[resize?'height':'top']+=step;setRect(normal(b));}
+ return createPortal(<div id="cc927-placement" data-cc730-skip="1" role="dialog" aria-modal="true" aria-label="Choose popup area" onPointerDown={e=>{if(e.target===e.currentTarget)begin(e,'draw');}} onPointerMove={move} onPointerUp={()=>{gesture.current=null;}}>
+  <style>{studioStyles}</style><div className="cc927-placement-hint">Drag to choose an area · Move the box · Resize from a corner</div>
+  <section className="cc927-placement-box" style={{left:bounds.left,top:bounds.top,width:bounds.width,height:bounds.height}}>
+   <button type="button" className="cc927-move-handle" aria-label="Move popup area" onPointerDown={e=>begin(e,'move')} onPointerMove={move} onPointerUp={()=>{gesture.current=null;}} onKeyDown={e=>keys(e)}>⠿ Drag to move</button>
+   <Sample kind={kind} profile={rect}/><button type="button" className="cc927-resize-handle" aria-label="Resize popup area" onPointerDown={e=>begin(e,'resize')} onPointerMove={move} onPointerUp={()=>{gesture.current=null;}} onKeyDown={e=>keys(e,true)}>↘</button>
+  </section><div className="cc927-placement-footer"><span>{Math.round(bounds.width)} × {Math.round(bounds.height)} px</span><button type="button" onClick={onClose}>Cancel</button><button type="button" ref={doneRef} onClick={()=>onDone({...rect,...normal(bounds),enabled:true})}>Done · Save area</button></div>
+ </div>,document.body);
 }
-export default function Layout({ title, subtitle, children }) {
-  const workspace = useContext(WorkspaceContext);
-  useLayoutEffect(() => { if (workspace) workspace.publish({ pathname: workspace.pathname, title, subtitle }); }, [workspace, title, subtitle]);
-  if(window.location.pathname==='/data-backup'&&!workspace)return <RecoveryLayout>{children}</RecoveryLayout>;
-  const content=<CompactFilters key={workspace?.pathname||window.location.pathname}>{children}</CompactFilters>;
-  return workspace ? content : <WorkspaceLayout title={title} subtitle={subtitle}>{content}</WorkspaceLayout>;
+export function PopupStudioSettings({includeNotifications=true}={}){
+ const types=POPUP_TYPES.filter(([key])=>includeNotifications||key!=='notification'),initialType=types[0][0];
+ const [kind,setKind]=useState(initialType),[profiles,setProfiles]=useState(readPopupStudio),[draft,setDraft]=useState(()=>readPopupStudio()[initialType]),[editing,setEditing]=useState(false),[status,setStatus]=useState('Choose a type, then set its look and screen area.');
+ function change(key,value){setDraft(p=>sanitizePopupProfile({...p,[key]:value,...(['font','fontSize','bg','ink','accent','radius'].includes(key)?{styleEnabled:true}:{})},kind));setStatus('Preview changed · press Save settings or Done to apply.');}
+ function save(value={...draft,enabled:true}){try{const next=writePopupStudio(kind,value);setProfiles(next);setDraft(next[kind]);setEditing(false);setStatus('✓ Saved for your account in this browser.');}catch(error){setStatus("Settings couldn't be saved.");reportWriteFailure(error,{force:true,localRejected:true,path:'/local/popup-settings'});}}
+ function choose(value){setKind(value);setDraft(profiles[value]);setStatus('Choose a type, then set its look and screen area.');}
+ function preset(x,y){change('x',x);change('y',y);}
+ return <section id="cc927-studio" data-cc926-keep="1" className="cc927-studio"><style>{studioStyles}</style>
+  <header><h3>Popup Studio · Make it yours</h3><p>Give notifications, submission reminders and task popups their own position and style.</p></header>
+  <div className="cc927-profile-tabs" role="group" aria-label="Popup type">{types.map(([key,label])=><button type="button" key={key} aria-pressed={kind===key} onClick={()=>choose(key)}>{label}</button>)}</div>
+  <div className="cc927-studio-grid"><div className="cc927-controls">
+   <label>Popup font<select aria-label="Popup font" value={draft.font} onChange={e=>change('font',e.target.value)}>{Object.keys(POPUP_FONTS).map(key=><option key={key} value={key}>{key==='system'?'System / Segoe UI':key==='jakarta'?'Plus Jakarta Sans':key}</option>)}</select></label>
+   <label>Text size · {draft.fontSize}px<input aria-label="Popup text size" type="range" min="12" max="26" value={draft.fontSize} onChange={e=>change('fontSize',Number(e.target.value))}/></label>
+   <div className="cc927-colours">{[['bg','Background'],['ink','Text colour'],['accent','Border / accent']].map(([key,label])=><label key={key}>{label}<input aria-label={label} type="color" value={draft[key]} onChange={e=>change(key,e.target.value)}/></label>)}</div>
+   <button type="button" onClick={()=>change('ink',readablePopupInk(draft.bg))}>Choose readable text colour</button>
+   <label>Display seconds · 0 = keep visible<input aria-label="Popup display seconds" type="number" min="0" max="600" value={draft.seconds} onChange={e=>change('seconds',Number(e.target.value))}/></label>
+   <label>Corner roundness<input aria-label="Popup corner roundness" type="range" min="0" max="32" value={draft.radius} onChange={e=>change('radius',Number(e.target.value))}/></label>
+   <div className="cc927-coordinates">{[['x','Left %'],['y','Top %'],['w','Width %'],['h','Height %']].map(([key,label])=><label key={key}>{label}<input type="number" aria-label={label} min={key==='w'||key==='h'?10:0} max="98" value={Math.round(draft[key]*100)} onChange={e=>change(key,Number(e.target.value)/100)}/></label>)}</div>
+   <div className="cc927-position-presets">{[['Top left',.02,.13],['Top right',.66,.13],['Centre',.34,.32],['Bottom left',.02,.62],['Bottom right',.66,.62]].map(([label,x,y])=><button type="button" key={label} onClick={()=>preset(x,y)}>{label}</button>)}</div>
+  </div><aside><Sample kind={kind} profile={draft}/><p>Use the button below to fine-tune your popup area. Arrow keys also work on the drag handles.</p><button type="button" className="cc927-main-button" onClick={()=>setEditing(true)}>Place & resize on screen ↗</button><p>When the display time ends, the popup minimizes. Use “Show…” to bring it back. Minimizing a popup does not complete the task.</p></aside></div>
+  <footer><button type="button" className="cc927-main-button" onClick={()=>save()}>Save settings</button><button type="button" onClick={()=>save(defaultPopupProfile(kind))}>Restore original for this type</button><span role="status">{status}</span></footer>
+  <p className="cc927-safety-note">Save / Submit failure alerts stay visible until you acknowledge them. Essential sign-in and approval locks keep their protected layout.</p>
+  {editing?<PlacementEditor kind={kind} profile={draft} onClose={()=>setEditing(false)} onDone={save}/>:null}
+ </section>;
 }
+
+async function boundedErrorPayload(response){const reader=response.body?.getReader();if(!reader)return{};let bytes=0,text='';const decoder=new TextDecoder(),timer=setTimeout(()=>reader.cancel().catch(()=>{}),1000);try{while(bytes<16384){const{value,done}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>16384)return{};text+=decoder.decode(value,{stream:true});}return JSON.parse(text);}catch{return{};}finally{clearTimeout(timer);reader.cancel().catch(()=>{});}}
+function installWriteMonitor(){
+ const previous=window.fetch,principal=accountPrincipal();let stopped=false;
+ const wrapper=async function(input,init={}){
+  let path='',method='GET',background=false,managed=false,action='save';const route=location.pathname+location.search;
+  try{const url=new URL(input instanceof Request?input.url:String(input),location.href);if(url.origin===location.origin&&url.pathname.startsWith('/api/'))path=url.pathname;method=String(init.method||input?.method||'GET').toUpperCase();const headers=new Headers(init.headers||input?.headers||{});background=headers.get('X-Career-Crox-Background')==='1';managed=init.__cc927ManagedWrite===true;if(typeof init.body==='string'&&init.body.length<32768&&JSON.parse(init.body)?.action==='submit')action='submit';}catch{}
+  const eligible=path&&!managed&&shouldReportWriteFailure(path,method,background),finish=eligible?trackUserWrite(principal):()=>{};
+  try{const response=await previous.apply(this,arguments);if(eligible&&!stopped){const payload=!response.ok||/json/i.test(response.headers.get('content-type')||'')?await boundedErrorPayload(response.clone()):{};if(!response.ok||payload.ok===false||payload.success===false)reportWriteFailure(Object.assign(new Error(payload.message||payload.error||'Server rejected the request.'),{status:response.ok?409:response.status,code:payload.code,payload}),{path,method,principal,action,route});else resolveWriteFailure(path,principal);}return response;}
+  catch(error){if(eligible&&!stopped)reportWriteFailure(error,{path,method,principal,action,route});throw error;}finally{finish();}
+ };
+ window.fetch=wrapper;
+ const invalid=event=>{const node=event.target;if(!node?.form)return;const button=document.activeElement?.closest('button')||node.form.querySelector('button[type=submit],button:not([type])'),action=/submit|जमा/i.test(button?.textContent||'')?'submit':'save';setTimeout(()=>{if(stopped)return;reportWriteFailure(Object.assign(new Error('Complete the required or invalid fields.'),{code:'LOCAL_VALIDATION',payload:{committed:false}}),{force:true,localRejected:true,action,path:'/local/form-validation',fields:[node.getAttribute('aria-label')||node.name||'Required field']});},0);};
+ document.addEventListener('invalid',invalid,true);
+ const unload=event=>{if(hasPendingUserWrite()){event.preventDefault();event.returnValue='';}};
+ window.addEventListener('beforeunload',unload);
+ return()=>{stopped=true;if(window.fetch===wrapper)window.fetch=previous;document.removeEventListener('invalid',invalid,true);window.removeEventListener('beforeunload',unload);};
+}
+export function PopupStudioRuntime({userId}){
+ const navigate=useNavigate(),currentRoute=useLocation(),pendingFocus=useRef(null);
+ const [failures,setFailures]=useState(()=> (window.__CC927_WRITE_FAILURES__||[]).filter(r=>r.principal===accountPrincipal())),[issue,setIssue]=useState(0);
+ // CC142: after same-tab route change, wait for the actual input to mount.
+ // Never issue another API request or focus an unrelated profile.
+ useEffect(()=>{
+   const pending=pendingFocus.current;
+   if(!pending||pending.route!==currentRoute.pathname+currentRoute.search)return;
+   let attempts=0,timeoutId=0,stopped=false;
+   const tryFocus=()=>{
+     if(stopped)return;
+     const field=pending.field;
+     const root=document.querySelector('.candidate-detail-full-panel');
+     const node=root?.querySelector('[data-field="'+field.replace(/[^a-zA-Z0-9_]/g,'')+'"]');
+     if(node){window.dispatchEvent(new CustomEvent('cc936-go-to-error',{detail:{field,fields:pending.fields}}));pendingFocus.current=null;return;}
+     if(++attempts<80)timeoutId=setTimeout(tryFocus,100);
+   };
+   timeoutId=setTimeout(tryFocus,60);
+   return()=>{stopped=true;clearTimeout(timeoutId);};
+ },[currentRoute.pathname,currentRoute.search]);
+ useEffect(()=>{const principal=accountPrincipal(),sync=()=>setFailures((window.__CC927_WRITE_FAILURES__||[]).filter(r=>r.principal===principal));sync();const clean=installPopupStudioDriver(),unwatch=installWriteMonitor();window.addEventListener('cc927-write-failed',sync);window.addEventListener('cc936-write-resolved',sync);return()=>{clean();unwatch();window.removeEventListener('cc927-write-failed',sync);window.removeEventListener('cc936-write-resolved',sync);};},[userId]);
+ const record=failures.find(r=>r.principal===accountPrincipal());useEffect(()=>setIssue(0),[record?.id]);
+ if(!record)return null;
+ const description=describeWriteFailure(record),fields=[...new Set(record.fields||[])],label=k=>({full_name:'Candidate name',phone:'Phone number',location:'Location',preferred_location:'Preferred location',master_notes:'Profile note',qualification:'Qualification',qualification_level:'Degree',ctc_monthly:'CTC monthly',in_hand_salary:'In-hand salary',total_experience:'Total experience',relevant_experience:'Relevant experience',interview_reschedule_date:'Interview date',submission_date:'Submission date',virtual_onsite:'Interview mode',communication_skill:'Communication skill',documents_availability:'Documents availability'}[k]||k.replaceAll('_',' '));
+ const action=/\/workspace\/allocation-locks\/[^/]+\/request$/.test(record.path)?'Allocation request':/attendance\/start-break/.test(record.path)?'Start Break':/attendance\/end-break/.test(record.path)?'End Break':/attendance/.test(record.path)?'Attendance update':/reminders\/pauses/.test(record.path)?'Reschedule reminder':/\/tasks\//.test(record.path)?'Task update':/\/chat\//.test(record.path)?'Send message':record.action==='submit'?'Submission':'Save';
+ const title=action+' '+(description.uncertain?'needs verification':'needs attention');
+ const technical=/activity_log_pkey|duplicate key|25P02|schema|connection terminated|ECONN/.test(record.message);
+ const reason=technical?'A CRM database error interrupted this action. Your entered details have been kept. Check its saved status before retrying.':record.code==='LOCAL_VALIDATION'?description.reason:record.message||description.reason;
+ function dismiss(all=false){window.__CC927_WRITE_FAILURES__=(window.__CC927_WRITE_FAILURES__||[]).filter(r=>r.principal===accountPrincipal()&&(!all&&r.id!==record.id));setFailures((window.__CC927_WRITE_FAILURES__||[]));}
+ function go(index=issue){
+   const field=fields.length?fields[index%fields.length]:'';
+   const targetRoute=record.profileRoute||(/\/candidate\//.test(record.route||'')?record.route:'');
+   if(targetRoute&&targetRoute!==currentRoute.pathname+currentRoute.search){
+     // Same tab; keep the pending input focus until CandidateDetailPage is rendered.
+     pendingFocus.current=field?{route:targetRoute,field,fields}:null;
+     navigate(targetRoute);return;
+   }
+   if(!field)return;
+   window.dispatchEvent(new CustomEvent('cc936-go-to-error',{detail:{field,fields,issues:record.issues,record}}));
+   setIssue(index%fields.length);
+ }
+ return createPortal(<aside id="cc927-write-error" data-cc730-skip="1" role="alert" aria-label={title}>
+  <style>{studioStyles+cc936ErrorStyles}</style><section className="cc927-error-panel" onClick={event=>{if((fields.length||record.profileRoute)&&!event.target.closest("button,a,summary,details"))go();}}><header><span className="cc927-error-kicker">ACTION CHECK · {action}</span><button type="button" aria-label="Dismiss error" onClick={()=>dismiss()}>×</button></header><h2>{title}</h2><p>{reason}</p>
+  {(record.candidateId||record.candidateName||record.ownerName||record.profileRoute)?<div className="cc142-error-identity" aria-label="Affected profile">
+   <div><b>Candidate ID</b><span>{record.candidateId||(record.profileRoute?.startsWith('/candidate/new')?'Pending until Submit':'Not available')}</span></div>
+   <div><b>Candidate</b><span>{record.candidateName||'Not provided'}</span></div>
+   <div><b>Profile owner</b><span>{record.ownerName||'Not available'}</span></div>
+  </div>:null}
+  {record.issues?.length>0?<ul className="cc936-error-issues">{record.issues.map((message,i)=><li key={i}>{message}</li>)}</ul>:null}
+  {fields.length>0?<div className="cc936-error-fields">{fields.map((field,i)=><button type="button" key={field} onClick={()=>go(i)} aria-pressed={issue===i}>{label(field)}</button>)}</div>:null}
+  <details><summary>Details / Manager help</summary><pre>{record.code?record.code+'\n':''}{record.message}</pre></details>
+  <footer>{record.existingProfile&&<button type="button" onClick={()=>window.open(record.existingProfile,'_blank','noopener,noreferrer')}>Open saved profile ↗</button>}{fields.length>0?<><button type="button" onClick={()=>go()}>Go to error ↗</button>{fields.length>1&&<button type="button" onClick={()=>go((issue+1)%fields.length)}>Next issue · {issue+1}/{fields.length}</button>}</>:record.route&&record.route!==location.pathname+location.search?<button type="button" onClick={()=>navigate(record.route)}>Open affected page ↗</button>:null}<button type="button" className="cc936-error-ok" onClick={()=>{if(fields.length||record.profileRoute)go();else dismiss();}}>{fields.length?'OK · Go to highlighted field':record.profileRoute?'OK · Open profile':'OK · Continue'}</button>{failures.length>1&&<button type="button" onClick={()=>dismiss(true)}>Dismiss all · {failures.length}</button>}</footer><small>{fields.length?'The incorrect field will be highlighted. Correct it and retry Save.':'Review the reason above before retrying. No automatic duplicate save.'}</small>
+  </section></aside>,document.body);
+}
+
+const studioStyles=`
+html#cc787-workspace body #cc927-studio{background:#fff;border:1px solid #dbe4f0;border-radius:17px;padding:19px;margin-top:20px;color:#253d56;font:400 13px/1.5 "Segoe UI",sans-serif}
+#cc927-studio header h3{font-size:19px!important;font-weight:600!important;margin:0 0 5px}#cc927-studio p{font-size:12px;line-height:1.6;margin:8px 0;color:#5a6b80}
+html body #cc927-studio button,#cc927-placement button{font:500 12px/1.4 "Segoe UI",sans-serif!important;color:#324e72!important;background:#fff!important;border:1px solid #c8d6e8!important;border-radius:9px!important;padding:8px 11px!important;cursor:pointer}
+#cc927-studio .cc927-profile-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:17px 0}#cc927-studio button[aria-pressed=true],html body #cc927-studio .cc927-main-button{background:#eaf0ff!important;color:#3b51a5!important;border-color:#9eb0ea!important}
+#cc927-studio .cc927-studio-grid{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(230px,1fr);gap:22px}#cc927-studio .cc927-controls{display:flex;flex-direction:column;gap:12px}#cc927-studio label{display:block;font-size:12px!important;font-weight:500!important;color:#455c76!important}
+html body #cc927-studio :is(select,input[type=number]){display:block;width:100%;padding:9px 10px;margin-top:4px;border:1px solid #cdd9e8!important;border-radius:9px!important;background:#fff!important;color:#2b4566!important;font:400 13px/1.4 "Segoe UI",sans-serif!important}
+#cc927-studio input[type=range]{width:100%;height:24px;padding:0;margin:3px 0}#cc927-studio input[type=color]{display:block;width:100%;height:34px;padding:2px;border:1px solid #d3ddeb;border-radius:8px;background:white}
+#cc927-studio .cc927-colours{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}#cc927-studio .cc927-coordinates{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}#cc927-studio .cc927-position-presets{display:flex;gap:5px;flex-wrap:wrap}#cc927-studio footer{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding-top:17px;margin-top:17px;border-top:1px solid #e3eaf3}#cc927-studio footer span{font-size:12px;color:#536e88}#cc927-studio .cc927-safety-note{background:#fff7e9;padding:10px;border-radius:10px;color:#745b31}
+html#cc787-workspace body :is(#cc927-studio,#cc927-placement) .cc927-sample{box-sizing:border-box;background:var(--sample-bg)!important;color:var(--sample-ink)!important;border:2px solid var(--sample-accent)!important;font:400 var(--sample-size)/1.45 var(--sample-font)!important;padding:17px;overflow:auto}
+html#cc787-workspace body :is(#cc927-studio,#cc927-placement) .cc927-sample *{font-family:var(--sample-font)!important;color:var(--sample-ink)!important;-webkit-text-fill-color:var(--sample-ink)!important;font-size:var(--sample-size)!important;font-weight:500!important;line-height:1.45!important}html body :is(#cc927-studio,#cc927-placement) .cc927-sample h3{margin:10px 0;font-size:1.15em!important;font-weight:600!important}.cc927-sample-actions{display:flex;gap:8px;margin-top:12px}.cc927-sample-actions span{padding:6px 12px;border:1px solid var(--sample-accent);border-radius:8px}
+#cc927-placement{position:fixed!important;inset:0!important;background:#102b4659!important;backdrop-filter:blur(2px);z-index:2147482000!important;touch-action:none;color:#1e3b57;font-family:"Segoe UI",sans-serif}#cc927-placement .cc927-placement-hint{position:fixed;top:8px;left:50%;transform:translateX(-50%);padding:10px 15px;border-radius:12px;background:white;box-shadow:0 5px 25px #0a25302a;font-size:13px;width:max-content;max-width:calc(100vw - 24px);text-align:center}
+#cc927-placement .cc927-placement-box{position:fixed;box-sizing:border-box!important;border:2px dashed #3275ce!important;background:#fff;border-radius:15px;box-shadow:0 0 0 3px #fff9;overflow:hidden;min-width:0}
+#cc927-placement .cc927-move-handle{position:absolute;top:0;left:0;width:100%;height:32px;border:0!important;border-radius:0!important;background:#eaf2ff!important;cursor:move!important;touch-action:none;z-index:2}#cc927-placement .cc927-sample{height:100%;padding-top:43px!important;border:0!important;border-radius:0!important}#cc927-placement .cc927-resize-handle{position:absolute;right:0;bottom:0;width:30px;height:30px;padding:3px!important;border-radius:8px 0 0 0!important;background:#eaf2ff!important;cursor:nwse-resize!important;touch-action:none;z-index:3}
+#cc927-placement .cc927-placement-footer{position:fixed;bottom:15px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:10px;background:white;border:1px solid #cedcec;border-radius:14px;padding:10px;box-shadow:0 10px 30px #122e4630;white-space:nowrap;max-width:calc(100vw - 16px);z-index:4;font-size:12px}
+#cc927-write-error{position:fixed!important;inset:0!important;background:#1725348c!important;z-index:2147483000!important;display:flex!important;align-items:flex-start!important;justify-content:center!important;padding:clamp(18px,9vh,90px) 14px!important;overflow:auto!important;font-family:"Segoe UI",Arial,sans-serif!important;color:#362635!important}
+html body #cc927-write-error .cc927-error-panel{box-sizing:border-box;width:560px;max-width:100%;background:#fff!important;border:2px solid #d44960!important;border-radius:20px;padding:25px;box-shadow:0 25px 80px #0c172452;color:#382735!important}html body #cc927-write-error .cc927-error-kicker{font:600 11px/1.5 "Segoe UI",sans-serif!important;color:#a3344c!important;letter-spacing:.06em}html body #cc927-write-error h2{font:600 25px/1.4 "Segoe UI",sans-serif!important;color:#a72843!important;margin:8px 0 12px!important}html body #cc927-write-error p{font:400 16px/1.7 "Segoe UI",sans-serif!important;color:#3f3340!important;margin:12px 0!important}
+html body #cc927-write-error .cc927-error-next{font:500 14px/1.6 "Segoe UI",sans-serif!important;background:#fff1f2!important;border:1px solid #edc9d0!important;border-radius:11px;padding:13px;color:#82394b!important}#cc927-write-error details{margin-top:16px;font:400 12px/1.5 "Segoe UI",sans-serif;color:#647083}#cc927-write-error pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;font:400 12px/1.5 Consolas,monospace;color:#5e6673}#cc927-write-error footer{display:flex;gap:8px;justify-content:flex-end;margin-top:21px;flex-wrap:wrap}html body #cc927-write-error button{font:500 14px/1.5 "Segoe UI",sans-serif!important;background:#b83751!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border:1px solid #ac2c47!important;border-radius:11px!important;padding:11px 15px!important;cursor:pointer}#cc927-write-error small{display:block;text-align:right;margin-top:12px;font-size:11px;color:#7f6d75}
+@media(max-width:700px){#cc927-studio .cc927-studio-grid{grid-template-columns:1fr}#cc927-studio .cc927-coordinates{grid-template-columns:repeat(2,1fr)}#cc927-placement .cc927-placement-footer{gap:5px;font-size:10px}#cc927-placement .cc927-placement-footer button{font-size:10px!important;padding:8px!important}}
+`.replaceAll('html body ','html#cc787-workspace#cc787-workspace#cc787-workspace body ').replaceAll('html#cc787-workspace body ','html#cc787-workspace#cc787-workspace#cc787-workspace body ');
+
+const cc936ErrorStyles=`
+html#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace body #cc927-write-error{position:fixed!important;inset:auto 16px 16px auto!important;width:min(350px,calc(100vw - 24px))!important;max-height:42dvh!important;padding:0!important;background:transparent!important;backdrop-filter:none!important;display:block!important;z-index:100950!important;pointer-events:none!important;overflow:visible!important}
+html#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace body #cc927-write-error .cc927-error-panel{pointer-events:auto!important;width:100%!important;max-height:42dvh!important;overflow:auto!important;padding:12px!important;border:1px solid #e8b8c4!important;border-radius:12px!important;box-shadow:0 12px 34px #23395b2b!important;background:#fff!important;color:#29374e!important}
+html#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace body #cc927-write-error header{display:flex!important;align-items:center!important;justify-content:space-between!important;gap:10px!important}html#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace body #cc927-write-error h2{font:600 17px/1.35 'Segoe UI',sans-serif!important;margin:6px 0!important}html#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace body #cc927-write-error p{font:400 13px/1.5 'Segoe UI',sans-serif!important;margin:7px 0!important}html#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace body #cc927-write-error button{padding:6px 9px!important;min-height:30px!important;border:1px solid #d6ddea!important;border-radius:9px!important;background:#f8faff!important;color:#344867!important;-webkit-text-fill-color:#344867!important;font:500 12px/1.3 'Segoe UI',sans-serif!important}
+html#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace body #cc927-write-error footer{display:flex!important;flex-wrap:wrap!important;gap:6px!important;margin-top:10px!important}html#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace body #cc927-write-error .cc936-error-ok{background:#405ed5!important;color:#fff!important;-webkit-text-fill-color:#fff!important;border-color:#405ed5!important}html#cc787-workspace#cc787-workspace#cc787-workspace#cc787-workspace body #cc927-write-error small{font:400 11px/1.4 'Segoe UI',sans-serif!important;display:block!important;margin-top:8px!important;color:#627089!important}
+.cc142-error-identity{display:grid;grid-template-columns:1fr;gap:5px;background:#f6f9ff;border:1px solid #dce7fa;border-radius:9px;padding:8px;margin:8px 0}.cc142-error-identity>div{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font:500 11px/1.35 'Segoe UI',sans-serif;color:#374d6b}.cc142-error-identity b{font-weight:600;color:#536682}.cc142-error-identity span{text-align:right;overflow-wrap:anywhere;max-width:65%;font-weight:600;color:#263c60}
+.cc936-error-fields{display:flex;gap:5px;flex-wrap:wrap}.cc936-error-issues{max-height:65px;overflow:auto;margin:8px 0;padding-left:18px;font:400 12px/1.5 'Segoe UI',sans-serif}.cc936-error-fields button[aria-pressed=true]{outline:2px solid #d69c55!important}
+`;
