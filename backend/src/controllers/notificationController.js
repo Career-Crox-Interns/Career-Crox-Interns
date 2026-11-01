@@ -58,7 +58,7 @@ async function markRead(req,res){
  require('../lib/cache').clearAllCaches(['notice-inbox','mobile-work-items','approvals']);return res.json({ok:true});
 }
 function compactInboxNotice(row){
- const raw=noticeMetadata(row),metadata=Object.fromEntries(['open_path','candidate_id','task_id','interview_date','count','report_id','employee_user_id','employee_name','approval_type','thread_key','review_id','note_id'].filter(key=>raw[key]!==undefined).map(key=>[key,String(raw[key]).slice(0,250)]));
+ const raw=noticeMetadata(row),metadata=Object.fromEntries(['open_path','candidate_id','candidate_name','profile_name','full_name','actor_name','task_id','interview_date','count','report_id','employee_user_id','employee_name','approval_type','thread_key','review_id','note_id'].filter(key=>raw[key]!==undefined).map(key=>[key,String(raw[key]).slice(0,250)]));
  return {notification_id:String(row.notification_id||''),user_id:String(row.user_id||''),title:String(row.title||'Notification').slice(0,180),message:String(row.message||'').slice(0,1000),category:String(row.category||'general'),status:String(row.status||'Unread'),metadata:JSON.stringify(metadata),created_at:row._notice_iso||row.created_at||''};
 }
 async function notificationInboxForUser(user,force=false){
