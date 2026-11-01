@@ -192,6 +192,48 @@ function columnSql(type) {
   if(!types[type])throw fail('Unsupported new-column type '+type+'. No records were changed.');
   return types[type];
 }
+// CC150: CRM branches can keep the same auxiliary ID under different
+// PostgreSQL storage types. Never weaken NOT NULL or rewrite an existing ID.
+// The generated ID is deterministic for a source primary key and table.
+function auxiliaryRowIdentity(table,primaryKey,targetType,salt=0) {
+  const digest=crypto.createHash('sha256')
+    .update('CareerCrox/CC150/auxiliary-row/v1\x00'+table+'\x00'+String(primaryKey)+'\x00'+salt)
+    .digest('hex');
+  if (textTypes.has(targetType)) return 'CC150-'+digest.slice(0,32);
+  if (targetType==='uuid') {
+    // Version/variant bits allow PostgreSQL uuid input without case changes.
+    return digest.slice(0,8)+'-'+digest.slice(8,12)+'-5'+digest.slice(13,16)+'-a'+digest.slice(17,20)+'-'+digest.slice(20,32);
+  }
+  const upper={int2:32767n,int4:2147483647n,int8:9223372036854775807n,numeric:9223372036854775807n}[targetType];
+  if (upper) return String((BigInt('0x'+digest.slice(0,16)) % upper)+1n);
+  throw fail(table+'.crm_row_id is '+targetType+', which cannot safely receive a generated surrogate ID. No CRM records were changed.');
+}
+function fillRequiredAuxiliaryRowIds(table,rows,spec,sourceFields) {
+  const primaryByTable={call_logs:'call_log_id',employee_daily_stats:'stat_id',manual_dialer_calls:'manual_call_id'};
+  const primary=primaryByTable[table],target=spec.columns.find(c=>c.name==='crm_row_id');
+  const generated=new Set();
+  if(!primary||!target||target.nullable!==false||!rows.length) return generated;
+  if(target.generated||target.identity) throw fail(table+'.crm_row_id is a generated database column and needs a schema-specific migration. No CRM records were changed.');
+  // This must work when CRM2's column is varchar/uuid/bigint, not only text.
+  // An omitted column with a default is still filled if it is required.
+  const used=new Set(rows.filter(row=>!blank(row.crm_row_id)).map(row=>String(row.crm_row_id)));
+  for(let i=0;i<rows.length;i++) {
+    const row=rows[i];
+    if(!blank(row.crm_row_id))continue;
+    const key=String(row[primary]??'').trim();
+    if(!key)throw fail(table+' has a record without '+primary+'. No CRM records were changed.');
+    let replacement,accepted=false;
+    for(let salt=0;salt<100000;salt++) {
+      replacement=auxiliaryRowIdentity(table,key,target.type,salt);
+      if(!used.has(replacement)){accepted=true;break;}
+    }
+    if(!accepted)throw fail(table+'.crm_row_id cannot be made unique without changing an existing ID. No CRM records were changed.');
+    row.crm_row_id=replacement;used.add(replacement);generated.add(i);
+  }
+  if(generated.size&&!sourceFields.has('crm_row_id'))sourceFields.set('crm_row_id',{...target});
+  return generated;
+}
+
 function adaptTransferSchema(payload,actual) {
   const receiver={...actual}, additions=[];
   // A nonempty source-only business field is preserved in a new nullable
@@ -217,23 +259,11 @@ function adaptTransferSchema(payload,actual) {
     const source=schema[table],input=tables[table];if(!source||!Array.isArray(input))continue;
     const sourceFields=new Map(source.columns.map(c=>[c.name,c])),rows=input.map(row=>({...row})),columns=[];
     const omitted=[];
-    // CC149: These 3 older tables acquired an auxiliary crm_row_id column.
-    // Some CRM1 databases allow NULL while CRM2 requires an ID. Only fill
-    // empty auxiliary IDs, based on the unchanged primary key; never rewrite
-    // an existing ID or the source workbook. This is not a candidate ID.
-    const legacyPrimaryKeys={call_logs:'call_log_id',employee_daily_stats:'stat_id',manual_dialer_calls:'manual_call_id'};
-    const rowIdColumn=spec.columns.find(c=>c.name==='crm_row_id');
-    if(Object.hasOwn(legacyPrimaryKeys,table) && rowIdColumn?.nullable===false && rowIdColumn.type==='text' && rows.length) {
-      const primary=legacyPrimaryKeys[table],seen=new Set(rows.filter(row=>!blank(row.crm_row_id)).map(row=>String(row.crm_row_id)));
-      for(const row of rows)if(blank(row.crm_row_id)) {
-        const pk=String(row[primary]??'').trim();
-        if(!pk)throw fail(table+' has a missing '+primary+'. No CRM records were changed.');
-        const replacement='CC149-ROW-'+crypto.createHash('sha256').update(table+'/'+pk).digest('hex').slice(0,32);
-        if(seen.has(replacement))throw fail(table+'.crm_row_id has a surrogate collision. No CRM records were changed.');
-        row.crm_row_id=replacement;seen.add(replacement);legacyRowIds[table]++;
-      }
-      if(!sourceFields.has('crm_row_id'))sourceFields.set('crm_row_id',{...rowIdColumn});
-    }
+    // CC150: source and destination may differ in crm_row_id type. Prepare
+    // required auxiliary IDs in the import snapshot, never in CRM1's data.
+    // Preserve every nonempty existing value and the true primary keys.
+    const generatedIds=fillRequiredAuxiliaryRowIds(table,rows,spec,sourceFields);
+    if(Object.hasOwn(legacyRowIds,table))legacyRowIds[table]+=generatedIds.size;
     for(const col of spec.columns) {
       const src=sourceFields.get(col.name);
       if(!src && input.length && !spec.primary_key.includes(col.name)) {
@@ -243,8 +273,12 @@ function adaptTransferSchema(payload,actual) {
       if(!src) {issues.push(table+'.'+col.name+': required source value is missing');continue;}
       columns.push({...col});
       if(src.type!==col.type)bridges.push({table,column:col.name,from:src.type,to:col.type,records:rows.length});
-      for(let i=0;i<rows.length;i++)try {rows[i][col.name]=convert(rows[i][col.name],src.type,col.type,identityColumn(spec,col.name));}
-        catch(e){issues.push(table+'.'+col.name+' ('+src.type+' -> '+col.type+'): '+e.message);break;}
+      for(let i=0;i<rows.length;i++)try {
+        // A newly synthesized value was created for the *destination* type;
+        // the older workbook's source type does not describe that value.
+        const fromType=col.name==='crm_row_id'&&generatedIds.has(i)?col.type:src.type;
+        rows[i][col.name]=convert(rows[i][col.name],fromType,col.type,identityColumn(spec,col.name));
+      }catch(e){issues.push(table+'.'+col.name+' ('+src.type+' -> '+col.type+'): '+e.message);break;}
     }
     // A successful type cast does not prove a destination NOT NULL constraint.
     // Catch these before the confirmed restore deletes/replaces *any* rows.
