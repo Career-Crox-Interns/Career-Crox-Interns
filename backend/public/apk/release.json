@@ -1,0 +1,21 @@
+{
+  "release": "CC159",
+  "app_name": "Career Crox",
+  "version_name": "1.0.159",
+  "version_code": 925,
+  "application_id": "com.careercrox.dialer.mobile",
+  "package_name": "com.careercrox.dialer.mobile",
+  "min_sdk": 26,
+  "target_sdk": 36,
+  "file_name": "CareerCrox.apk",
+  "size_bytes": 1641384,
+  "sha256": "78cd90f486fc6bcf43aa9bffebdc3e8d26fefdabf00cc6696ef96a35339b8218",
+  "development_build": false,
+  "debuggable": false,
+  "build_type": "standalone",
+  "signing_identity": "local Android debug certificate; separate package",
+  "signature_v2_verified": true,
+  "alignment_verified": true,
+  "production_signed": false,
+  "real_phone_calls_tested": false
+}
