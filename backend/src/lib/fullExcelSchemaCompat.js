@@ -212,11 +212,28 @@ function adaptTransferSchema(payload,actual) {
   }
   const activity=adaptActivitySchema({...payload,schema:seededSchema},receiver),target=activity.target;
   const schema={...activity.payload.schema},tables={...activity.payload.tables},defaultedColumns={};
-  const bridges=[],issues=[];
+  const bridges=[],issues=[],legacyRowIds={call_logs:0,employee_daily_stats:0,manual_dialer_calls:0};
   for(const [table,spec]of Object.entries(target)) {
     const source=schema[table],input=tables[table];if(!source||!Array.isArray(input))continue;
     const sourceFields=new Map(source.columns.map(c=>[c.name,c])),rows=input.map(row=>({...row})),columns=[];
     const omitted=[];
+    // CC149: These 3 older tables acquired an auxiliary crm_row_id column.
+    // Some CRM1 databases allow NULL while CRM2 requires an ID. Only fill
+    // empty auxiliary IDs, based on the unchanged primary key; never rewrite
+    // an existing ID or the source workbook. This is not a candidate ID.
+    const legacyPrimaryKeys={call_logs:'call_log_id',employee_daily_stats:'stat_id',manual_dialer_calls:'manual_call_id'};
+    const rowIdColumn=spec.columns.find(c=>c.name==='crm_row_id');
+    if(Object.hasOwn(legacyPrimaryKeys,table) && rowIdColumn?.nullable===false && rowIdColumn.type==='text' && rows.length) {
+      const primary=legacyPrimaryKeys[table],seen=new Set(rows.filter(row=>!blank(row.crm_row_id)).map(row=>String(row.crm_row_id)));
+      for(const row of rows)if(blank(row.crm_row_id)) {
+        const pk=String(row[primary]??'').trim();
+        if(!pk)throw fail(table+' has a missing '+primary+'. No CRM records were changed.');
+        const replacement='CC149-ROW-'+crypto.createHash('sha256').update(table+'/'+pk).digest('hex').slice(0,32);
+        if(seen.has(replacement))throw fail(table+'.crm_row_id has a surrogate collision. No CRM records were changed.');
+        row.crm_row_id=replacement;seen.add(replacement);legacyRowIds[table]++;
+      }
+      if(!sourceFields.has('crm_row_id'))sourceFields.set('crm_row_id',{...rowIdColumn});
+    }
     for(const col of spec.columns) {
       const src=sourceFields.get(col.name);
       if(!src && input.length && !spec.primary_key.includes(col.name)) {
@@ -229,11 +246,20 @@ function adaptTransferSchema(payload,actual) {
       for(let i=0;i<rows.length;i++)try {rows[i][col.name]=convert(rows[i][col.name],src.type,col.type,identityColumn(spec,col.name));}
         catch(e){issues.push(table+'.'+col.name+' ('+src.type+' -> '+col.type+'): '+e.message);break;}
     }
+    // A successful type cast does not prove a destination NOT NULL constraint.
+    // Catch these before the confirmed restore deletes/replaces *any* rows.
+    // A missing column with a DB default is intentionally omitted; an explicit
+    // NULL from the source is not a default and must fail preview.
+    const inserted=new Set(columns.map(c=>c.name));
+    for(const col of spec.columns)if(col.nullable===false && !col.generated && inserted.has(col.name)) {
+      const missing=rows.filter(row=>row[col.name] == null).length;
+      if(missing)issues.push(table+'.'+col.name+': '+missing+' NULL value(s) would violate NOT NULL. Update the matching schema or source before import');
+    }
     if(omitted.length)defaultedColumns[table]=omitted;
     schema[table]={...source,columns};tables[table]=rows;
   }
   if(issues.length)throw fail('CRM type/schema check: '+issues.slice(0,12).join('; ')+(issues.length>12?'; additional incompatible columns':'')+'. No records were changed.');
-  return {...activity,additions:[...additions,...activity.additions],payload:{...activity.payload,schema,tables,defaulted_columns:defaultedColumns},bridges,emptyTables,defaultedColumns};
+  return {...activity,additions:[...additions,...activity.additions],payload:{...activity.payload,schema,tables,defaulted_columns:defaultedColumns},bridges,emptyTables,defaultedColumns,legacyRowIds};
 }
 function storedNumber(value) {
   return value && typeof value === 'object' && numberToken in value ? value[numberToken] : String(value);
