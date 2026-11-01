@@ -345,6 +345,76 @@ export function noticeSubject(item){
  );
 }
 
+// CC151: precise category headings and light gradients; no extra API calls.
+const NOTICE_TONES={
+ notes:{label:'Notes',start:'#e9f9f4',end:'#f9fffc',accent:'#097b65',accent2:'#35a68f',ink:'#155847'},
+ submission:{label:'Submission',start:'#e9f2ff',end:'#f8faff',accent:'#235cbe',accent2:'#568be3',ink:'#194276'},
+ interview:{label:'Interview',start:'#f4ecff',end:'#fcf9ff',accent:'#7d43ae',accent2:'#b276da',ink:'#57317b'},
+ approval:{label:'Approval',start:'#e8f8ef',end:'#f8fffa',accent:'#18744c',accent2:'#46a878',ink:'#18583d'},
+ transfer:{label:'Transfer',start:'#fff1e7',end:'#fffaf5',accent:'#ac5d29',accent2:'#dc965e',ink:'#81451e'},
+ status:{label:'Status Update',start:'#f2edff',end:'#fcfbff',accent:'#6754b5',accent2:'#9c87dc',ink:'#4b388b'},
+ profile:{label:'Profile Update',start:'#eaf6ff',end:'#f7fbff',accent:'#2472a5',accent2:'#59a6d1',ink:'#19557e'},
+ task:{label:'Task',start:'#efefff',end:'#fafaff',accent:'#5152b6',accent2:'#8786dd',ink:'#393b82'},
+ attendance:{label:'Attendance',start:'#fff7df',end:'#fffdf4',accent:'#906d21',accent2:'#c4a044',ink:'#694e0c'},
+ chat:{label:'Team Chat',start:'#fff0f7',end:'#fffbfd',accent:'#a23d78',accent2:'#d47aaa',ink:'#742752'},
+ report:{label:'Report',start:'#eaf9fc',end:'#faffff',accent:'#267686',accent2:'#6ab6c5',ink:'#195b68'},
+ calls:{label:'Calls',start:'#fff2e7',end:'#fffaf4',accent:'#b26a27',accent2:'#d9a45b',ink:'#804912'},
+ warning:{label:'Warning',start:'#fff0ee',end:'#fff9f8',accent:'#b94343',accent2:'#df8b77',ink:'#873333'},
+ other:{label:'Notification',start:'#f2f4fd',end:'#fdfdff',accent:'#59669f',accent2:'#8d9bd0',ink:'#38446c'}
+};
+
+export function noticeHeadline(item){
+ const meta=noticeMetadata(item);
+ const category=String(item?.category||'').trim().toLowerCase();
+ const title=String(item?.title||'').trim().toLowerCase();
+ const full=category+' '+title;
+ let kind=noticeCategory(item);
+ let label='';
+ // Explicit subject of the event wins over a generic candidate_update type.
+ if(/\b(approval rejected|rejected approval|profile rejected)\b/.test(full)){
+  kind='approval';label='Approval Rejected';
+ }else if(/\b(profile|candidate|submission|allocation|request)\b.*\bapproved\b|\bapproved\b.*\b(profile|candidate|submission|allocation|request)\b/.test(full)){
+  kind='approval';label=/allocat/.test(full)?'Allocation Approved':'Profile Approved';
+ }else if(/\b(approval|allocation|access)\b.*\b(pending|requested|request)\b|\bpending approval\b/.test(full)){
+  kind='approval';label=/allocat/.test(full)?'Allocation Request':'Approval Pending';
+ }else if(/\b(interview|reschedul)\b/.test(full)||meta.interview_id||meta.interview_date){
+  kind='interview';label=/reschedul/.test(full)?'Interview Rescheduled':/schedul|booked/.test(full)?'Interview Scheduled':'Interview Update';
+ }else if(/\b(submi(?:ssion|tted|t))\b/.test(full)||meta.submission_id||meta.section==='submissions'){
+  kind='submission';label=/\bsubmitted\b|\bnew submission\b/.test(full)?'New Submission':'Submission Update';
+ }else if(/\bnote(?:s)?\b/.test(full)||meta.note_id||meta.note_body){
+  kind='notes';label=/\badded\b|\bnew note\b/.test(full)?'Note Added':'Note Updated';
+ }else if(/follow.?up|reminder/.test(full)){
+  kind='task';label='Follow-up Reminder';
+ }else if(/transfer|reassign|allocat/.test(full)){
+  kind='transfer';label='Profile Transfer';
+ }else if(/\b(approved|rejected)\b/.test(full)){
+  kind='approval';label=/rejected/.test(full)?'Approval Rejected':'Profile Approved';
+ }else if(kind==='status')label='Status Updated';
+ const tone=NOTICE_TONES[kind]||NOTICE_TONES.other;
+ return {...tone,kind,label:label||tone.label};
+}
+
+function candidateNameFromVisibleRows(candidateId){
+ const wanted=String(candidateId||'').trim();
+ if(!wanted||typeof document==='undefined')return '';
+ // Only use already visible, authorized candidate-list rows. No Supabase request.
+ for(const cell of document.querySelectorAll('td.candidate-id-cell')){
+  if(String(cell.textContent||'').trim()!==wanted)continue;
+  const name=cell.closest('tr')?.querySelector('td.candidate-name-cell strong');
+  const value=String(name?.textContent||'').trim();
+  if(value&&value!=='-')return value;
+ }
+ return '';
+}
+
+export function noticeCandidateIdentity(item){
+ const meta=noticeMetadata(item);
+ const id=String(meta.candidate_id||'').trim();
+ const name=String(meta.candidate_name||meta.profile_name||meta.full_name||meta.candidate?.full_name||'').trim()
+  ||candidateNameFromVisibleRows(id);
+ return {name,id};
+}
+
 let compactUsers=0,compactCleanup;
 
 function installCompactReminders(){
@@ -384,7 +454,7 @@ function installCompactReminders(){
   right:auto!important;
   top:auto!important;
   z-index:100940!important;
-  width:min(180px,calc(100vw - 16px))!important;
+  width:min(208px,calc(100vw - 16px))!important;
   max-width:calc(100vw - 16px)!important;
   display:grid!important;
   grid-template-columns:minmax(0,1fr)!important;
@@ -429,7 +499,28 @@ function installCompactReminders(){
   justify-content:flex-end!important;
  }
 
- ${p}${base} .cc388-label{display:none!important}
+ ${p}${base} .cc388-label{
+   display:inline-flex!important;
+   align-items:center!important;
+   min-width:0!important;
+   width:auto!important;
+   max-width:calc(100% - 50px)!important;
+   padding:3px 5px!important;
+   border-radius:7px!important;
+   border:0!important;
+   background:linear-gradient(115deg,#efedff,#e7f0ff)!important;
+   color:#51408d!important;
+   -webkit-text-fill-color:#51408d!important;
+   font:750 9px/1.2 ${COMPACT_FONT}!important;
+   letter-spacing:0!important;
+   text-transform:none!important;
+   white-space:normal!important;
+   overflow-wrap:anywhere!important;
+ }
+  ${p}${base} .cc388-card.interview .cc388-head{background:linear-gradient(115deg,#f5eaff,#fff8fd)!important}
+  ${p}${base} .cc388-card:is(.submission,.submissions) .cc388-head{background:linear-gradient(115deg,#e9f1ff,#f8fbff)!important}
+  ${p}${base} .cc388-card.task .cc388-head{background:linear-gradient(115deg,#e6f8f0,#f9fefa)!important}
+  ${p}${base} .cc388-card.followups .cc388-head{background:linear-gradient(115deg,#f0e9ff,#f9f6ff)!important}
 
  ${p}${base} .cc388-head-actions>button{
   background:#edf2ff!important;
@@ -606,7 +697,7 @@ const POPUP_STYLE=`
 article{
  font:var(--notice-size,13px)/1.4 var(--notice-font,Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif);
  color:var(--notice-ink,#14243b);
- background:var(--notice-bg,#fff);
+ background:linear-gradient(180deg,#ffffff 0%,#fcfdff 100%);
  border:1px solid #d0d9e8;
  border-left:3px solid var(--notice-accent,#346ae5);
  border-radius:16px;
@@ -619,8 +710,10 @@ header{
  display:flex;
  align-items:center;
  gap:7px;
- padding:8px 9px 3px;
- color:var(--notice-ink,#14243b);
+ padding:8px 9px;
+ background:linear-gradient(115deg,var(--cc151-head-start,#edf3ff),var(--cc151-head-end,#fbfcff));
+ border-bottom:1px solid var(--cc151-head-border,#e0e7f4);
+ color:var(--cc151-heading-color,#223c62);
 }
 
 button{
@@ -642,7 +735,7 @@ button:focus-visible,.changes:focus-visible{
  width:23px;
  height:23px;
  border-radius:7px;
- background:var(--notice-accent,#346ae5);
+ background:linear-gradient(135deg,var(--cc151-accent,#346ae5),var(--cc151-accent-2,#7668d4));
  color:#fff;
  flex:none;
  font-size:14px;
@@ -656,7 +749,7 @@ button:focus-visible,.changes:focus-visible{
  line-height:1.25;
  font-weight:750;
  overflow-wrap:anywhere;
- color:var(--notice-ink,#14243b);
+ color:var(--cc151-heading-color,#223c62);
  padding:0;
 }
 
@@ -671,10 +764,23 @@ button:focus-visible,.changes:focus-visible{
  align-self:flex-start;
 }
 
-.subject{display:none}
+ .subject{
+ display:flex;
+ align-items:baseline;
+ flex-wrap:wrap;
+ gap:3px 7px;
+ min-height:0;
+ padding:6px 10px 0;
+ color:#1c3151;
+ line-height:1.3;
+ }
+ .subject:empty{display:none;padding:0}
+ .subject-name{font-size:12.5px;font-weight:800;overflow-wrap:anywhere}
+ .subject-id{font-size:10px;font-weight:700;color:#687993;background:#f1f5fd;border:1px solid #e2eaf7;border-radius:6px;padding:1px 5px;white-space:nowrap}
+ .category-subtitle{display:block;font-size:10px;line-height:1.25;font-weight:600;color:#60718e;margin-top:2px}
 
 .body{
- padding:2px 10px 3px;
+ padding:5px 10px 5px;
  max-height:min(120px,35vh);
  overflow:auto;
  overscroll-behavior:contain;
@@ -710,8 +816,8 @@ button:focus-visible,.changes:focus-visible{
 }
 
 .kind{
- font-weight:650;
- color:var(--notice-accent,#346ae5);
+ font-weight:700;
+ color:var(--cc151-accent,#346ae5);
 }
 
 .footer-actions{
@@ -730,7 +836,7 @@ button:focus-visible,.changes:focus-visible{
  padding:4px 7px;
  color:#fff;
  font-weight:700;
- background:var(--notice-accent,#346ae5);
+ background:linear-gradient(110deg,var(--cc151-accent,#346ae5),var(--cc151-accent-2,#7668d4));
 }
 
 .context{
@@ -1118,7 +1224,14 @@ export function installNotificationInboxRuntime(
   article.setAttribute('aria-label','Work notification');
 
   const theme=popupTheme(item);
-  article.dataset.category=theme.kind;
+  const banner=noticeHeadline(item);
+  article.dataset.category=banner.kind;
+  article.style.setProperty('--cc151-head-start',banner.start);
+  article.style.setProperty('--cc151-head-end',banner.end);
+  article.style.setProperty('--cc151-head-border',banner.start);
+  article.style.setProperty('--cc151-accent',banner.accent);
+  article.style.setProperty('--cc151-accent-2',banner.accent2);
+  article.style.setProperty('--cc151-heading-color',banner.ink);
 
   for(const [key,value]of Object.entries({
    accent:theme.accent,
@@ -1137,9 +1250,9 @@ export function installNotificationInboxRuntime(
   dot.className='category-icon-static';
   dot.setAttribute('aria-hidden','true');
 
-  const glyph=theme.kind==='notes'
+  const glyph=banner.kind==='notes'
    ?'M5 3h8l3 3v11H5z M8 8h5 M8 11h5 M8 14h3'
-   :theme.kind==='approval'
+   :banner.kind==='approval'
     ?'M4 10l4 4 8-8'
     :'M6 8a4 4 0 0 1 8 0v4l2 2H4l2-2z M8 17h4';
 
@@ -1172,8 +1285,8 @@ export function installNotificationInboxRuntime(
 
   heading.type='button';
   heading.className='heading';
-  heading.textContent=noticeSubject(item);
-  heading.title='Open update';
+  heading.textContent=banner.label;
+  heading.title=item.title||banner.label;
 
   close.type='button';
   close.className='close';
@@ -1235,7 +1348,27 @@ export function installNotificationInboxRuntime(
   const metadata=noticeMetadata(item);
   const subject=document.createElement('span');
   subject.className='subject';
-  subject.textContent='';
+  const identity=noticeCandidateIdentity(item);
+  if(identity.name){
+   const name=document.createElement('strong');
+   name.className='subject-name';
+   name.textContent=identity.name;
+   subject.append(name);
+  }
+  if(identity.id){
+   const id=document.createElement('span');
+   id.className='subject-id';
+   id.textContent=identity.id;
+   subject.append(id);
+  }
+  if(!identity.name&&!identity.id){
+   // Non-candidate notices retain a meaningful subject without fabricating a name.
+   const subjectText=String(noticeSubject(item)||'').trim();
+   if(subjectText&&subjectText!==banner.label){
+    const label=document.createElement('strong');label.className='subject-name';
+    label.textContent=subjectText;subject.append(label);
+   }
+  }
 
   const changes=document.createElement('div');
   changes.className='changes';
