@@ -1,0 +1,16 @@
+{
+  "release": "CC148",
+  "version_name": "CC148-dev",
+  "version_code": 924,
+  "application_id": "com.careercrox.dialer.preview148",
+  "min_sdk": 26,
+  "target_sdk": 36,
+  "file_name": "CareerCrox_CC148_TEST.apk",
+  "size_bytes": 2025557,
+  "sha256": "21f4f67865975a7e4930dc28b653f2631608b60f1bc80e08519b5386eb63a564",
+  "development_build": true,
+  "signature_v2_verified": true,
+  "alignment_verified": true,
+  "production_signed": false,
+  "real_phone_calls_tested": false
+}
