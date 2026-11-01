@@ -411,10 +411,13 @@ function pipelineAttemptTime(row={}) {
 }
 function latestAttemptFirst(a,b){return pipelineAttemptTime(b)-pipelineAttemptTime(a)||(Date.parse(b.created_at)||0)-(Date.parse(a.created_at)||0)||String(b.revenue_id||'').localeCompare(String(a.revenue_id||''));}
 async function findRevenueEntryByCandidateId(candidateId) {
+  // CC157: JSON text normalization prevents mixed legacy TIMESTAMPTZ/TEXT
+  // column types from breaking Save/Submit while selecting the latest attempt.
+  // Keep the established interview-date priority and candidate-row lock order.
   if(store.pool)return store.one(`select r.* from public.revenue_hub_entries r
-    where upper(candidate_id)=upper($1) and coalesce(deleted_at,'')='' and lower(coalesce(status,''))<>'deleted'
-    order by coalesce(public.crm_due_instant(coalesce(nullif(to_jsonb(r)->>'interview_datetime',''),nullif(to_jsonb(r)->>'interview_date',''),r.created_at)),public.crm_safe_instant(r.created_at)) desc nulls last,
-      public.crm_safe_instant(r.created_at) desc nulls last,r.revenue_id desc limit 1 for update`,[candidateId]);
+    where upper(r.candidate_id)=upper($1) and coalesce(to_jsonb(r)->>'deleted_at','')='' and lower(coalesce(r.status,''))<>'deleted'
+    order by coalesce(public.crm_due_instant(coalesce(nullif(to_jsonb(r)->>'interview_datetime',''),nullif(to_jsonb(r)->>'interview_date',''),nullif(to_jsonb(r)->>'created_at',''))),public.crm_safe_instant(to_jsonb(r)->>'created_at')) desc nulls last,
+      public.crm_safe_instant(to_jsonb(r)->>'created_at') desc nulls last,r.revenue_id desc limit 1 for update`,[candidateId]);
   return (await table('revenue_hub_entries')).filter(row=>normalizeCandidateCode(row.candidate_id)===normalizeCandidateCode(candidateId)&&isActiveRevenueEntry(row)).sort(latestAttemptFirst)[0]||null;
 }
 async function syncLatestInterviewToCandidate(candidateId,knownLatest=null){
@@ -461,7 +464,7 @@ async function getVisibleEntries(user){
 const candidateSnapshotCache=new Map();
 async function loadVisibleEntries(user) {
   let rows,candidates;
-  if(store.pool){const scope=candidateOwnerSql('c',user,[]);rows=await require('../lib/versionedList').versionedList({key:JSON.stringify([user.user_id,user.__ccAccessRevision]),select:(await require('../lib/sqlProjection').projection('revenue_hub_entries','r',["revenue_id", "candidate_id", "full_name", "phone", "email", "client_name", "process", "location", "qualification", "recruiter_name", "recruiter_code", "recruiter_user_id", "communication_skill", "experience_range", "salary_range", "interview_datetime", "interview_date", "interview_mode", "submission_date", "selection_date", "joining_date", "joined_date", "status", "payout_status", "payout_amount", "payout_days", "payout_duration_days", "invoice_lead_days", "invoice_status", "payout_received_at", "notes", "resume_filename", "recording_filename", "updated_at", "created_at", "deleted_at", "archived_at"]))+",c.updated_at as __candidate_version",from:'public.revenue_hub_entries r left join public.candidates c on c.candidate_id=r.candidate_id',where:"lower(coalesce(r.status,''))<>'deleted' and coalesce(r.deleted_at,'')='' and "+scope.sql,params:scope.params,id:'revenue_id',idExpr:'r.revenue_id',version:"greatest(coalesce(r.updated_at,r.created_at,''),coalesce(c.updated_at,c.created_at,''))"});const ids=[...new Set(rows.filter(r=>!candidateSnapshotCache.has(r.candidate_id)||candidateSnapshotCache.get(r.candidate_id).version!==r.__candidate_version).map(r=>r.candidate_id))];// CC88: Only the columns needed for the Revenue candidate snapshot move
+  if(store.pool){const scope=candidateOwnerSql('c',user,[]);rows=await require('../lib/versionedList').versionedList({key:JSON.stringify([user.user_id,user.__ccAccessRevision]),select:(await require('../lib/sqlProjection').projection('revenue_hub_entries','r',["revenue_id", "candidate_id", "full_name", "phone", "email", "client_name", "process", "location", "qualification", "recruiter_name", "recruiter_code", "recruiter_user_id", "communication_skill", "experience_range", "salary_range", "interview_datetime", "interview_date", "interview_mode", "submission_date", "selection_date", "joining_date", "joined_date", "status", "payout_status", "payout_amount", "payout_days", "payout_duration_days", "invoice_lead_days", "invoice_status", "payout_received_at", "notes", "resume_filename", "recording_filename", "updated_at", "created_at", "deleted_at", "archived_at"]))+",c.updated_at as __candidate_version",from:'public.revenue_hub_entries r left join public.candidates c on c.candidate_id=r.candidate_id',where:"lower(coalesce(r.status,''))<>'deleted' and coalesce(r.deleted_at,'')='' and "+scope.sql,params:scope.params,id:'revenue_id',idExpr:'r.revenue_id',version:"concat_ws('|',to_jsonb(r)->>'updated_at',to_jsonb(r)->>'created_at',to_jsonb(c)->>'updated_at',to_jsonb(c)->>'created_at')"});const ids=[...new Set(rows.filter(r=>!candidateSnapshotCache.has(r.candidate_id)||candidateSnapshotCache.get(r.candidate_id).version!==r.__candidate_version).map(r=>r.candidate_id))];// CC88: Only the columns needed for the Revenue candidate snapshot move
     // from Supabase to Render. Never download resume blobs, long notes,
     // full candidate histories, etc. for this read-only listing.
     const snapshotColumns=['candidate_id','project_id','full_name','phone','number','process','client_name','company_name',
@@ -640,7 +643,7 @@ async function getVisibleCandidates(user, query = '') {
         select ${['candidate_id','full_name','phone','number','email','project_id','client_name','company_name','process','preferred_location','location','qualification','qualification_level','recruiter_name','recruiter_code','recruiter_user_id','interview_reschedule_date','interview_date','virtual_onsite','submission_date','communication_skill','relevant_experience_range','relevant_in_hand_range','tl_id','tl_name','created_at','updated_at'].map(f=>`to_jsonb(c)->>'${f}' as "${f}"`).join(', ')},exists(select 1 from public.revenue_hub_entries r where upper(r.candidate_id)=upper(c.candidate_id) and coalesce(r.deleted_at,'')='' and lower(coalesce(r.status,''))<>'deleted') as already_in_pipeline
         from public.candidates c
         ${whereSql}
-        order by ${orderSql} coalesce(c.updated_at, c.created_at, now()::text) desc
+        order by ${orderSql} coalesce(public.crm_safe_instant(to_jsonb(c)->>'updated_at'),public.crm_safe_instant(to_jsonb(c)->>'created_at'),now()) desc
         limit 12
       `, params);
     } catch (error) {
