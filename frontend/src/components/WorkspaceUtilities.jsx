@@ -68,25 +68,99 @@ async function writeClipboard(value){
 function HoverCopy({enabled,route}){
  useEffect(()=>{
   if(!enabled)return;
-  let active=null,hideTimer,toastTimer;
-  const host=document.createElement('div');host.id='cc913-copy-surface';host.style.cssText='all:initial!important;display:contents!important';const surface=host.attachShadow({mode:'open'}),css=document.createElement('style');css.textContent=copyStyles;surface.appendChild(css);document.body.appendChild(host);
-  const button=document.createElement('button');button.type='button';button.className='cc911-copy-button';button.textContent='Copy';button.hidden=true;button.dataset.noCopy='1';surface.appendChild(button);
-  const toast=document.createElement('div');toast.className='cc911-copy-feedback';toast.setAttribute('role','status');toast.hidden=true;surface.appendChild(toast);
-  const place=()=>{if(!active?.anchor?.isConnected){button.hidden=true;return;}const r=active.anchor.getBoundingClientRect();if(r.width<10||r.height<8||r.bottom<0||r.top>innerHeight){button.hidden=true;return;}
-   button.style.left=Math.max(4,Math.min(innerWidth-58,r.right-54))+'px';button.style.top=Math.max(4,Math.min(innerHeight-30,r.top-29))+'px';button.hidden=false;button.setAttribute('aria-label','Copy '+active.label);
+  // CC152: a pending clipboard operation owns an immutable target snapshot.
+  // Clicks, Escape and route changes may clear the current selection meanwhile.
+  let active=null,closed=false,copying=false,frame=0,toastTimer;
+  const host=document.createElement('div');
+  host.id='cc913-copy-surface';host.dataset.noTheme='1';
+  host.style.cssText='all:initial!important;display:contents!important;pointer-events:none!important';
+  const surface=host.attachShadow({mode:'open'}),css=document.createElement('style');
+  css.textContent=copyStyles+'\n:host{pointer-events:none}.cc911-copy-button{pointer-events:auto}.cc911-copy-feedback[data-error="true"]{background:#fff2f1;color:#9c243a;border-color:#e9b5bb}';
+  surface.appendChild(css);document.body.appendChild(host);
+  const button=document.createElement('button');
+  button.type='button';button.className='cc911-copy-button';button.textContent='Copy';
+  button.hidden=true;button.dataset.noCopy='1';surface.appendChild(button);
+  const toast=document.createElement('div');
+  toast.className='cc911-copy-feedback';toast.setAttribute('role','status');
+  toast.setAttribute('aria-live','polite');toast.hidden=true;surface.appendChild(toast);
+  const hidden=(node,value)=>{if(node.hidden!==value)node.hidden=value;};
+  const style=(key,value)=>{if(button.style[key]!==value)button.style[key]=value;};
+  const clear=()=>{active=null;hidden(button,true);};
+  const place=()=>{
+   frame=0;if(closed)return;
+   const target=active;
+   if(!target?.anchor?.isConnected){clear();return;}
+   const r=target.anchor.getBoundingClientRect();
+   if(r.width<10||r.height<8||r.bottom<0||r.top>innerHeight||r.right<0||r.left>innerWidth){hidden(button,true);return;}
+   style('left',Math.max(4,Math.min(innerWidth-58,r.right-54))+'px');
+   style('top',Math.max(4,Math.min(innerHeight-30,r.top-29))+'px');
+   const label='Copy '+String(target.label||'candidate detail');
+   if(button.getAttribute('aria-label')!==label)button.setAttribute('aria-label',label);
+   hidden(button,false);
   };
-  const show=e=>{const origin=e.composedPath?.().find(x=>x instanceof Element)||e.target;if(origin===button)return;clearTimeout(hideTimer);const found=copyTarget(origin);if(!found||!String(found.read()??'').trim()){button.hidden=true;active=null;return;}active=found;place();};
-  const out=e=>{if(e.relatedTarget===host||e.relatedTarget===button||button.contains(e.relatedTarget)||active?.anchor.contains(e.relatedTarget))return;clearTimeout(hideTimer);hideTimer=setTimeout(()=>{if(surface.activeElement!==button&&!button.matches(':hover')){button.hidden=true;active=null;}},160);};
-  const copy=async e=>{e.preventDefault();e.stopPropagation();if(!active?.anchor.isConnected)return;const value=String(active.read()??'');try{if(!value.trim())throw Error('Nothing to copy');await writeClipboard(value);toast.textContent='Copied '+active.label;}catch(error){toast.textContent=error.message;}toast.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>{toast.hidden=true;},1800);};
-  const escape=e=>{if(e.key==='Escape'){active=null;button.hidden=true;}};
-  button.addEventListener('pointerenter',()=>clearTimeout(hideTimer));button.addEventListener('mousedown',e=>e.preventDefault());button.addEventListener('click',copy);
-  const roots=new Set(),listen=root=>{if(!root||roots.has(root))return;roots.add(root);for(const [name,fn]of [['click',show]])root.addEventListener(name,fn,true);};
-  const surfaced=e=>listen(e.detail?.root);document.querySelectorAll('[data-no-theme]').forEach(host=>listen(host.shadowRoot));window.addEventListener('career-crox-isolated-surface',surfaced);
-  document.addEventListener('click',show,true);document.addEventListener('keydown',escape,true);window.addEventListener('scroll',place,true);window.addEventListener('resize',place);
-  return()=>{window.removeEventListener('career-crox-isolated-surface',surfaced);for(const root of roots)for(const [name,fn]of [['click',show]])root.removeEventListener(name,fn,true);clearTimeout(hideTimer);clearTimeout(toastTimer);document.removeEventListener('click',show,true);document.removeEventListener('keydown',escape,true);window.removeEventListener('scroll',place,true);window.removeEventListener('resize',place);host.remove();};
+  const schedule=()=>{if(!closed&&!frame)frame=requestAnimationFrame(place);};
+  const show=e=>{
+   if(closed)return;
+   const origin=e.composedPath?.().find(x=>x instanceof Element)||e.target;
+   if(origin===button||button.contains(origin))return;
+   try{
+    const found=copyTarget(origin);
+    if(!found?.anchor?.isConnected||!String(found.read()??'').trim()){clear();return;}
+    active=found;schedule();
+   }catch{clear();}
+  };
+  const feedback=(message,error=false)=>{
+   if(closed||!host.isConnected)return;
+   toast.textContent=message;toast.dataset.error=String(error);hidden(toast,false);
+   clearTimeout(toastTimer);
+   toastTimer=setTimeout(()=>{if(!closed)hidden(toast,true);},error?3500:1800);
+  };
+  const copy=async e=>{
+   e.preventDefault();e.stopPropagation();
+   const target=active;
+   if(closed||copying||!target?.anchor?.isConnected)return;
+   let value,label;
+   try{
+    value=String(target.read()??'');label=String(target.label||'candidate detail');
+    if(!value.trim())throw Error('Nothing to copy');
+   }catch(error){feedback(error?.message||'Could not read this field.',true);return;}
+   copying=true;button.disabled=true;button.setAttribute('aria-busy','true');
+   try{
+    await writeClipboard(value);
+    // Do not read `active` here: the user can already be in another field.
+    feedback('Copied '+label);
+   }catch(error){feedback(error?.message||'Copy unavailable. Please select and copy the text.',true);}
+   finally{
+    copying=false;
+    if(!closed){button.disabled=false;button.removeAttribute('aria-busy');schedule();}
+   }
+  };
+  const escape=e=>{if(e.key==='Escape')clear();};
+  const down=e=>e.preventDefault();
+  button.addEventListener('mousedown',down);button.addEventListener('click',copy);
+  const roots=new Set();
+  const listen=root=>{
+   if(!root?.addEventListener||roots.has(root))return;
+   roots.add(root);root.addEventListener('click',show,true);
+  };
+  const surfaced=e=>listen(e.detail?.root);
+  document.querySelectorAll('[data-no-theme]').forEach(node=>listen(node.shadowRoot));
+  window.addEventListener('career-crox-isolated-surface',surfaced);
+  document.addEventListener('click',show,true);document.addEventListener('keydown',escape,true);
+  window.addEventListener('scroll',schedule,{capture:true,passive:true});
+  window.addEventListener('resize',schedule);
+  return()=>{
+   closed=true;active=null;cancelAnimationFrame(frame);clearTimeout(toastTimer);
+   window.removeEventListener('career-crox-isolated-surface',surfaced);
+   for(const root of roots)root.removeEventListener('click',show,true);
+   document.removeEventListener('click',show,true);document.removeEventListener('keydown',escape,true);
+   window.removeEventListener('scroll',schedule,true);window.removeEventListener('resize',schedule);
+   button.removeEventListener('mousedown',down);button.removeEventListener('click',copy);host.remove();
+  };
  },[enabled,route]);
  return null;
 }
+
 export default function WorkspaceUtilities(){
  const {user,booted}=useAuth(),location=useLocation(),principal=user?[user.user_id,user.role].join('|'):'',enabled=!!principal&&booted&&!['/login','/data-backup'].includes(location.pathname);
  useEffect(()=>{
