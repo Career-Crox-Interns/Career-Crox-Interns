@@ -14,7 +14,7 @@ async function create(userId,title,message,metadata={},category='candidate_updat
 }
 async function notify(row,actor,title,message,metadata={},extraIds=[]){
  const [users,state]=await Promise.all([collab.roster(),collab.state()]);
- const noteNotice=isNoteNotice({title,metadata}),recipients=new Set(extraIds.map(String)),viewers=new Map();
+ const recipients=new Set(extraIds),viewers=new Map();
  for(const user of users){
   const viewer=collab.hydrateFrom(user,state,users);
   if(access.userRole(user)==='tl'){
@@ -31,9 +31,13 @@ async function notify(row,actor,title,message,metadata={},extraIds=[]){
   // A removed collaborator must not receive a new note after losing record access.
   const person=users.find(u=>String(u.user_id)===String(recipient));if(!person)continue;
   if(!access.visibleCandidateForUser(row,viewers.get(String(recipient))||person))continue;
-  if(noteNotice&&!noteAudienceAllows(row,actor,person,users))continue;
-  const popup=noteNotice?notePopupPolicy(actor,person):{};
-  pending.push({notification_id:makeFastId('N'),user_id:recipient,title,message,category:'candidate_update',status:'Unread',metadata:JSON.stringify({structured_notice:true,note_body:metadata.note_id?String(message||'').slice(0,4000):metadata.note_body||'',candidate_id:row.candidate_id,candidate_name:row.full_name||row.candidate_name||'',open_path:'/candidate/'+encodeURIComponent(row.candidate_id),actor_id:actor?.user_id||'',actor_name:actor?.full_name||actor?.username||'Team member',...metadata,...popup,actor_role:access.userRole(actor||{}),notice_scope:'profile',owner_user_id:String(row.recruiter_user_id||row.assigned_to_user_id||row.owner_user_id||''),project_id:String(row.project_id||'')}),created_at:nowIso()});
+  const noteNotice=Boolean(metadata.note_id||metadata.note_body);
+  const actorRole=access.userRole(actor||{});
+  const recipientRole=access.userRole(person);
+  // Note from TL/Manager stays on the profile owner's Recruiter popup until dismissed.
+  // Everyone else sees that note for five seconds; a Recruiter's own note is transient for all.
+  const recruiterPersistentNote=noteNotice&&['manager','admin','tl'].includes(actorRole)&&recipientRole==='recruiter';
+  pending.push({notification_id:makeFastId('N'),user_id:recipient,title,message,category:'candidate_update',status:'Unread',metadata:JSON.stringify({structured_notice:true,popup_lifetime_ms:recruiterPersistentNote?0:noteNotice?5000:null,popup_manual_dismiss:recruiterPersistentNote,note_body:metadata.note_id?String(message||'').slice(0,4000):metadata.note_body||'',candidate_id:row.candidate_id,candidate_name:row.full_name||row.candidate_name||'',open_path:'/candidate/'+encodeURIComponent(row.candidate_id),actor_id:actor?.user_id||'',actor_name:actor?.full_name||actor?.username||'Team member',...metadata,notice_scope:'profile',owner_user_id:String(row.recruiter_user_id||row.assigned_to_user_id||row.owner_user_id||''),project_id:String(row.project_id||'')}),created_at:nowIso()});
  }
  if(!pending.length)return;
  if(store.pool){
@@ -95,51 +99,11 @@ function staffSubject(item,context={}){
  if(!key&&m.request_id)key=noticeText(context.unlocks?.get(String(m.request_id))?.user_id);
  return key?users.find(u=>String(u.user_id)===key)||{user_id:key,role:''}:null;
 }
-// CC170: candidate access and notification audience are separate checks.
-function isNoteNotice(item={}){
- const m=noticeMeta(item);
- return Boolean(m.note_id||m.note_body||(Array.isArray(m.changes)&&m.changes.some(c=>['notes','data_notes'].includes(c?.field)))||/\b(?:added|edited|updated) (?:a )?note\b/i.test(String(item.title||'')));
-}
-function noticeActor(item,users=[]){
- const m=noticeMeta(item),id=noticeText(m.actor_id),name=noticeText(m.actor_name).toLowerCase();
- if(id)return users.find(u=>String(u.user_id)===id)||{user_id:id,role:''};
- const matches=name?users.filter(u=>[u.full_name,u.username].some(v=>noticeText(v).toLowerCase()===name)):[];
- return matches.length===1?matches[0]:{role:''};
-}
-function profileOwner(row={},users=[]){
- const id=noticeText(row.recruiter_user_id||row.assigned_to_user_id||row.owner_user_id),code=noticeText(row.recruiter_code);
- if(id)return users.find(u=>String(u.user_id)===id)||{user_id:id,role:''};
- const matches=users.filter(u=>code?noticeText(u.recruiter_code)===code:noticeText(row.recruiter_name)&&[u.full_name,u.username].some(v=>noticeText(v)===noticeText(row.recruiter_name)));
- return matches.length===1?matches[0]:null;
-}
-function noteAudienceAllows(row,actor,recipient,users=[]){
- if(access.isAdminOrManager(recipient))return true;
- if(actor?.user_id&&String(actor.user_id)===String(recipient?.user_id))return true;
- const owner=profileOwner(row,users);if(!owner)return false;
- if(String(owner.user_id)===String(recipient?.user_id))return true;
- return access.userRole(recipient)==='tl'&&access.userRole(owner)==='recruiter'&&collab.primaryTl(owner,users)===String(recipient.user_id);
-}
-function notePopupPolicy(actor,recipient){
- const source=access.userRole(actor||{}),target=access.userRole(recipient||{});
- const own=actor?.user_id&&String(actor.user_id)===String(recipient?.user_id);
- const manual=!own&&((['manager','admin'].includes(source)&&['tl','recruiter'].includes(target))||(source==='tl'&&target==='recruiter'));
- return {popup_lifetime_ms:manual?0:5000,popup_manual_dismiss:Boolean(manual)};
-}
-function popupMetaForRecipient(item,recipient,users=[]){
- const m=noticeMeta(item);if(!isNoteNotice(item))return m;
- const actor=noticeActor(item,users);
- // When a legacy author cannot be verified, preserve an explicit stored policy.
- return {...m,...(access.userRole(actor)?notePopupPolicy(actor,recipient):{}),actor_role:access.userRole(actor)};
-}
 function notificationAllowed(viewer,item,context={},ownOnly=false){
  if(!viewer?.user_id||!item?.user_id)return false;
  const own=String(viewer.user_id)===String(item.user_id);
  if(ownOnly&&!own)return false;
  const m=noticeMeta(item),category=noticeText(item.category).toLowerCase(),title=noticeText(item.title);
- if(isNoteNotice(item)){
-  const row=context.candidates?.get(noticeText(m.candidate_id))||context.profile||{recruiter_user_id:m.owner_user_id};
-  if(!noteAudienceAllows(row,noticeActor(item,context.users||[]),viewer,context.users||[]))return false;
- }
  if(category==='chat')return own;
  if(access.isAdminOrManager(viewer))return true;
  if(m.manager_review||/attendance report approval pending|TL self.unlocked.*review pending/i.test(title))return false;
@@ -179,7 +143,33 @@ async function noticeAccessContext(viewer,items=[]){
  const metadata=items.map(noticeMeta),ids=key=>[...new Set(metadata.map(m=>noticeText(m[key])).filter(Boolean))];
  async function rows(table,key,keys,fields){
   if(!keys.length)return new Map();
-  const list=store.pool?await store.query('select '+fields+' from public.'+table+' where '+key+'=any($1::text[])',[keys]):(await require('./store').table(table)).filter(r=>keys.includes(String(r[key])));
+  let list;
+  if(store.pool&&table==='candidates'){
+    // Optional bucket fields differ between existing Supabase schemas. Reading
+    // through row JSON avoids SQL errors when a column has not been added yet.
+    list=await store.query(`select
+      to_jsonb(c)->>'candidate_id' as candidate_id,
+      to_jsonb(c)->>'project_id' as project_id,
+      to_jsonb(c)->>'recruiter_user_id' as recruiter_user_id,
+      to_jsonb(c)->>'recruiter_code' as recruiter_code,
+      to_jsonb(c)->>'recruiter_name' as recruiter_name,
+      to_jsonb(c)->>'status' as status,
+      to_jsonb(c)->>'approval_status' as approval_status,
+      to_jsonb(c)->>'all_details_sent' as all_details_sent,
+      to_jsonb(c)->>'data_notes' as data_notes,
+      to_jsonb(c)->>'deleted_at' as deleted_at,
+      to_jsonb(c)->>'bucket_assigned_at' as bucket_assigned_at,
+      to_jsonb(c)->>'bucket_expires_at' as bucket_expires_at,
+      to_jsonb(c)->>'bucket_is_bucket_out' as bucket_is_bucket_out,
+      to_jsonb(c)->>'allocation_lock_until' as allocation_lock_until,
+      to_jsonb(c)->>'allocation_lock_owner_id' as allocation_lock_owner_id
+     from public.candidates c
+     where c.candidate_id=any($1::text[])`,[keys]);
+  }else if(store.pool){
+    list=await store.query('select '+fields+' from public.'+table+' where '+key+'=any($1::text[])',[keys]);
+  }else{
+   list=(await require('./store').table(table)).filter(r=>keys.includes(String(r[key])));
+  }
   return new Map(list.map(r=>[String(r[key]),r]));
  }
  const [candidates,reports,unlocks]=await Promise.all([
@@ -189,4 +179,4 @@ async function noticeAccessContext(viewer,items=[]){
  ]);
  return {users,viewer:scoped,candidates,reports,unlocks};
 }
-Object.assign(module.exports,{noticeMeta,staffNoticeVisible,staffNoticeRecipients,notificationAllowed,noticeAccessContext,isNoteNotice,noteAudienceAllows,notePopupPolicy,popupMetaForRecipient});
+Object.assign(module.exports,{noticeMeta,staffNoticeVisible,staffNoticeRecipients,notificationAllowed,noticeAccessContext});
