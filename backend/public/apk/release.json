@@ -1,0 +1,13 @@
+{
+  "release": "CC165",
+  "app_name": "Career Crox",
+  "version_name": "1.0.165",
+  "version_code": 929,
+  "build_required": true,
+  "apk_built": false,
+  "file_name": "CareerCrox.apk",
+  "size_bytes": 0,
+  "sha256": "",
+  "real_phone_calls_tested": false,
+  "message": "Source-only release. Build Mobile Application/Android with Android Studio; no prebuilt APK is included."
+}
