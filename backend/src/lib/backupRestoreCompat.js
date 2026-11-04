@@ -1,5 +1,4 @@
 const crypto = require('crypto');
-const { isDeepStrictEqual } = require('util');
 const fail = message => Object.assign(new Error(message), { status: 409 });
 const norm = value => String(value ?? '').trim().toLowerCase();
 const protectedUserField = key => /password|secret|token|session|auth|mfa|otp/i.test(key)
@@ -104,61 +103,6 @@ function reconcileBackup(payload, roster, targetSchema, options={}) {
     }
     return result;
   }
-  const mobileAppearancePrefix = 'mobile_appearance_';
-  const appearanceSourceOwners = new Map();
-  for (const source of payload.tables.users) {
-    const sourceId = String(source?.user_id ?? '').trim();
-    const recruiterCode = String(source?.recruiter_code ?? '').trim();
-    for (const alias of new Set([sourceId, recruiterCode].filter(Boolean))) {
-      if (appearanceSourceOwners.has(alias) && appearanceSourceOwners.get(alias)?.sourceId !== sourceId) {
-        appearanceSourceOwners.set(alias, null);
-      } else if (!appearanceSourceOwners.has(alias)) {
-        appearanceSourceOwners.set(alias, { sourceId, recruiterCode });
-      }
-    }
-  }
-  function sameSettingPayload(left, right) {
-    const leftCopy = { ...left }, rightCopy = { ...right };
-    delete leftCopy.setting_key;
-    delete rightCopy.setting_key;
-    return isDeepStrictEqual(leftCopy, rightCopy);
-  }
-  function mapSettings(rows) {
-    const mappedRows = [], firstByMappedKey = new Map();
-    for (const source of rows) {
-      const mapped = row('settings', source);
-      const originalKey = String(source?.setting_key ?? '');
-      if (!originalKey.startsWith(mobileAppearancePrefix)) {
-        mappedRows.push(mapped);
-        continue;
-      }
-      const sourceSuffix = originalKey.slice(mobileAppearancePrefix.length);
-      const owner = appearanceSourceOwners.get(sourceSuffix) || null;
-      const previous = firstByMappedKey.get(mapped.setting_key);
-      if (!previous) {
-        firstByMappedKey.set(mapped.setting_key, { index: mappedRows.length, sourceSuffix, owner, row: mapped });
-        mappedRows.push(mapped);
-        continue;
-      }
-      const sameEmployee = Boolean(owner && previous.owner && owner.sourceId === previous.owner.sourceId);
-      const expectedAliases = owner && previous.owner
-        && owner.sourceId === previous.owner.sourceId
-        && owner.recruiterCode === previous.owner.recruiterCode
-        && owner.sourceId !== owner.recruiterCode;
-      const suffixes = new Set([sourceSuffix, previous.sourceSuffix]);
-      const isIdAndCodePair = Boolean(expectedAliases && suffixes.size === 2
-        && suffixes.has(owner.sourceId) && suffixes.has(owner.recruiterCode));
-      if (!sameEmployee || !isIdAndCodePair || !sameSettingPayload(previous.row, mapped)) {
-        throw fail('Mobile appearance settings map to the same employee key but are not a matching ID/code pair with identical contents. No data was restored. Review the source settings first.');
-      }
-      // Keep the canonical source-user-ID row when the old ID and recruiter-code keys converge.
-      if (sourceSuffix === owner.sourceId && previous.sourceSuffix !== owner.sourceId) {
-        mappedRows[previous.index] = mapped;
-        firstByMappedKey.set(mapped.setting_key, { ...previous, sourceSuffix, owner, row: mapped });
-      }
-    }
-    return mappedRows;
-  }
   const schema = { ...payload.schema }, tables = {};
   for (const [table, rows] of Object.entries(payload.tables)) {
     if (table === 'users') tables.users = rows.map((source, i) => {
@@ -168,7 +112,6 @@ function reconcileBackup(payload, roster, targetSchema, options={}) {
       } else Object.assign(result, { user_id: identity.user_id, username: identity.username, recruiter_code: identity.recruiter_code, is_active: options.transfer ? source.is_active??'1' : '0' });
       return result;
     });
-    else if (table === 'settings') tables[table] = mapSettings(rows);
     else tables[table] = rows.map(item => row(table, item));
   }
   // New historical-only accounts are inactive even when an old backup did not declare this column.
