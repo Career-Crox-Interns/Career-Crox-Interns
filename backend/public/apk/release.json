@@ -1,0 +1,16 @@
+{
+  "release": "CC205",
+  "app_name": "Career Crox",
+  "version_code": 2050,
+  "version_name": "1.0.205",
+  "package_name": "com.careercrox.dialer",
+  "application_id": "com.careercrox.dialer",
+  "build_type": "release",
+  "development_build": false,
+  "apk_built": true,
+  "build_required": false,
+  "file_name": "205_INTERN_CareerCrox_Staff.apk",
+  "size_bytes": 1648936,
+  "sha256": "9f7e286f74800878fd0c02e40e78cea8d33b0bd9e703387e6f7f477e8c9d51ed",
+  "real_phone_calls_tested": false
+}
